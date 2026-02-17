@@ -43,3 +43,6 @@ dnf5 -y install ananicy-cpp \
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+# Disable fedora flatpak repos
+systemctl disable flatpak-add-fedora-repos.service
