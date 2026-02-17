@@ -35,7 +35,11 @@ dnf5 -y install ananicy-cpp \
   mangohud \
   mangohud.i686 \
   dkms \
-  flatpak
+  flatpak \
+  rsync \
+  podman \
+  distrobox \
+  xpadneo
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
