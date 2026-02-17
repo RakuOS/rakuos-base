@@ -4,15 +4,11 @@ set -ouex pipefail
 
 ## Enable repos
 dnf5 -y install dnf5-plugins
-dnf5 -y copr enable bieszczaders/kernel-cachyos
-dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
 dnf5 -y copr enable atim/xpadneo
 
 
 # install packages
-dnf5 -y install ananicy-cpp \
-  cachyos-ananicy-rules \
-  scx-scheds \
+dnf5 -y install scx-scheds \
   scx-tools \
   mangohud \
   mangohud.i686 \
