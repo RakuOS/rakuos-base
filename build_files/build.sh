@@ -12,8 +12,7 @@ dnf5 -y copr enable atim/xpadneo
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs
 
 # Install cachyos kernel
-dnf5 -y install kernel-cachyos kernel-cachyos-devel-matched
-
+dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
 # install packages
 dnf5 -y install ananicy-cpp \
