@@ -39,10 +39,19 @@ dnf5 -y install ananicy-cpp \
   rsync \
   podman \
   distrobox \
-  xpadneo
+  xpadneo \
+  qemu-kvm \
+  libvirt-daemon \
+  libvirt-daemon-driver-qemu \
+  libvirt-client \
+  bridge-utils \
+  virt-install 
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Disable fedora flatpak repos
 systemctl disable flatpak-add-fedora-repos.service
+
+#enable libvirt
+systemctl enable libvirtd
