@@ -14,20 +14,6 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
-# install packages
-dnf5 -y install ananicy-cpp \
-  cachyos-ananicy-rules \
-  scx-scheds \
-  scx-tools \
-  mangohud \
-  mangohud.i686 \
-  dkms \
-  flatpak
-
-# enable flathub
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-
 #Build initramfs
 # Determine the installed CachyOS kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
@@ -40,3 +26,16 @@ depmod "$QUALIFIED_KERNEL"
     --add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
+
+# install packages
+dnf5 -y install ananicy-cpp \
+  cachyos-ananicy-rules \
+  scx-scheds \
+  scx-tools \
+  mangohud \
+  mangohud.i686 \
+  dkms \
+  flatpak
+
+# enable flathub
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
