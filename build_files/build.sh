@@ -2,23 +2,21 @@
 
 set -ouex pipefail
 
-### Install packages
+## Enable repos
+dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
+dnf5 -y copr enable atim/xpadneo
 
-# Packages can be installed from any enabled yum repo on the image.
-# RPMfusion repos are available by default in ublue main images
-# List of rpmfusion packages can be found here:
-# https://mirrors.rpmfusion.org/mirrorlist?path=free/fedora/updates/43/x86_64/repoview/index.html&protocol=https&redirect=1
+# install packages
+dnf5 -y install ananicy-cpp \
+  cachyos-ananicy-rules \
+  scx-scheds \
+  scx-tools \
+  mangohud \
+  mangohud.i686 \
+  xpadneo \
+  flatpak
 
-# this installs a package from fedora repos
-dnf5 install -y tmux 
+# enable flathub
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# Use a COPR Example:
-#
-# dnf5 -y copr enable ublue-os/staging
-# dnf5 -y install package
-# Disable COPRs so they don't end up enabled on the final image:
-# dnf5 -y copr disable ublue-os/staging
 
-#### Example for enabling a System Unit File
-
-systemctl enable podman.socket
