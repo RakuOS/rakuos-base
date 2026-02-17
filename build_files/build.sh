@@ -3,6 +3,7 @@
 set -ouex pipefail
 
 ## Enable repos
+dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
 dnf5 -y copr enable atim/xpadneo
 
