@@ -35,12 +35,16 @@ dnf5 -y install ananicy-cpp \
   scx-tools \
   mangohud \
   mangohud.i686 \
+  gamemode \
+  gamemode.i686 \
   dkms \
   flatpak \
   rsync \
   podman \
   distrobox \
   xpadneo \
+  nodejs \
+  nodejs-npm \
   qemu-kvm \
   libvirt-daemon \
   libvirt-daemon-driver-qemu \
