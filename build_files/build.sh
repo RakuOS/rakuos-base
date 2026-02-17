@@ -17,7 +17,6 @@ dnf5 -y install scx-scheds \
   dkms \
   flatpak \
   rsync \
-  podman \
   distrobox \
   xpadneo \
   nodejs \
