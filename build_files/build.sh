@@ -13,6 +13,7 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
+setsebool -P domain_kernel_load_modules on
 
 #Build initramfs
 # Determine the installed CachyOS kernel version
