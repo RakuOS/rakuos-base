@@ -40,6 +40,7 @@ dnf5 -y install ananicy-cpp \
   libvirt-client \
   bridge-utils \
   virt-install \
+  squashfuse \
   glibc-langpack-en
 
 # enable flathub
