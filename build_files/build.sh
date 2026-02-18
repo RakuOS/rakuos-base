@@ -5,7 +5,7 @@ set -ouex pipefail
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
-
+dnf5 -y copr enable sentry/xpadneo
 
 # install packages
 dnf5 -y install ananicy-cpp \
@@ -17,14 +17,12 @@ dnf5 -y install ananicy-cpp \
   gamemode \
   gamemode.i686 \
   pulseaudio-utils \
-  dkms \
   git \
-  gcc \
-  make \
   flatpak \
   rsync \
   podman \
   distrobox \
+  xpadneo \
   kernel \
   kernel-devel-matched \
   kernel-headers \
@@ -124,27 +122,7 @@ systemctl mask systemd-remount-fs.service
 systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable libvirtd
 
-#mkdir -p /var/log//var/log/akmods
-#touch /var/log//var/log/akmods/akmods.log
-#KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
-#akmods --force --kernels "$KVER"
-
-## Xpadneo
-echo "Cloning xpadneo v0.9.8..."
-git clone --depth=1 --branch v0.9.8 https://github.com/atar-axis/xpadneo.git /tmp/xpadneo
-
-echo "Building xpadneo for image kernels..."
-
-for KVER_PATH in /usr/lib/modules/*; do
-    KVER="$(basename "$KVER_PATH")"
-    echo "→ Building for $KVER"
-
-    cd /tmp/xpadneo/hid-xpadneo
-    make clean || true
-    make -C /usr/src/kernels/$KVER M=$(pwd) modules
-    make -C /usr/src/kernels/$KVER M=$(pwd) modules_install
-    depmod "$KVER"
-done
-install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-modprobe.d/xpadneo.conf /etc/modprobe.d/xpadneo.conf
-install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-udev-rules.d/60-xpadneo.rules /etc/udev/rules.d/60-xpadneo.rules
-install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-udev-rules.d/70-xpadneo-disable-hidraw.rules /etc/udev/rules.d/70-xpadneo-disable-hidraw.rules
+mkdir -p /var/log//var/log/akmods
+touch /var/log//var/log/akmods/akmods.log
+KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
+akmods --force --kernels "$KVER"
