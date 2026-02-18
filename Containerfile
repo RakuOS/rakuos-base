@@ -6,6 +6,7 @@ COPY build_files /
 FROM quay.io/fedora/fedora-bootc:43
 
 RUN rmdir /opt && ln -s -T /var/opt /opt
+RUN mv /usr/local /var/usr_local && ln -s -T /var/usr_local /usr/local
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
