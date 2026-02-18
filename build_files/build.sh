@@ -17,6 +17,7 @@ dnf5 -y install ananicy-cpp \
   mangohud.i686 \
   gamemode \
   gamemode.i686 \
+  pulseaudio-utils \
   dkms \
   flatpak \
   rsync \
