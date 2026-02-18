@@ -19,6 +19,7 @@ dnf5 -y install ananicy-cpp \
   pulseaudio-utils \
   git \
   flatpak \
+  libxcrypt-compat \
   rsync \
   podman \
   distrobox \
