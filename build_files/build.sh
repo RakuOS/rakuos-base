@@ -43,7 +43,7 @@ dnf5 -y install ananicy-cpp \
   squashfuse \
   glibc-langpack-en
 
-cp -r /tmp/system_files /
+cp -r /ctx/system_files /
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
