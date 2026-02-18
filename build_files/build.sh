@@ -35,7 +35,8 @@ dnf5 -y install ananicy-cpp \
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-## add scripts and servives for RakuOS
+## add scripts and services for RakuOS and folder structures
+mkdir -p /usr/share/rakuos
 echo "Creating RakuOS first-boot Flatpak installer..."
 mkdir -p /usr/libexec/rakuos
 # Create the first-boot install script
