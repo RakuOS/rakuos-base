@@ -23,6 +23,7 @@ dnf5 -y install ananicy-cpp \
   podman \
   distrobox \
   xpadneo \
+  steam-devices \
   nodejs \
   nodejs-npm \
   qemu-kvm \
@@ -104,8 +105,10 @@ RemainAfterExit=false
 WantedBy=multi-user.target
 EOF
 
-# Disable fedora flatpak repos
+# Disable services
 systemctl disable flatpak-add-fedora-repos.service
+systemctl disable akmods-keygen.service
+systemd-remount-fs.service
 
 #enable enable services
 systemctl enable rakuos-firstboot-flatpaks.service
