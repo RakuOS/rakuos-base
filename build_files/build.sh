@@ -143,6 +143,5 @@ for KVER_PATH in /usr/lib/modules/*; do
     make clean || true
     make -C /usr/src/kernels/$KVER M=$(pwd) modules
     make -C /usr/src/kernels/$KVER M=$(pwd) modules_install
+    depmod "$KVER"
 done
-
-depmod -a
