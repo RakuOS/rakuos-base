@@ -1,9 +1,10 @@
+ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM quay.io/fedora/fedora-bootc:43
+FROM quay.io/fedora/fedora-bootc:${FEDORA_VERSION}
 
 RUN rmdir /opt && ln -s -T /var/opt /opt
 RUN mv /usr/local /var/usr_local && ln -s -T /var/usr_local /usr/local

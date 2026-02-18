@@ -4,8 +4,8 @@ set -ouex pipefail
 
 ## Enable repos
 dnf5 -y install dnf5-plugins
-dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
-dnf5 -y copr enable sentry/xpadneo
+dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
+dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
 
 # install packages
 dnf5 -y install ananicy-cpp \
