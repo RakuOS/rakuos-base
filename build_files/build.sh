@@ -88,5 +88,6 @@ EOF
 # Disable fedora flatpak repos
 systemctl disable flatpak-add-fedora-repos.service
 
-#enable libvirt
+#enable enable services
+systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable libvirtd
