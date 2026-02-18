@@ -117,7 +117,7 @@ EOF
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
-systemctl disable akmods-keygen@akmods-keygen.service
+systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
 #enable enable services
