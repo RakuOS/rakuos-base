@@ -5,7 +5,6 @@ set -ouex pipefail
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
-dnf5 -y copr enable atim/xpadneo
 
 
 # install packages
@@ -19,6 +18,9 @@ dnf5 -y install ananicy-cpp \
   gamemode.i686 \
   pulseaudio-utils \
   dkms \
+  git \
+  gcc \
+  make \
   flatpak \
   rsync \
   podman \
@@ -26,7 +28,6 @@ dnf5 -y install ananicy-cpp \
   kernel \
   kernel-devel-matched \
   kernel-headers \
-  xpadneo \
   mokutil \
   openssl \
   steam-devices \
@@ -122,9 +123,16 @@ systemctl mask systemd-remount-fs.service
 systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable libvirtd
 
-mkdir -p /var/log//var/log/akmods
-touch /var/log//var/log/akmods/akmods.log
-KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
+#mkdir -p /var/log//var/log/akmods
+#touch /var/log//var/log/akmods/akmods.log
+#KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
+#akmods --force --kernels "$KVER"
 
-akmods --force --kernels "$KVER"
+## Xpadneo
+git clone --branch v0.9.8 https://github.com/atar-axis/xpadneo.git /tmp/xpadneo
 
+# Build and install for the image’s kernel
+KVER=$(ls /usr/lib/modules | head -n1) && \
+    cd /tmp/xpadneo && \
+    make KERNELRELEASE=$KVER && \
+    make install
