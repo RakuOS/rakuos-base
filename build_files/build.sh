@@ -118,3 +118,8 @@ systemctl mask systemd-remount-fs.service
 #enable enable services
 systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable libvirtd
+
+mkdir -p /var/log//var/log/akmods
+touch /var/log//var/log/akmods/akmods.log
+akmods --force
+
