@@ -38,6 +38,7 @@ dnf5 -y install ananicy-cpp \
   libvirt-client \
   bridge-utils \
   virt-install \
+  fuse \
   squashfuse \
   glibc-langpack-en
 
