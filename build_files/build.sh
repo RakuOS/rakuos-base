@@ -23,7 +23,7 @@ dnf5 -y install ananicy-cpp \
   rsync \
   podman \
   distrobox \
-  xpadneo \
+  kmod-xpadneo.x86_64 \
   mokutil \
   openssl \
   steam-devices \
@@ -112,6 +112,7 @@ EOF
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
+systemctl disable akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
 #enable enable services
