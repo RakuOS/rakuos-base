@@ -23,6 +23,8 @@ dnf5 -y install ananicy-cpp \
   podman \
   distrobox \
   xpadneo \
+  mokutil \
+  openssl \
   steam-devices \
   openrgb-udev-rules \
   nodejs \
@@ -109,8 +111,7 @@ EOF
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
-systemctl disable akmods-keygen.service
-systemctl disable systemd-remount-fs.service
+systemctl mask systemd-remount-fs.service
 
 #enable enable services
 systemctl enable rakuos-firstboot-flatpaks.service
