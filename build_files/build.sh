@@ -32,7 +32,8 @@ dnf5 -y install ananicy-cpp \
   libvirt-daemon-driver-qemu \
   libvirt-client \
   bridge-utils \
-  virt-install 
+  virt-install \
+  glibc-langpack-en
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
