@@ -1,0 +1,13 @@
+[Unit]
+Description=RakuOS First Boot Flatpak Installer
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/usr/libexec/rakuos/firstboot-flatpaks.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/firstboot-flatpaks.sh
+RemainAfterExit=false
+
+[Install]
+WantedBy=multi-user.target
