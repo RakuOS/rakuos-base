@@ -129,10 +129,19 @@ systemctl enable libvirtd
 #akmods --force --kernels "$KVER"
 
 ## Xpadneo
-git clone --branch v0.9.8 https://github.com/atar-axis/xpadneo.git /tmp/xpadneo
+## Xpadneo
+echo "Cloning xpadneo v0.9.8..."
+git clone --depth=1 --branch v0.9.8 https://github.com/atar-axis/xpadneo.git /tmp/xpadneo
 
-# Build and install for the image’s kernel
-KVER=$(ls /usr/lib/modules | head -n1) && \
-    cd /tmp/xpadneo && \
-    make KERNELRELEASE=$KVER && \
+echo "Building xpadneo for image kernels..."
+
+for KVER_PATH in /usr/lib/modules/*; do
+    KVER="$(basename "$KVER_PATH")"
+    echo "→ Building for $KVER"
+    cd /tmp/xpadneo
+    make clean || true
+    make KERNELRELEASE="$KVER"
     make install
+done
+
+depmod -a
