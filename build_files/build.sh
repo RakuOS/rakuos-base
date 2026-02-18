@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -ouex pipefail
-
+FEDORA_VERSION="${FEDORA_VERSION:-43}"
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
