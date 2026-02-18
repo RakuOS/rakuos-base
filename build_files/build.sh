@@ -66,6 +66,8 @@ while read -r app; do
 done < "$FLATPAK_LIST"
 
 echo "Flatpak installation complete."
+# Disable service so it never runs again
+systemctl disable rakuos-firstboot-flatpaks.service
 EOF
 
 chmod +x /usr/libexec/rakuos/firstboot-flatpaks.sh
@@ -76,11 +78,12 @@ cat << 'EOF' > /etc/systemd/system/rakuos-firstboot-flatpaks.service
 Description=RakuOS First Boot Flatpak Installer
 After=network-online.target
 Wants=network-online.target
-ConditionFirstBoot=yes
+ConditionPathExists=/usr/libexec/rakuos/firstboot-flatpaks.sh
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/rakuos/firstboot-flatpaks.sh
+RemainAfterExit=false
 
 [Install]
 WantedBy=multi-user.target
