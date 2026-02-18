@@ -23,7 +23,10 @@ dnf5 -y install ananicy-cpp \
   rsync \
   podman \
   distrobox \
-  kmod-xpadneo.x86_64 \
+  kernel \
+  kernel-devel-matched \
+  kernel-headers \
+  xpadneo \
   mokutil \
   openssl \
   steam-devices \
