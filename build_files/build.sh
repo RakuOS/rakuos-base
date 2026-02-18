@@ -124,5 +124,7 @@ systemctl enable libvirtd
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
-akmods --force
+KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
+
+akmods --force --kernels "$KVER"
 
