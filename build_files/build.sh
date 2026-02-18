@@ -139,9 +139,11 @@ for KVER_PATH in /usr/lib/modules/*; do
     echo "→ Building for $KVER"
 
     cd /tmp/xpadneo/hid-xpadneo
-
     make clean || true
     make -C /usr/src/kernels/$KVER M=$(pwd) modules
     make -C /usr/src/kernels/$KVER M=$(pwd) modules_install
     depmod "$KVER"
 done
+install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-modprobe.d/xpadneo.conf /etc/modprobe.d/xpadneo.conf
+install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-udev-rules.d/60-xpadneo.rules /etc/udev/rules.d/60-xpadneo.rules
+install -Dm644 /tmp/xpadneo/hid-xpadneo/etc-udev-rules.d/70-xpadneo-disable-hidraw.rules /etc/udev/rules.d/70-xpadneo-disable-hidraw.rules
