@@ -24,6 +24,7 @@ dnf5 -y install ananicy-cpp \
   distrobox \
   xpadneo \
   steam-devices \
+  openrgb-udev-rules \
   nodejs \
   nodejs-npm \
   qemu-kvm \
