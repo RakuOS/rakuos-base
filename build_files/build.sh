@@ -52,3 +52,16 @@ mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
 akmods --force --kernels "$KVER"
+
+#Build initramfs
+# Determine the installed CachyOS kernel version
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel)
+
+# Generate module dependencies
+depmod "$QUALIFIED_KERNEL"
+
+# Generate initramfs for that kernel
+/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
+    --add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+
+chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
