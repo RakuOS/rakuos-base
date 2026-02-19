@@ -8,17 +8,21 @@ dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
 
 # Fix fedora repos for iso builds
-echo "Fixing Fedora repo files for container builds..."
+echo "Adjusting Fedora repo files..."
 
 for repo in /etc/yum.repos.d/fedora*.repo; do
-    # Uncomment baseurl lines
-    sed -i 's/^#\([[:space:]]*baseurl=.*\)/\1/' "$repo"
+    # Uncomment baseurl if present
+    sed -i 's|^#\s*\(baseurl=.*\)|\1|' "$repo"
 
-    # Comment out metalink lines
-    sed -i 's/^\([[:space:]]*metalink=.*\)/#\1/' "$repo"
+    # Comment metalink ONLY if a baseurl exists in that file
+    if grep -q '^baseurl=' "$repo"; then
+        sed -i 's|^\s*metalink=|#metalink=|' "$repo"
+        sed -i 's|^\s*mirrorlist=|#mirrorlist=|' "$repo"
+    fi
 done
 
-echo "Repo files updated: baseurl active, metalink commented out."
+echo "Repo adjustment complete."
+
 # install packages
 dnf5 -y install ananicy-cpp \
   cachyos-ananicy-rules \
