@@ -24,9 +24,6 @@ dnf5 -y install ananicy-cpp \
   podman \
   distrobox \
   xpadneo \
-  kernel \
-  kernel-devel-matched \
-  kernel-headers \
   mokutil \
   openssl \
   steam-devices \
