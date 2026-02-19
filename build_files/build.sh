@@ -45,6 +45,9 @@ dnf5 -y install ananicy-cpp \
   squashfuse \
   glibc-langpack-en
 
+## Remove packages
+dnf5 -y remove firefox
+
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
