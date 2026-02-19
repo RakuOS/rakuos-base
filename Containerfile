@@ -5,7 +5,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM quay.io/fedora/fedora-bootc:${FEDORA_VERSION}
+FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION}
 
 RUN rmdir /opt && ln -s -T /var/opt /opt
 RUN mv /usr/local /var/usr_local && ln -s -T /var/usr_local /usr/local

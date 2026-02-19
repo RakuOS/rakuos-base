@@ -57,8 +57,13 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
 #enable enable services
-systemctl enable rakuos-firstboot-flatpaks.service
+#systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable libvirtd
+systemctl enable virtlogd
+
+mkdir -p /var/log/libvirt/qemu
+chown root:libvirt /var/log/libvirt/qemu
+chmod 770 /var/log/libvirt/qemu
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
