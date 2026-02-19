@@ -54,7 +54,7 @@ KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
 akmods --force --kernels "$KVER"
 
 #Build initramfs
-# Determine the installed CachyOS kernel version
+# Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel)
 
 # Generate module dependencies
