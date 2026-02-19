@@ -30,17 +30,6 @@ dnf5 -y install ananicy-cpp \
   openrgb-udev-rules \
   nodejs \
   nodejs-npm \
-  qemu-kvm \
-  libvirt-daemon \
-  libvirt-daemon-driver-qemu \
-  libvirt-client \
-  libvirt-daemon-config-network \
-  libvirt-daemon-driver-network \
-  libvirt-daemon-driver-storage-core  \
-  dnsmasq \
-  iptables-nft \
-  bridge-utils \
-  virt-install \
   fuse \
   squashfuse \
   glibc-langpack-en
@@ -58,12 +47,6 @@ systemctl mask systemd-remount-fs.service
 
 #enable enable services
 #systemctl enable rakuos-firstboot-flatpaks.service
-systemctl enable libvirtd
-systemctl enable virtlogd
-
-mkdir -p /var/log/libvirt/qemu
-chown root:libvirt /var/log/libvirt/qemu
-chmod 770 /var/log/libvirt/qemu
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
