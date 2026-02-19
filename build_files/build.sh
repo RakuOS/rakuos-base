@@ -39,6 +39,8 @@ dnf5 -y install ananicy-cpp \
   libvirt-client \
   libvirt-daemon-config-network \
   libvirt-daemon-driver-network \
+  libvirt-daemon-driver-storage-core \
+  libvirt-daemon-driver-storage-dir \
   dnsmasq \
   iptables-nft \
   bridge-utils \
