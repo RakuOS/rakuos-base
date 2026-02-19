@@ -8,20 +8,24 @@ dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
 
 # Fix fedora repos for iso builds
-echo "Adjusting Fedora repo files..."
+echo "Fixing Fedora repo baseurls..."
 
 for repo in /etc/yum.repos.d/fedora*.repo; do
-    # Uncomment baseurl if present
+    # Uncomment baseurl
     sed -i 's|^#\s*\(baseurl=.*\)|\1|' "$repo"
 
-    # Comment metalink ONLY if a baseurl exists in that file
+    # Replace placeholder with real Fedora mirror
+    sed -i 's|download.example/pub/fedora/linux|download.fedoraproject.org/pub/fedora/linux|g' "$repo"
+
+    # Disable metalink and mirrorlist if baseurl exists
     if grep -q '^baseurl=' "$repo"; then
         sed -i 's|^\s*metalink=|#metalink=|' "$repo"
         sed -i 's|^\s*mirrorlist=|#mirrorlist=|' "$repo"
     fi
 done
 
-echo "Repo adjustment complete."
+echo "Fedora repo URLs fixed."
+
 
 # install packages
 dnf5 -y install ananicy-cpp \
