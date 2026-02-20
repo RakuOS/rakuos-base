@@ -1,22 +1,32 @@
 ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
+ARG VARIANT=base
+
 ENV FEDORA_VERSION=${FEDORA_VERSION}
-# Allow build scripts to be referenced without being copied into the final image
+ENV VARIANT=${VARIANT}
+
+# Allow build scripts to be referenced without copying into final image
 FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
 FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION}
 
-#RUN rm /opt && ln -s -T /var/opt /opt
+# Persist /usr/local to /var
 RUN mv /usr/local /var/usr_local && ln -s -T /var/usr_local /usr/local
+
+# Copy system files
 COPY system_files /
 
+# Run build + optional NVIDIA setup
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh
-    
+        /ctx/build.sh && \
+        if [ "$VARIANT" = "nvidia" ]; then \
+            /ctx/nvidia.sh; \
+        fi \
+    '
+
 ### LINTING
-## Verify final image and contents are correct.
 RUN bootc container lint
