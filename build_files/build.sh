@@ -62,16 +62,6 @@ systemctl enable \
   rpm-ostree-clean-deployments.timer \
   podman-prune.timer
 
-## Ignore /usr/local/share/fonts
-mkdir -p /etc/fonts/conf.d/
-cat <<'EOF' > /etc/fonts/conf.d/99-ignore-usr-local-fonts.conf
-<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <dir ignore="yes">/usr/local/share/fonts</dir>
-</fontconfig>
-EOF
-
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
