@@ -127,11 +127,11 @@ jobs:
 
       - name: Sign container image
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-          run: |
-            echo "${{ steps.metadata.outputs.tags }}" | tr ' ' '\n' | while read full_tag; do
-              echo "Signing $full_tag"
-              cosign sign -y --key env://COSIGN_PRIVATE_KEY "$full_tag"
-            done
+        run: |
+          echo "${{ steps.metadata.outputs.tags }}" | tr ' ' '\n' | while read full_tag; do
+            echo "Signing $full_tag"
+            cosign sign -y --key env://COSIGN_PRIVATE_KEY "$full_tag"
+          done
         env:
           TAGS: ${{ steps.push.outputs.digest }}
           COSIGN_EXPERIMENTAL: false
