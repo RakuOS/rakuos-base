@@ -90,13 +90,10 @@ jobs:
         id: build_image
         uses: redhat-actions/buildah-build@v2
         with:
-          containerfiles: ./Containerfile
+          containerfiles: ${{ matrix.variant == 'nvidia' && './Containerfile.nvidia' || './Containerfile' }}
           image: ${{ env.FINAL_IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
-          build-args: |
-            VARIANT=${{ env.VARIANT }}
-          target: ${{ matrix.variant }}
           oci: false
 
       - name: Login to GHCR
