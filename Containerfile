@@ -26,7 +26,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
         if [ "$VARIANT" = "nvidia" ]; then \
             /ctx/nvidia.sh; \
         fi \
-    '
 
 ### LINTING
 RUN bootc container lint

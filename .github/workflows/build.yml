@@ -49,9 +49,9 @@ jobs:
       - name: Set variant variables
         run: |
           if [ "${{ matrix.variant }}" = "base" ]; then
-            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}-base" >> $GITHUB_ENV
+            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           else
-            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}-base-nvidia" >> $GITHUB_ENV
+            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}-nvidia" >> $GITHUB_ENV
           fi
           echo "VARIANT=${{ matrix.variant }}" >> $GITHUB_ENV
 
