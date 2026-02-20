@@ -21,8 +21,6 @@ dnf5 -y install ananicy-cpp \
   bore-sysctl \
   scx-scheds \
   scx-tools \
-  mangohud \
-  mangohud.i686 \
   gamemode \
   gamemode.i686 \
   pulseaudio-utils \
