@@ -1,5 +1,5 @@
 ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
-ARG VARIANT=base
+ARG VARIANT=${VARIANT}
 
 ENV FEDORA_VERSION=${FEDORA_VERSION}
 ENV VARIANT=${VARIANT}
@@ -23,7 +23,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     bash -euxo pipefail -c '\
-        VARIANT="${VARIANT:-base}"; \
+        VARIANT="${VARIANT}"; \
         /ctx/build.sh; \
         if [ "$VARIANT" = "nvidia" ]; then \
             echo "Installing NVIDIA variant"; \
