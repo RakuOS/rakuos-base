@@ -18,6 +18,7 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 dnf5 -y install ananicy-cpp \
   cachyos-ananicy-rules \
   cachyos-settings \
+  bore-sysctl \
   scx-scheds \
   scx-tools \
   mangohud \
