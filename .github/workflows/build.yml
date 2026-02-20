@@ -96,6 +96,7 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: |
             VARIANT=${{ env.VARIANT }}
+          target: ${{ matrix.variant }}
           oci: false
 
       - name: Login to GHCR
