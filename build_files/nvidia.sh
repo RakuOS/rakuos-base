@@ -14,7 +14,7 @@ dnf5 install -y \
     xorg-x11-drv-nvidia-cuda \
     xorg-x11-drv-nvidia-power
 
-build akmods and update initramfs with nvidia drivers included
+#build akmods and update initramfs with nvidia drivers included
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
 akmods --force --kernels "$KVER"
 
