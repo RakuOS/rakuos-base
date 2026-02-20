@@ -17,6 +17,7 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 # install packages
 dnf5 -y install ananicy-cpp \
   cachyos-ananicy-rules \
+  cachyos-settings \
   scx-scheds \
   scx-tools \
   mangohud \
@@ -38,7 +39,8 @@ dnf5 -y install ananicy-cpp \
   nodejs \
   nodejs-npm \
   fuse \
-  squashfuse \
+  squashfuse \ 
+  virtualbox-guest-additions \
   glibc-langpack-en
 
 ## Remove packages
