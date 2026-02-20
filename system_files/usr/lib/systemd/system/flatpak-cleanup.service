@@ -1,0 +1,9 @@
+[Unit]
+Description=Flatpak system cleanup (remove unused runtimes)
+Documentation=man:flatpak(1)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flatpak uninstall --system --unused -y
+Nice=10
+IOSchedulingClass=idle

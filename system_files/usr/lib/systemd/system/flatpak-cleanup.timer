@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Flatpak cleanup twice daily
+
+[Timer]
+OnBootSec=15m
+OnUnitActiveSec=12h
+Persistent=true
+AccuracySec=1h
+
+[Install]
+WantedBy=timers.target
