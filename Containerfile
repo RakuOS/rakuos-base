@@ -22,10 +22,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-        /ctx/build.sh && \
+    bash -euxo pipefail -c '\
+        /ctx/build.sh; \
         if [ "$VARIANT" = "nvidia" ]; then \
+            echo "Installing NVIDIA variant"; \
             /ctx/nvidia.sh; \
         fi \
+    '
 
 ### LINTING
 RUN bootc container lint

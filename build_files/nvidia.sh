@@ -6,7 +6,7 @@ set -ouex pipefail
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/rpmfusion-nonfree-nvidia-driver.repo
 
 # Install NVIDIA stack
-dnf install -y \
+dnf5 install -y \
     akmod-nvidia \
     xorg-x11-drv-nvidia \
     xorg-x11-drv-nvidia-libs \
@@ -15,7 +15,7 @@ dnf install -y \
     xorg-x11-drv-nvidia-power
 
 # Optional but recommended for Wayland sessions
-dnf install -y nvidia-vaapi-driver libva-utils
+dnf5 install -y nvidia-vaapi-driver libva-utils
 
 build akmods and update initramfs with nvidia drivers included
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
