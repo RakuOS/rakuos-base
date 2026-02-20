@@ -14,9 +14,6 @@ dnf5 install -y \
     xorg-x11-drv-nvidia-cuda \
     xorg-x11-drv-nvidia-power
 
-# Optional but recommended for Wayland sessions
-dnf5 install -y nvidia-vaapi-driver libva-utils
-
 build akmods and update initramfs with nvidia drivers included
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
 akmods --force --kernels "$KVER"
