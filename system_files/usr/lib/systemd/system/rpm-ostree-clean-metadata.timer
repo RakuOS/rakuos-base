@@ -1,0 +1,9 @@
+[Unit]
+Description=Run rpm-ostree metadata cleanup weekly
+
+[Timer]
+OnCalendar=Sat 05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

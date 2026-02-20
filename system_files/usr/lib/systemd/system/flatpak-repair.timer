@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Flatpak repair weekly
+
+[Timer]
+OnCalendar=Sun 04:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

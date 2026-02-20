@@ -1,0 +1,6 @@
+[Unit]
+Description=Cleanup rpm-ostree cached metadata
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rpm-ostree cleanup -m

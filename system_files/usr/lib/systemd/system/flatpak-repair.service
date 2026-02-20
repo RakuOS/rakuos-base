@@ -1,0 +1,6 @@
+[Unit]
+Description=Weekly Flatpak system repair
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flatpak repair --system

@@ -55,7 +55,12 @@ systemctl mask systemd-remount-fs.service
 
 #enable enable services
 #systemctl enable rakuos-firstboot-flatpaks.service
-systemctl enable flatpak-cleanup.timer
+systemctl enable \
+  flatpak-cleanup.timer \
+  flatpak-repair.timer \
+  rpm-ostree-clean-metadata.timer \
+  rpm-ostree-clean-deployments.timer \
+  podman-prune.timer
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log

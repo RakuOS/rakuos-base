@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Podman cleanup weekly
+
+[Timer]
+OnCalendar=Sun 03:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target
