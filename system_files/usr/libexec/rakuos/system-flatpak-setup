@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fix system-wide Flathub remote only once
+
+MARKER_FILE="/var/lib/rakuos/flathub_fixed"
+
+# Ensure marker directory exists
+mkdir -p "$(dirname "$MARKER_FILE")"
+
+if [ ! -f "$MARKER_FILE" ]; then
+    echo "Fixing system-wide Flathub remote..."
+
+    # Remove broken Flathub remote if it exists
+    flatpak remote-delete --force flathub 2>/dev/null
+
+    # Re-add Flathub system-wide
+    flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+
+    echo "Flathub remote refreshed."
+
+    # Create marker so we don't run this again
+    touch "$MARKER_FILE"
+else
+    echo "Flathub fix already applied. Skipping."
+fi

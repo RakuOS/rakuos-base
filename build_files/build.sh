@@ -54,8 +54,8 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
 #enable enable services
-#systemctl enable rakuos-firstboot-flatpaks.service
 systemctl enable \
+  rakuos-flatpaks.service \
   flatpak-cleanup.timer \
   flatpak-repair.timer \
   rpm-ostree-clean-metadata.timer \
