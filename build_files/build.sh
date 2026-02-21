@@ -33,6 +33,8 @@ dnf5 -y install ananicy-cpp \
   xpadneo \
   mokutil \
   openssl \
+  freerdp \
+  podman-compose \
   steam-devices \
   openrgb-udev-rules \
   nodejs \
