@@ -36,6 +36,9 @@ jobs:
       packages: write
       id-token: write
 
+    outputs:
+      finished_nvidia: ${{ steps.set_nvidia.outputs.is_nvidia }}
+
     steps:
       - name: Prepare environment
         run: |
@@ -43,11 +46,14 @@ jobs:
           echo "IMAGE_NAME=${IMAGE_NAME,,}" >> $GITHUB_ENV
 
       - name: Set variant variables
+        id: set_nvidia
         run: |
-          if [ "${{ matrix.variant }}" = "base" ]; then
-            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
-          else
+          if [ "${{ matrix.variant }}" = "nvidia" ]; then
             echo "FINAL_IMAGE_NAME=${IMAGE_NAME}-nvidia" >> $GITHUB_ENV
+            echo "is_nvidia=true" >> $GITHUB_OUTPUT
+          else
+            echo "FINAL_IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+            echo "is_nvidia=false" >> $GITHUB_OUTPUT
           fi
           echo "VARIANT=${{ matrix.variant }}" >> $GITHUB_ENV
 
@@ -118,7 +124,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         with:
           cosign-release: 'v2.6.1'
@@ -136,8 +142,8 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
 
   dispatch:
-    if: matrix.variant == 'nvidia'
     needs: build_push
+    if: needs.build_push.outputs.finished_nvidia == 'true'
     strategy:
       matrix:
         repo: ['RakuOS/rakuos-kde', 'RakuOS/rakuos-gnome']
