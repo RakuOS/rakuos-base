@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   schedule:
     - cron: '05 10 * * *'
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**/README.md'
   workflow_dispatch:
 
 env:
@@ -138,30 +134,21 @@ jobs:
           TAGS: ${{ steps.push.outputs.digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-
-      # -------------------------------
-      # Trigger downstream workflows (only once for base variant)
-      # -------------------------------
-      - name: Trigger rakuos-kde build workflow
-        if: matrix.variant == 'nvidia'
-        uses: peter-evans/repository-dispatch@v2
+  
+  dispatch:
+    if: matrix.variant == 'nvidia'
+    needs: build_push
+    strategy:
+      matrix:
+        repo: ['RakuOS/rakuos-kde', 'RakuOS/rakuos-gnome']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.PAT }}
-          repository: RakuOS/rakuos-kde
-          event-type: trigger-build
-          client-payload: |
-            {
-              "source_repo": "${{ github.repository }}",
-              "source_branch": "${{ github.ref_name }}"
-            }
-
-      - name: Trigger rakuos-gnome build workflow
-        if: matrix.variant == 'nvidia'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.PAT }}
-          repository: RakuOS/rakuos-gnome
-          event-type: trigger-build
+          repository: ${{ matrix.repo }}
+          event-type: build_push
           client-payload: |
             {
               "source_repo": "${{ github.repository }}",
