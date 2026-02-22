@@ -15,7 +15,7 @@
 # sudo_command = "sudo"
 
 # Disable specific steps - same options as the command line flag
-disable = ["flatpak", "toolbox", "distrobox", "firmware", "npm"]
+disable = ["flatpak", "toolbx", "distrobox", "firmware", "node"]
 
 # Ignore failures for these steps
 # ignore_failures = ["powershell"]
@@ -108,20 +108,3 @@ disable = ["flatpak", "toolbox", "distrobox", "firmware", "npm"]
 [linux]
 rpm_ostree = true
 bootc = false
-
-[flatpak]
-# Use sudo for updating the system-wide installation
-# use_sudo = true
-enable = false
-
-[toolbox]
-enable = false
-
-[distrobox]
-enable = false
-
-[firmware]
-enable = false
-
-[npm]
-enable = false
