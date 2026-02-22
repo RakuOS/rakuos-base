@@ -107,3 +107,21 @@
 
 [linux]
 rpm_ostree = true
+bootc = false
+
+[flatpak]
+# Use sudo for updating the system-wide installation
+# use_sudo = true
+enable = false
+
+[toolbox]
+enable = false
+
+[distrobox]
+enable = false
+
+[firmware]
+enable = false
+
+[npm]
+enable = false
