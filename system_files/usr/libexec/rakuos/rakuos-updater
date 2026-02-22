@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_PATH="/etc/topgrade/topgrade.toml"
+
+# Persistent notification helper
+notify() {
+    local title="$1"
+    local message="$2"
+    notify-send -u normal -t 0 "$title" "$message"
+}
+
+echo "Starting RakuOS Auto Updater (rpm-ostree)..."
+
+# Run Topgrade with minimal rpm-ostree config
+topgrade --config "$CONFIG_PATH" --yes --allow-root --skip-notify
+
+# Notify user updates are complete
+notify "RakuOS Updates Complete" "System updates via rpm-ostree have been applied."
+
+# -------------------------------
+# Persistent notification with buttons
+# -------------------------------
+if command -v gdbus &>/dev/null; then
+    # Send notification with actions
+    # Buttons: "Reboot Now" and "Later"
+    NOTIF_ID=$(gdbus call --session \
+        --dest org.freedesktop.Notifications \
+        --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.Notify \
+        "RakuOS Updater" 0 "" "RakuOS Updates Complete" \
+        "System updates have been applied. Choose an action:" \
+        ["Reboot Now","Later"] {} 0 | awk -F' ' '{print $2}' | tr -d ',)')
+
+    # Listen for actions
+    while true; do
+        read -r ACTION_ID ACTION_NAME < <(gdbus monitor --session --dest org.freedesktop.Notifications \
+            | grep "ActionInvoked" | head -n1 | awk '{print $4,$5}')
+        if [[ "$ACTION_NAME" == "\"Reboot Now\"" ]]; then
+            sudo systemctl reboot
+            break
+        elif [[ "$ACTION_NAME" == "\"Later\"" ]]; then
+            # Close the notification
+            gdbus call --session \
+                --dest org.freedesktop.Notifications \
+                --object-path /org/freedesktop/Notifications \
+                --method org.freedesktop.Notifications.CloseNotification "$NOTIF_ID"
+            break
+        fi
+    done
+else
+    echo "Updates complete. Please reboot at your convenience."
+fi
+
+echo "RakuOS Auto Updater finished."

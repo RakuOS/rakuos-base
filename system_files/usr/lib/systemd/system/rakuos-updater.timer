@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily RakuOS Auto Updater
+
+[Timer]
+# Run every Thursday at 03:00 UTC
+OnCalendar=Thu *-*-* 03:00:00
+Persistent=true
+Timezone=UTC
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=RakuOS Auto Updater (Topgrade)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/rakuos-updater
+StandardOutput=journal
+StandardError=journal
