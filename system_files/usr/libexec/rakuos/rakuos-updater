@@ -6,7 +6,7 @@ CONFIG_PATH="/etc/topgrade/topgrade.toml"
 echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 
 # Run Topgrade with minimal rpm-ostree config
-topgrade --config "$CONFIG_PATH" --yes --allow-root --skip-notify
+topgrade --config "$CONFIG_PATH" --only "system" --yes --allow-root --skip-notify
 
 echo "Updates applied."
 
