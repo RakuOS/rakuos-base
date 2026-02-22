@@ -140,9 +140,10 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
 
       # -------------------------------
-      # Trigger downstream workflows
+      # Trigger downstream workflows (only once for base variant)
       # -------------------------------
       - name: Trigger rakuos-kde build workflow
+        if: matrix.variant == 'base'
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -155,6 +156,7 @@ jobs:
             }
 
       - name: Trigger rakuos-gnome build workflow
+        if: matrix.variant == 'base'
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
