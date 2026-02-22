@@ -1,2 +1,4 @@
+[misc]
+
 [linux]
 rpm_ostree = true
