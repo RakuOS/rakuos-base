@@ -1,4 +1,109 @@
 [misc]
+# On Unix systems, Topgrade should not be run as root, it
+# will run commands with sudo or equivalent where needed.
+# Set this to true to suppress the warning and confirmation
+# prompt if Topgrade detects it is being run as root.
+# (default: false)
+# allow_root = false
+
+# Run `sudo -v` to cache credentials at the start of the run
+# This avoids a blocking password prompt in the middle of an unattended run
+# (default: false)
+# pre_sudo = false
+
+# Sudo command to be used
+# sudo_command = "sudo"
+
+# Disable specific steps - same options as the command line flag
+# disable = ["system", "emacs"]
+
+# Ignore failures for these steps
+# ignore_failures = ["powershell"]
+
+# List of remote machines with Topgrade installed on them
+# remote_topgrades = ["toothless", "pi", "parnas"]
+
+# Path to Topgrade executable on remote machines
+# remote_topgrade_path = ".cargo/bin/topgrade"
+
+# Arguments to pass to SSH when upgrading remote systems
+# ssh_arguments = "-o ConnectTimeout=2"
+
+# Arguments to pass tmux when pulling Repositories
+# tmux_arguments = "-S /var/tmux.sock"
+
+# Do not set the terminal title (default: true)
+# set_title = true
+
+# Display the time in step titles (default: true)
+# display_time = true
+
+# Don't ask for confirmations (no default value)
+# assume_yes = true
+
+# Whether to ask what to do after a step fails (default: true)
+# ask_retry = true
+
+# Number of times to automatically retry a step when it fails (default: 0)
+# auto_retry = 0
+
+# Same as ask_retry = false (default: false) - legacy
+# no_retry = true
+
+# Show the reason for skipped steps (default: false)
+# This has no effect if the "only" option is specified
+# show_skipped = true
+
+# Run inside tmux (default: false)
+# run_in_tmux = true
+
+# Changes the way topgrade interacts with
+# the tmux session, creating the session
+# and only attaching to it if not inside tmux
+# (default: "attach_if_not_in_session", allowed values: "attach_if_not_in_session", "attach_always")
+# tmux_session_mode = "attach_if_not_in_session"
+
+# Cleanup temporary or old files (default: false)
+# cleanup = true
+
+# Send a notification for every step (default: false)
+# notify_each_step = false
+
+# When to send a notification at the end of a run
+# (default: "always", allowed values: "always", "never", "on_failure")
+# notify_end = "on_failure"
+
+# Deprecated: use `notify_end = "never"` instead (default: false)
+# skip_notify = true
+
+# The Bash-it branch to update (default: "stable")
+# bashit_branch = "stable"
+
+# Run specific steps - same options as the command line flag
+# only = ["system", "emacs"]
+
+# Whether to self update
+#
+# this will be ignored if the binary is built without self update support
+#
+# available also via setting the environment variable TOPGRADE_NO_SELF_UPGRADE)
+# no_self_update = true
+
+# Extra tracing filter directives
+# These are prepended to the `--log-filter` argument
+# See: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives
+# log_filters = ["topgrade::command=debug", "warn"]
+
+# Whether to show a distribution-specific summary if applicable, e.g. listing
+# Pacman backup configuration files (*.pacsave and *.pacnew)
+# (default: true)
+# show_distribution_summary = false
+
+# For NixOS/home-manager, there are multiple ways to switch to newer configurations.
+# When set to autodetect: use nh when available, fall back to vanilla
+# Allowed values:
+#   autodetect, nh, vanilla
+# nix_handler = "autodetect"
 
 [linux]
 rpm_ostree = true
