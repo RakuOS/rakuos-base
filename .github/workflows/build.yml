@@ -146,7 +146,7 @@ jobs:
         if: matrix.variant == 'nvidia'
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           repository: RakuOS/rakuos-kde
           event-type: trigger-build
           client-payload: |
@@ -159,7 +159,7 @@ jobs:
         if: matrix.variant == 'nvidia'
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           repository: RakuOS/rakuos-gnome
           event-type: trigger-build
           client-payload: |
