@@ -5,59 +5,50 @@ CONFIG_PATH="/etc/topgrade/topgrade.toml"
 
 echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 
-# Run Topgrade with minimal rpm-ostree config
+# Run Topgrade
 topgrade --config "$CONFIG_PATH" --yes --allow-root --skip-notify
 
+echo "System update: OK"
 echo "Updates applied."
 
 # -------------------------------
-# Persistent notification with buttons
+# Send notification to active user
 # -------------------------------
-if command -v gdbus &>/dev/null; then
-    APP_NAME="RakuOS Updater"
-    ICON="system-software-update"
 
-    # Send notification with proper action-id/label pairs
-    # Format: ['action-id','Label','action-id','Label']
-    RESPONSE=$(gdbus call --session \
-        --dest org.freedesktop.Notifications \
-        --object-path /org/freedesktop/Notifications \
-        --method org.freedesktop.Notifications.Notify \
-        "$APP_NAME" \
-        0 \
-        "$ICON" \
-        "RakuOS Updates Complete" \
-        "System updates have been applied. Choose an action:" \
-        "['reboot','Reboot Now','later','Later']" \
-        "{}" \
-        -1)
+# Find the active graphical user
+ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
 
-    # Extract notification ID
-    NOTIF_ID=$(echo "$RESPONSE" | awk -F'[(), ]+' '{print $2}')
+if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
+    USER_UID=$(id -u "$ACTIVE_USER")
+    USER_RUNTIME="/run/user/$USER_UID"
 
-    echo "Notification sent (ID: $NOTIF_ID)"
+    echo "Sending notification to user: $ACTIVE_USER"
 
-    # Listen for user action
-    gdbus monitor --session --dest org.freedesktop.Notifications | while read -r line; do
-        if [[ "$line" == *"ActionInvoked"* && "$line" == *"$NOTIF_ID"* ]]; then
-            if [[ "$line" == *"reboot"* ]]; then
-                echo "User chose reboot."
-                systemctl reboot
-                break
-            elif [[ "$line" == *"later"* ]]; then
-                echo "User chose later."
-                # Explicitly close notification
-                gdbus call --session \
-                    --dest org.freedesktop.Notifications \
-                    --object-path /org/freedesktop/Notifications \
-                    --method org.freedesktop.Notifications.CloseNotification \
-                    "$NOTIF_ID" >/dev/null
-                break
-            fi
-        fi
-    done
+    ACTION=$(sudo -u "$ACTIVE_USER" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
+        DISPLAY=:0 \
+        notify-send \
+            --app-name="RakuOS Updater" \
+            --icon=system-software-update \
+            --urgency=normal \
+            --expire-time=0 \
+            --action=reboot="Reboot Now" \
+            --action=later="Later" \
+            --wait \
+            "RakuOS Updates Complete" \
+            "System updates have been applied. Choose an action:")
+
+    case "$ACTION" in
+        reboot)
+            echo "User chose reboot"
+            systemctl reboot
+            ;;
+        *)
+            echo "User chose later or dismissed"
+            ;;
+    esac
 else
-    echo "Updates complete. Please reboot at your convenience."
+    echo "No active graphical session — skipping notification."
 fi
 
 echo "RakuOS Auto Updater finished."
