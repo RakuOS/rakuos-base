@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '05 10 * * *'
+    - cron: '5 10 * * 3'
   workflow_dispatch:
 
 env:
