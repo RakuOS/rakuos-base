@@ -143,7 +143,7 @@ jobs:
       # Trigger downstream workflows (only once for base variant)
       # -------------------------------
       - name: Trigger rakuos-kde build workflow
-        if: matrix.variant == 'base'
+        if: matrix.variant == 'nvidia'
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -156,7 +156,7 @@ jobs:
             }
 
       - name: Trigger rakuos-gnome build workflow
-        if: matrix.variant == 'base'
+        if: matrix.variant == 'nvidia'
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
