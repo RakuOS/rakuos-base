@@ -3,6 +3,12 @@ set -euo pipefail
 
 echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 
+# -------------------------------
+# Count deployments before upgrade
+# -------------------------------
+BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
+echo "Deployments before upgrade: $BEFORE_COUNT"
+
 # Run rpm-ostree upgrade
 rpm-ostree upgrade
 
@@ -10,16 +16,14 @@ echo "System update: OK"
 echo "Updates applied."
 
 # -------------------------------
-# Send notification to active user
+# Count deployments after upgrade
 # -------------------------------
+AFTER_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
+echo "Deployments after upgrade: $AFTER_COUNT"
 
-echo "Checking for pending rpm-ostree updates..."
-
-# Count the number of deployments
-DEPLOYMENT_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
-
-if [[ "$DEPLOYMENT_COUNT" -eq 3 ]]; then
-    echo "Pending update detected — sending notification."
+# Only notify if a new deployment appeared
+if [[ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]]; then
+    echo "New deployment detected — sending notification."
 
     # Find the active graphical user
     ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
@@ -57,7 +61,7 @@ if [[ "$DEPLOYMENT_COUNT" -eq 3 ]]; then
         echo "No active graphical session — skipping notification."
     fi
 else
-    echo "No pending updates — nothing to notify."
+    echo "No new deployments — nothing to notify."
 fi
 
 echo "RakuOS Auto Updater finished."
