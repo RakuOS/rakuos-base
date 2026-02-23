@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONFIG_PATH="/etc/topgrade/topgrade.toml"
-
 echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 
-# Run Topgrade
-topgrade --config "$CONFIG_PATH" --yes --allow-root --skip-notify
+# Run rpm-ostree upgrade
+rpm-ostree upgrade
 
 echo "System update: OK"
 echo "Updates applied."

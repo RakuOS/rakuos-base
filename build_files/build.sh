@@ -7,7 +7,6 @@ dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable lilay/topgrade fedora-${FEDORA_VERSION}-x86_64
 
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
@@ -35,7 +34,6 @@ dnf5 -y install ananicy-cpp \
   mokutil \
   openssl \
   freerdp \
-  topgrade \
   libnotify \
   podman-compose \
   steam-devices \
