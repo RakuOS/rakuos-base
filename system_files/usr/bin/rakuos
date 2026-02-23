@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -e
+
+COMMAND="${1:-}"
+
+case "$COMMAND" in
+    setup-virtualization)
+        /usr/libexec/rakuos/setup-virtualization
+        ;;
+    setup-lsfg-vk)
+        /usr/libexec/rakuos/setup-lsfg-vk
+        ;;
+    *)
+    setup-ollama)
+        /usr/libexec/rakuos/setup-ollama
+        ;;
+    *)
+        echo "RakuOS helper"
+        echo ""
+        echo "Usage:"
+        echo "  rakuos setup-virtualization"
+        echo "  rakuos setup-lsfg-vk"
+        exit 1
+        ;;
+esac

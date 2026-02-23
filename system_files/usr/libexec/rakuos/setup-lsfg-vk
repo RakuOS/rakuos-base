@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -e
+
+echo "Setting up LSFG-VK (native + Flatpak support)..."
+
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
+
+# -------------------------------
+# Native LSFG install
+# -------------------------------
+ZIP_URL="https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/lsfg-vk-1.0.0-x86_64.zip"
+ZIP_FILE="lsfg-vk.zip"
+
+echo "Downloading LSFG-VK..."
+curl -L "$ZIP_URL" -o "$ZIP_FILE"
+
+echo "Extracting..."
+unzip -o "$ZIP_FILE" >/dev/null
+
+# Move into extracted directory
+cd lsfg-vk-1.0.0-x86_64
+
+echo "Installing to /usr/local..."
+sudo cp -r bin lib share /usr/local/
+
+# Refresh linker cache if libs were added
+if command -v ldconfig &>/dev/null; then
+    sudo ldconfig
+fi
+
+# -------------------------------
+# Flatpak Vulkan layers
+# -------------------------------
+echo "Installing Flatpak Vulkan layers (system-wide)..."
+
+LAYERS=(
+    "org.freedesktop.Platform.VulkanLayer.lsfg_vk_23.08"
+    "org.freedesktop.Platform.VulkanLayer.lsfg_vk_24.08"
+    "org.freedesktop.Platform.VulkanLayer.lsfg_vk_25.08"
+)
+
+URLS=(
+    "https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/org.freedesktop.Platform.VulkanLayer.lsfg_vk_23.08.flatpak"
+    "https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/org.freedesktop.Platform.VulkanLayer.lsfg_vk_24.08.flatpak"
+    "https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/org.freedesktop.Platform.VulkanLayer.lsfg_vk_25.08.flatpak"
+)
+
+for i in "${!LAYERS[@]}"; do
+    REF="${LAYERS[$i]}"
+    URL="${URLS[$i]}"
+    FILE="$(basename "$URL")"
+
+    if flatpak list --system --app | grep -q "$REF"; then
+        echo "$REF already installed — skipping."
+        continue
+    fi
+
+    echo "Downloading $FILE..."
+    curl -L "$URL" -o "$FILE"
+
+    echo "Installing $REF..."
+    flatpak install -y --system "$FILE"
+done
+
+# Optional: enable globally if LSFG expects env
+flatpak override --system --env=ENABLE_LSFG=1 || true
+
+cd /
+rm -rf "$TMPDIR"
+
+echo
+echo "LSFG-VK setup complete."
+echo "Works for native and Flatpak applications."

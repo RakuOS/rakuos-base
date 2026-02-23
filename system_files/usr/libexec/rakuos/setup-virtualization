@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+echo "Setting up virtualization for RakuOS..."
+
+sudo rpm-ostree install \
+    libvirt-daemon-config-network \
+    libvirt-daemon-kvm \
+    qemu-kvm
+
+echo "Enabling libvirt service..."
+sudo systemctl enable --now libvirtd
+
+echo "Installing virt-manager via flathub..."
+flatpak install flathub org.virt_manager.virt-manager
+
+echo ""
+echo "Virtualization packages layered."
+echo "Please reboot to use libvirt and virt-manager."

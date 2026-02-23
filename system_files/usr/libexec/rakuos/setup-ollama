@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -e
+
+    echo "Setting up Ollama..."
+
+    TMPDIR=$(mktemp -d)
+    cd "$TMPDIR"
+
+    # -------------------------------
+    # Download & run Ollama installer
+    # -------------------------------
+    echo "Downloading and installing Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sudo sh
+
+    # -------------------------------
+    # Create user service for Ollama
+    # -------------------------------
+    ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
+
+    if [[ -n "$ACTIVE_USER" ]]; then
+        echo "Creating user service for Ollama..."
+
+        SERVICE_PATH="/etc/systemd/user/ollama.service"
+
+        sudo tee "$SERVICE_PATH" >/dev/null <<EOF
+[Unit]
+Description=Ollama AI Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ollama
+Restart=on-failure
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
+EOF
+
+        # Reload systemd and enable service
+        sudo systemctl daemon-reload
+        sudo systemctl enable --now "ollama.service" || true
+
+        echo "Ollama user service created and started."
+    else
+        echo "No active user session found. You will need to enable the user service manually."
+    fi
+
+    cd /
+    rm -rf "$TMPDIR"
+
+    echo "Ollama setup complete."
