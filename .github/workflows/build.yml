@@ -146,7 +146,7 @@ jobs:
     if: needs.build_push.outputs.finished_nvidia == 'true'
     strategy:
       matrix:
-        repo: ['RakuOS/rakuos-kde', 'RakuOS/rakuos-gnome']
+        repo: ['RakuOS/rakuos-kde', 'RakuOS/rakuos-gnome', 'RakuOS/rakuos-cosmic']
     runs-on: ubuntu-latest
     steps:
       - name: Repository Dispatch
