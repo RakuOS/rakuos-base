@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch Flatpak exports for changes
+
+[Path]
+PathChanged=/var/lib/flatpak/exports/bin
+PathModified=/var/lib/flatpak/exports/bin
+
+[Install]
+WantedBy=multi-user.target
