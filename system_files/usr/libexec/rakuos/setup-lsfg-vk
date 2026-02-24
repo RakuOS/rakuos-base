@@ -23,6 +23,7 @@ cd lsfg-vk-1.0.0-x86_64
 
 echo "Installing to /usr/local..."
 sudo cp -r bin lib share /usr/local/
+chmod +x /usr/local/bin/lsfg-vk-ui
 
 # Refresh linker cache if libs were added
 if command -v ldconfig &>/dev/null; then
