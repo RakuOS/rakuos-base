@@ -12,7 +12,7 @@ echo "Enabling libvirt service..."
 sudo systemctl enable --now libvirtd
 
 echo "Installing virt-manager via flathub..."
-flatpak install flathub org.virt_manager.virt-manager
+flatpak install -y flathub org.virt_manager.virt-manager
 
 echo ""
 echo "Virtualization packages layered."
