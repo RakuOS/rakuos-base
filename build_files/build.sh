@@ -43,6 +43,7 @@ dnf5 -y install ananicy-cpp \
   fuse \
   squashfuse \
   virtualbox-guest-additions \
+  v4l-utils \
   glibc-langpack-en
 
 ## Remove packages
