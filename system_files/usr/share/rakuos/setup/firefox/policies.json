@@ -1,0 +1,17 @@
+{
+  "policies": {
+    "SearchEngines": {
+      "Default": "RakuOS Web Search",
+      "Add": [
+        {
+          "Name": "RakuOS Web Search",
+          "URLTemplate": "https://search.rakuos.org/results?q={searchTerms}",
+          "Method": "GET",
+          "IconURL": "https://search.rakuos.org/themes/raku/assets/images/rakuos-logo-sprite.png",
+          "Alias": "@rakuos",
+          "Description": "Privacy-focused search by RakuOS"
+        }
+      ]
+    }
+  }
+}
