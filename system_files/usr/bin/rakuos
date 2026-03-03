@@ -26,6 +26,7 @@ case "$COMMAND" in
         echo "  rakuos update"
         echo "  rakuos setup-virtualization"
         echo "  rakuos setup-lsfg-vk"
+        echo "  rakuos setup-stoat"
         echo "  rakuos setup-ollama"
         exit 1
         ;;

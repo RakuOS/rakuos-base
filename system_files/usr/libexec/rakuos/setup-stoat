@@ -23,6 +23,12 @@ fi
 if [ ! -d "$INSTALL_DIR" ]; then
     echo "Extracting Stoat to $INSTALL_DIR..."
     unzip -q -o "$TMP_ZIP" -d "/opt"
+
+    # Make the folder and its contents readable
+    chmod -R a+r "$INSTALL_DIR"
+
+    # Make only the stoat-desktop binary executable
+    chmod a+x "$INSTALL_DIR/stoat-desktop"
 fi
 
 # Symlink executable (stoat-desktop)
