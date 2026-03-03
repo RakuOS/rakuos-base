@@ -1,11 +1,11 @@
 [Unit]
-Description=RakuOS User Service
-After=graphical.target
+Description=RakuOS User Setup Service
+After=default.target
 
 [Service]
-Type=simple
+Type=oneshot
 ExecStart=/usr/libexec/rakuos/rakuos-user
-Restart=no
+RemainAfterExit=true
 
 [Install]
 WantedBy=default.target

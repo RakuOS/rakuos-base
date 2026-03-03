@@ -1,25 +1,22 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-RAKUOS_SHARE=/usr/share/rakuos
 MARKER_FILE="$HOME/.config/rakuos/.firstrun-done"
 
-# Ensure marker directory exists
 mkdir -p "$(dirname "$MARKER_FILE")"
 
 if [ ! -f "$MARKER_FILE" ]; then
-# Create symlink from .local/share/icons to .icons
-ln -s "$HOME/.local/share/icons" "$HOME/.icons"
 
-## Setup Inital Flatpak Overrides for users
-# Path to the global Flatpak override
-OVERRIDE="$HOME/.local/share/flatpak/overrides/global"
+    # Create symlink safely
+    if [ ! -e "$HOME/.icons" ]; then
+        ln -s "$HOME/.local/share/icons" "$HOME/.icons"
+    fi
 
-# Ensure the directory exists
-mkdir -p "$(dirname "$OVERRIDE")"
+    # Setup Initial Flatpak Overrides
+    OVERRIDE="$HOME/.local/share/flatpak/overrides/global"
+    mkdir -p "$(dirname "$OVERRIDE")"
 
-# Define the contents
-read -r -d '' CONTENTS <<'EOF'
+    cat > "$OVERRIDE" <<'EOF'
 [Context]
 filesystems=xdg-config/gtk-3.0:ro;xdg-data/applications;~/.var/app/io.github.benjamimgois.goverlay/data/goverlay;xdg-config/gtk-4.0:ro;/var/mnt;xdg-config/vkBasalt:create;/mnt;xdg-run/.flatpak/com.discordapp.Discord:create;~/.themes;~/.icons;/home;/var/home;xdg-data/icons;xdg-desktop;xdg-config/MangoHud:create;
 
@@ -27,34 +24,27 @@ filesystems=xdg-config/gtk-3.0:ro;xdg-data/applications;~/.var/app/io.github.ben
 VK_INSTANCE_LAYERS=VK_LAYER_MANGOHUD_overlay_x86_64
 EOF
 
-# Write to the override file (overwrite existing)
-echo "$CONTENTS" > "$OVERRIDE"
-
-echo "Global Flatpak override updated at $OVERRIDE"
-
-# Create marker so we don't run this again
     touch "$MARKER_FILE"
-else
-    echo "User one time fixes already applied not running"
 fi
 
-##Sync system themes so flatpak has access
-# Directories
+# Sync system themes so flatpak has access
 SYSTEM_THEMES="/usr/share/themes"
 USER_THEMES="$HOME/.themes"
 
-# Create the ~/.themes directory if it doesn't exist
-if [ ! -d "$USER_THEMES" ]; then
-    echo "Creating $USER_THEMES directory..."
-    mkdir -p "$USER_THEMES"
-fi
+mkdir -p "$USER_THEMES"
 
-# Synchronize themes from /usr/share/themes to ~/.themes
-echo "Syncing themes from $SYSTEM_THEMES to $USER_THEMES..."
-rsync -av --copy-links --exclude="Clearlooks" --exclude="Crux" --exclude="HighContrast" --exclude="Industrial" --exclude="Mist" --exclude="Raleigh" --exclude="ThinIce" "$SYSTEM_THEMES/" "$USER_THEMES/"
+rsync -a --copy-links \
+  --exclude="Clearlooks" \
+  --exclude="Crux" \
+  --exclude="HighContrast" \
+  --exclude="Industrial" \
+  --exclude="Mist" \
+  --exclude="Raleigh" \
+  --exclude="ThinIce" \
+  "$SYSTEM_THEMES/" "$USER_THEMES/"
 
-# Set the correct permissions for the user directory
-echo "Setting correct permissions for $USER_THEMES..."
-chown -R "$USER:users" "$USER_THEMES"
+# Set the correct permissions for the user directory 
+echo "Setting correct permissions for $USER_THEMES..." 
+chown -R "$USER:$USER" "$USER_THEMES"
 
-echo "Sync complete."
+echo "RakuOS user setup complete."
