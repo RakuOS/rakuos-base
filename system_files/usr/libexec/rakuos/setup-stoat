@@ -1,50 +1,49 @@
 #!/bin/bash
-# RakuOS helper to install Stoat Linux client
-
 set -e
 
-# Variables
 STOAT_VERSION="1.3.0"
 STOAT_ZIP="Stoat-linux-x64-${STOAT_VERSION}.zip"
 STOAT_URL="https://github.com/stoatchat/for-desktop/releases/download/v${STOAT_VERSION}/${STOAT_ZIP}"
-INSTALL_DIR="/opt/Stoat-linux-x64"
+
+EXTRACTED_DIR="/opt/Stoat-linux-x64"
+FINAL_DIR="/opt/stoat"
+
 BIN_LINK="/usr/local/bin/stoat"
 DESKTOP_FILE="/usr/local/share/applications/stoat.desktop"
 ICON_PATH="/usr/local/share/icons/stoat.png"
 
-# Download Stoat zip if not already present
 TMP_ZIP="/tmp/${STOAT_ZIP}"
+
+# Download
 if [ ! -f "$TMP_ZIP" ]; then
-    echo "Downloading Stoat ${STOAT_VERSION}..."
+    echo "Downloading Stoat..."
     wget -q "$STOAT_URL" -O "$TMP_ZIP"
 fi
 
-# Extract zip
-if [ ! -d "$INSTALL_DIR" ]; then
-    echo "Extracting Stoat to $INSTALL_DIR..."
-    unzip -q -o "$TMP_ZIP" -d "/opt"
+# Install cleanly
+if [ ! -d "$FINAL_DIR" ]; then
+    echo "Installing Stoat..."
 
-    # Make the folder and its contents readable
-    chmod -R a+r "$INSTALL_DIR"
+    rm -rf "$EXTRACTED_DIR"
 
-    # Make only the stoat-desktop binary executable
-    chmod a+x "$INSTALL_DIR/stoat-desktop"
+    cd /opt
+    unzip -q -o "$TMP_ZIP"
+
+    mv "$EXTRACTED_DIR" "$FINAL_DIR"
+
+    chmod -R a+r "$FINAL_DIR"
+    chmod a+x "$FINAL_DIR/stoat-desktop"
 fi
 
-# Symlink executable (stoat-desktop)
-if [ ! -L "$BIN_LINK" ]; then
-    echo "Creating symlink $BIN_LINK -> $INSTALL_DIR/stoat-desktop..."
-    ln -sf "$INSTALL_DIR/stoat-desktop" "$BIN_LINK"
-fi
+# Always update symlink
+ln -sf "$FINAL_DIR/stoat-desktop" "$BIN_LINK"
 
-# Download icon
+# Icon
 if [ ! -f "$ICON_PATH" ]; then
-    echo "Downloading Stoat icon..."
     wget -q https://raw.githubusercontent.com/stoatchat/assets/refs/heads/main/desktop/icon.png -O "$ICON_PATH"
 fi
 
-# Create .desktop entry
-echo "Creating desktop entry..."
+# Desktop file
 mkdir -p "$(dirname "$DESKTOP_FILE")"
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
@@ -57,4 +56,4 @@ Type=Application
 Categories=Network;Chat;
 EOF
 
-echo "Stoat ${STOAT_VERSION} installation complete!"
+echo "Stoat installation complete."
