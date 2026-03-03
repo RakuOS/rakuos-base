@@ -5,9 +5,7 @@ STOAT_VERSION="1.3.0"
 STOAT_ZIP="Stoat-linux-x64-${STOAT_VERSION}.zip"
 STOAT_URL="https://github.com/stoatchat/for-desktop/releases/download/v${STOAT_VERSION}/${STOAT_ZIP}"
 
-EXTRACTED_DIR="/opt/Stoat-linux-x64"
-FINAL_DIR="/opt/stoat"
-
+INSTALL_DIR="/opt/Stoat-linux-x64"
 BIN_LINK="/usr/local/bin/stoat"
 DESKTOP_FILE="/usr/local/share/applications/stoat.desktop"
 ICON_PATH="/usr/local/share/icons/stoat.png"
@@ -16,27 +14,29 @@ TMP_ZIP="/tmp/${STOAT_ZIP}"
 
 # Download
 if [ ! -f "$TMP_ZIP" ]; then
-    echo "Downloading Stoat..."
+    echo "Downloading Stoat ${STOAT_VERSION}..."
     wget -q "$STOAT_URL" -O "$TMP_ZIP"
 fi
 
-# Install cleanly
-if [ ! -d "$FINAL_DIR" ]; then
-    echo "Installing Stoat..."
+# Clean previous broken installs
+rm -rf "$INSTALL_DIR"
 
-    rm -rf "$EXTRACTED_DIR"
+# Extract fresh
+cd /opt
+unzip -q -o "$TMP_ZIP"
 
-    cd /opt
-    unzip -q -o "$TMP_ZIP"
-
-    mv "$EXTRACTED_DIR" "$FINAL_DIR"
-
-    chmod -R a+r "$FINAL_DIR"
-    chmod a+x "$FINAL_DIR/stoat-desktop"
+# Verify extraction worked
+if [ ! -f "$INSTALL_DIR/stoat-desktop" ]; then
+    echo "ERROR: stoat-desktop not found after extraction"
+    exit 1
 fi
 
-# Always update symlink
-ln -sf "$FINAL_DIR/stoat-desktop" "$BIN_LINK"
+# Permissions
+chmod -R a+r "$INSTALL_DIR"
+chmod a+x "$INSTALL_DIR/stoat-desktop"
+
+# Symlink (always update)
+ln -sf "$INSTALL_DIR/stoat-desktop" "$BIN_LINK"
 
 # Icon
 if [ ! -f "$ICON_PATH" ]; then
@@ -56,4 +56,4 @@ Type=Application
 Categories=Network;Chat;
 EOF
 
-echo "Stoat installation complete."
+echo "Stoat ${STOAT_VERSION} installation complete!"
