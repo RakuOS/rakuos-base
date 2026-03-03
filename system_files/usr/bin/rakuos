@@ -13,6 +13,9 @@ case "$COMMAND" in
     setup-lsfg-vk)
         /usr/libexec/rakuos/setup-lsfg-vk
         ;;
+    setup-stoat)
+        /usr/libexec/rakuos/setup-stoat
+        ;;
     setup-ollama)
         /usr/libexec/rakuos/setup-ollama
         ;;
