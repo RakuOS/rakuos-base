@@ -1,10 +1,9 @@
 [Unit]
 Description=RakuOS First Run Setup
-ConditionPathExists=!%h/.config/rakuos/.firstrun-done
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/rakuos/rakuos-firstrun
+ExecStart=/usr/libexec/rakuos/rakuos-user
 RemainAfterExit=yes
 
 [Install]

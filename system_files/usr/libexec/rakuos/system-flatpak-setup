@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+RAKUOS_SHARE=/usr/share/rakuos
 # Fix system-wide Flathub remote only once
 
 MARKER_FILE="/var/lib/rakuos/flathub_fixed"
@@ -24,3 +25,12 @@ if [ ! -f "$MARKER_FILE" ]; then
 else
     echo "Flathub fix already applied. Skipping."
 fi
+# Firefox Flatpak system deployment path
+FIREFOX_DEPLOY_PATH="/var/lib/flatpak/app/org.mozilla.firefox/current/active/files/etc/firefox/policies"
+
+# Create policies directory inside the Flatpak deployment
+mkdir -p "$FIREFOX_DEPLOY_PATH"
+
+# Copy RakuOS policies
+cp "$RAKUOS_SHARE/setup/firefox/policies.json" \
+   "$FIREFOX_DEPLOY_PATH/policies.json"
