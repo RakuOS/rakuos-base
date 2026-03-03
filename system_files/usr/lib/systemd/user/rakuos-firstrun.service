@@ -4,7 +4,7 @@ ConditionPathExists=!%h/.config/rakuos/.firstrun-done
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/rakuos/firstrun
+ExecStart=/usr/libexec/rakuos/rakuos-firstrun
 RemainAfterExit=yes
 
 [Install]
