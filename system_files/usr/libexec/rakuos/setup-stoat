@@ -7,7 +7,7 @@ set -e
 STOAT_VERSION="1.3.0"
 STOAT_ZIP="Stoat-linux-x64-${STOAT_VERSION}.zip"
 STOAT_URL="https://github.com/stoatchat/for-desktop/releases/download/v${STOAT_VERSION}/${STOAT_ZIP}"
-INSTALL_DIR="/opt/stoat-linux-x64"
+INSTALL_DIR="/opt/Stoat-linux-x64"
 BIN_LINK="/usr/local/bin/stoat"
 DESKTOP_FILE="/usr/local/share/applications/stoat.desktop"
 ICON_PATH="/usr/local/share/icons/stoat.png"
