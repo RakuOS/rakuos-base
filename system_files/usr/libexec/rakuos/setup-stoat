@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root: sudo rakuos stoat"
+  exit 1
+fi
+
 STOAT_VERSION="1.3.0"
 STOAT_ZIP="Stoat-linux-x64-${STOAT_VERSION}.zip"
 STOAT_URL="https://github.com/stoatchat/for-desktop/releases/download/v${STOAT_VERSION}/${STOAT_ZIP}"
@@ -10,50 +15,48 @@ BIN_LINK="/usr/local/bin/stoat"
 DESKTOP_FILE="/usr/local/share/applications/stoat.desktop"
 ICON_PATH="/usr/local/share/icons/stoat.png"
 
-TMP_ZIP="/tmp/${STOAT_ZIP}"
+OPT_ZIP="/opt/${STOAT_ZIP}"
 
-# Download
-if [ ! -f "$TMP_ZIP" ]; then
-    echo "Downloading Stoat ${STOAT_VERSION}..."
-    wget -q "$STOAT_URL" -O "$TMP_ZIP"
-fi
+# Download directly to /opt
+echo "Downloading Stoat ${STOAT_VERSION}..."
+wget "$STOAT_URL" -O "$OPT_ZIP"
 
-# Clean previous broken installs
+echo "Installing Stoat..."
+
 rm -rf "$INSTALL_DIR"
+unzip -o "$OPT_ZIP" -d /opt
 
-# Extract fresh
-cd /opt
-unzip -q -o "$TMP_ZIP"
+# Delete zip immediately after extraction
+rm -f "$OPT_ZIP"
+echo "Cleaned up zip."
 
-# Verify extraction worked
 if [ ! -f "$INSTALL_DIR/stoat-desktop" ]; then
     echo "ERROR: stoat-desktop not found after extraction"
     exit 1
 fi
 
-# Permissions
-chmod -R a+r "$INSTALL_DIR"
+chmod 755 "$INSTALL_DIR"
+chmod -R a+rX "$INSTALL_DIR"
 chmod a+x "$INSTALL_DIR/stoat-desktop"
 
-# Symlink (always update)
 ln -sf "$INSTALL_DIR/stoat-desktop" "$BIN_LINK"
 
 # Icon
-if [ ! -f "$ICON_PATH" ]; then
-    wget -q https://raw.githubusercontent.com/stoatchat/assets/refs/heads/main/desktop/icon.png -O "$ICON_PATH"
-fi
+mkdir -p "$(dirname "$ICON_PATH")"
+wget -q https://raw.githubusercontent.com/stoatchat/assets/refs/heads/main/desktop/icon.png -O "$ICON_PATH"
 
-# Desktop file
+# Desktop entry
 mkdir -p "$(dirname "$DESKTOP_FILE")"
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Name=Stoat
 Comment=Stoat Chat Client
 Exec=$BIN_LINK
-Icon=$ICON_PATH
+Icon=stoat
 Terminal=false
 Type=Application
 Categories=Network;Chat;
+StartupWMClass=Stoat
 EOF
 
 echo "Stoat ${STOAT_VERSION} installation complete!"
