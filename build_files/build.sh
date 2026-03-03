@@ -70,7 +70,7 @@ systemctl enable \
   podman-prune.timer
 
 systemctl enable --global \
-  rakuos-firstrun.service
+  rakuos-user.service
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
