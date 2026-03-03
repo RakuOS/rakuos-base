@@ -28,9 +28,15 @@ fi
 # Firefox Flatpak system deployment path
 FIREFOX_DEPLOY_PATH="/var/lib/flatpak/app/org.mozilla.firefox/current/active/files/etc/firefox/policies"
 
-# Create policies directory inside the Flatpak deployment
-mkdir -p "$FIREFOX_DEPLOY_PATH"
+# Only proceed if Firefox Flatpak exists
+if [ -d "/var/lib/flatpak/app/org.mozilla.firefox/current/active" ]; then
+    echo "Found Firefox Flatpak deployment, installing policies..."
+    mkdir -p "$FIREFOX_DEPLOY_PATH"
 
-# Copy RakuOS policies
-cp "$RAKUOS_SHARE/setup/firefox/policies.json" \
-   "$FIREFOX_DEPLOY_PATH/policies.json"
+    cp "$RAKUOS_SHARE/setup/firefox/policies.json" \
+       "$FIREFOX_DEPLOY_PATH/policies.json"
+
+    echo "Policies installed."
+else
+    echo "Firefox Flatpak not found, skipping policies setup."
+fi
