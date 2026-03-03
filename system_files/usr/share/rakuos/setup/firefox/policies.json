@@ -3,16 +3,21 @@
     "Homepage": {
       "URL": "https://start.rakuos.org",
       "StartPage": "homepage",
-      "Locked": true
+      "Locked": false
     },
-
+    "NewTabPage": {
+      "URL": "https://start.rakuos.org",
+      "Locked": false
+    },
+    "OverrideFirstRunPage": "https://start.rakuos.org",
+    "OverridePostUpdatePage": "https://start.rakuos.org",
     "SearchEngines": {
       "Add": [
         {
           "Name": "RakuOS Web Search",
           "URLTemplate": "https://search.rakuos.org/results?q={searchTerms}",
           "Method": "GET",
-          "IconURL": "https://rakuos.org/favicon.ico"
+          "IconURL": "https://start.rakuos.org/themes/raku/assets/images/rakuos-logo-sprite.png"
         }
       ],
       "Default": "RakuOS Web Search",
