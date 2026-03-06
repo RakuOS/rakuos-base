@@ -1,0 +1,11 @@
+[Unit]
+Description=RakuOS Flatpak Event Watcher
+After=flatpak-system-helper.service dbus.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/rakuos/flatpak-event-watcher
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

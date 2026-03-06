@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SETUP_SCRIPT="/usr/libexec/rakuos/system-flatpak-setup"
+
+echo "RakuOS Flatpak event watcher started"
+
+dbus-monitor --system "sender='org.freedesktop.Flatpak'" |
+while read -r line; do
+
+    # Detect install
+    if echo "$line" | grep -q "Install"; then
+        ACTION="install"
+    fi
+
+    # Detect update
+    if echo "$line" | grep -q "Deploy"; then
+        ACTION="update"
+    fi
+
+    # Detect uninstall
+    if echo "$line" | grep -q "Uninstall"; then
+        ACTION="uninstall"
+    fi
+
+    # Extract app id
+    if echo "$line" | grep -q "app='"; then
+        APPID=$(echo "$line" | sed -n "s/.*app='\([^']*\)'.*/\1/p")
+
+        if [[ -n "${APPID:-}" ]]; then
+            echo "Flatpak $ACTION detected for $APPID"
+            "$SETUP_SCRIPT" dbus "$APPID" "$ACTION"
+        fi
+    fi
+
+done

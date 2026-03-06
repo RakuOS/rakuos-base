@@ -6,7 +6,7 @@ ConditionPathExists=/usr/libexec/rakuos/system-flatpak-setup
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/rakuos/system-flatpak-setup
+ExecStart=/usr/libexec/rakuos/system-flatpak-setup boot
 RemainAfterExit=false
 
 [Install]

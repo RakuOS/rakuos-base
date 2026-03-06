@@ -2,41 +2,61 @@
 set -euo pipefail
 
 RAKUOS_SHARE=/usr/share/rakuos
-# Fix system-wide Flathub remote only once
+FIX_DIR=/usr/libexec/rakuos/flatpak-fixes
+
+MODE="${1:-boot}"
+APPID="${2:-}"
+ACTION="${3:-unknown}"
 
 MARKER_FILE="/var/lib/rakuos/flathub_fixed"
 
-# Ensure marker directory exists
-mkdir -p "$(dirname "$MARKER_FILE")"
+mkdir -p /var/lib/rakuos
 
-if [ ! -f "$MARKER_FILE" ]; then
-    echo "Fixing system-wide Flathub remote..."
+########################################
+# Normalize / validate mode
+########################################
 
-    # Remove broken Flathub remote if it exists
-    flatpak remote-delete --force flathub 2>/dev/null
+case "$MODE" in
+    boot|dbus)
+        ;;
+    *)
+        echo "Unknown mode '$MODE', defaulting to boot"
+        MODE="boot"
+        ;;
+esac
 
-    # Re-add Flathub system-wide
-    flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+########################################
+# Global fixes (boot)
+########################################
 
-    echo "Flathub remote refreshed."
+if [[ "$MODE" == "boot" ]]; then
 
-    # Create marker so we don't run this again
-    touch "$MARKER_FILE"
-else
-    echo "Flathub fix already applied. Skipping."
+    if [ ! -f "$MARKER_FILE" ]; then
+        echo "Fixing system-wide Flathub remote..."
+
+        flatpak remote-delete --force flathub 2>/dev/null || true
+
+        flatpak remote-add --if-not-exists --system \
+            flathub https://flathub.org/repo/flathub.flatpakrepo
+
+        touch "$MARKER_FILE"
+    fi
+
 fi
-# Firefox Flatpak system deployment path
-FIREFOX_DEPLOY_PATH="/var/lib/flatpak/app/org.mozilla.firefox/current/active/files/etc/firefox/policies"
 
-# Only proceed if Firefox Flatpak exists
-if [ -d "/var/lib/flatpak/app/org.mozilla.firefox/current/active" ]; then
-    echo "Found Firefox Flatpak deployment, installing policies..."
-    mkdir -p "$FIREFOX_DEPLOY_PATH"
+########################################
+# Per-app fixes (dbus trigger)
+########################################
 
-    cp "$RAKUOS_SHARE/setup/firefox/policies.json" \
-       "$FIREFOX_DEPLOY_PATH/policies.json"
+if [[ "$MODE" == "dbus" && -n "$APPID" ]]; then
 
-    echo "Policies installed."
-else
-    echo "Firefox Flatpak not found, skipping policies setup."
+    FIX_SCRIPT="$FIX_DIR/$APPID.sh"
+
+    if [[ -x "$FIX_SCRIPT" ]]; then
+        echo "Running fix module for $APPID"
+        "$FIX_SCRIPT" "$ACTION"
+    else
+        echo "No fix module for $APPID"
+    fi
+
 fi
