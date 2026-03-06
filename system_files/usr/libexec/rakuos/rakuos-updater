@@ -42,31 +42,41 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
 fi
 
 # -------------------------------
-# Get all YYYYMMDD tags and find newest
+# Get newest tag from org.opencontainers.image.version annotation on 'latest'
+# Workflow sets this to: latest.YYYYMMDD — strip 'latest.' to get the date
 # -------------------------------
-TAGS_JSON=$(curl -fsSL \
+LATEST_MANIFEST=$(curl -fsSL \
     -H "Authorization: Bearer $TOKEN" \
-    "https://ghcr.io/v2/$REPO_PATH/tags/list")
+    -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+    "https://ghcr.io/v2/$REPO_PATH/manifests/latest")
 
-if ! echo "$TAGS_JSON" | jq -e .tags >/dev/null 2>&1; then
-    echo "ERROR: Failed to fetch tags from GHCR:"
-    echo "$TAGS_JSON"
-    exit 1
+# Try manifest-level annotations first
+VERSION_ANNOTATION=$(echo "$LATEST_MANIFEST" \
+    | jq -r '.annotations["org.opencontainers.image.version"] // empty')
+
+# Fallback: check config blob labels
+if [[ -z "$VERSION_ANNOTATION" ]]; then
+    CONFIG_DIGEST=$(echo "$LATEST_MANIFEST" | jq -r '.config.digest // empty')
+    if [[ -n "$CONFIG_DIGEST" ]]; then
+        VERSION_ANNOTATION=$(curl -fsSL \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/$REPO_PATH/blobs/$CONFIG_DIGEST" \
+            | jq -r '.config.Labels["org.opencontainers.image.version"] // empty')
+    fi
 fi
 
-NEWEST_TAG=$(echo "$TAGS_JSON" \
-    | jq -r '.tags[]' \
-    | grep -E '^[0-9]{8}$' \
-    | sort -n \
-    | tail -n1)
+# Extract YYYYMMDD from value like "latest.20260306"
+NEWEST_TAG=$(echo "$VERSION_ANNOTATION" | sed 's/^latest\.//' | grep -oE '^[0-9]{8}$' || true)
 
 if [[ -z "$NEWEST_TAG" ]]; then
-    echo "No dated tags found on GHCR — nothing to do."
-    exit 0
+    echo "ERROR: Could not extract date from latest manifest annotation."
+    echo "Version annotation value: '$VERSION_ANNOTATION'"
+    echo "Manifest response:"
+    echo "$LATEST_MANIFEST" | jq . || echo "$LATEST_MANIFEST"
+    exit 1
 fi
-
-echo "Newest tag on GHCR: $NEWEST_TAG"
-
+    echo "Latest dated tag on GHCR: $NEWEST_TAG"
+    
 # -------------------------------
 # Compare tags — skip if already on newest
 # -------------------------------
