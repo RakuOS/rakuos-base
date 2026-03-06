@@ -10,8 +10,11 @@ CURRENT_LINE=$(rpm-ostree status | awk '/^\●/ {print $2}')
 REPO_URL="${CURRENT_LINE%:*}"      # ghcr.io/rakuos/rakuos-kde
 CURRENT_TAG="${CURRENT_LINE##*:}"  # latest, or 20260306 etc
 
+LOCAL_DIGEST=$(rpm-ostree status | awk '/Digest:/ {print $2}' | head -n1)
+
 echo "Current image repo: $REPO_URL"
 echo "Current tag: $CURRENT_TAG"
+echo "Current digest: $LOCAL_DIGEST"
 
 # -------------------------------
 # Get GHCR token
@@ -24,36 +27,44 @@ TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=
 # -------------------------------
 # Get latest dated tag from GHCR
 # -------------------------------
-TAGS_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/$REPO_PATH/tags/list")
+TAGS_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://ghcr.io/v2/$REPO_PATH/tags/list")
+
 NEWEST_TAG=$(echo "$TAGS_JSON" | jq -r '.tags[]' | grep -E '^[0-9]{8}$' | sort | tail -n1)
 
 echo "Latest dated tag on GHCR: $NEWEST_TAG"
 
 # -------------------------------
+# Get remote digest for newest tag
+# -------------------------------
+REMOTE_DIGEST=$(curl -s \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+  "https://ghcr.io/v2/$REPO_PATH/manifests/$NEWEST_TAG" \
+  | jq -r '.config.digest')
+
+echo "Remote digest: $REMOTE_DIGEST"
+
+# -------------------------------
 # Compare and rebase if needed
 # -------------------------------
-if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
-    echo "New image detected ($NEWEST_TAG). Rebasing..."
+if [[ "$LOCAL_DIGEST" != "$REMOTE_DIGEST" ]]; then
+    echo "New image detected — rebasing to $NEWEST_TAG"
 
-    # Count deployments before rebase
     BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
     echo "Deployments before rebase: $BEFORE_COUNT"
 
-    # Rebase to GHCR OCI image
     rpm-ostree rebase "ostree-unverified-registry:$REPO_URL:$NEWEST_TAG"
 
-    # Upgrade user-layered packages if any
     echo "Upgrading layered packages..."
     rpm-ostree upgrade --allow-inactive
 
-    # Count deployments after rebase
     AFTER_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
     echo "Deployments after rebase: $AFTER_COUNT"
 
     if [[ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]]; then
         echo "New deployment applied — sending notification."
 
-        # Find the active graphical user
         ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
 
         if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
@@ -66,15 +77,15 @@ if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
                 DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
                 DISPLAY=:0 \
                 notify-send \
-                    --app-name="RakuOS Updater" \
-                    --icon=system-software-update \
-                    --urgency=normal \
-                    --expire-time=0 \
-                    --action=reboot="Reboot Now" \
-                    --action=later="Later" \
-                    --wait \
-                    "RakuOS Updates Available" \
-                    "A new system image is available. Choose an action:")
+                --app-name="RakuOS Updater" \
+                --icon=system-software-update \
+                --urgency=normal \
+                --expire-time=0 \
+                --action=reboot="Reboot Now" \
+                --action=later="Later" \
+                --wait \
+                "RakuOS Updates Available" \
+                "A new system image is available. Choose an action:")
 
             case "$ACTION" in
                 reboot)
@@ -93,9 +104,8 @@ if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
     fi
 
 else
-    echo "Already on latest image ($CURRENT_TAG) — nothing to do."
+    echo "System already running latest image."
 
-    # Even if already on latest image, still upgrade layered packages
     echo "Upgrading layered packages..."
     rpm-ostree upgrade --allow-inactive
 fi
