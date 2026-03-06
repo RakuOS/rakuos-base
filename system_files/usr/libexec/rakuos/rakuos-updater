@@ -16,8 +16,7 @@ echo "Current tag: $CURRENT_TAG"
 # -------------------------------
 # Get GHCR token
 # -------------------------------
-# Strip ghcr.io/ prefix for the repository name
-REPO_PATH="${REPO_URL#ghcr.io/}"
+REPO_PATH="${REPO_URL#ghcr.io/}"   # Strip ghcr.io/ prefix
 
 TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=ghcr.io" \
         | jq -r .token)
@@ -26,8 +25,6 @@ TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=
 # Get latest dated tag from GHCR
 # -------------------------------
 TAGS_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/$REPO_PATH/tags/list")
-
-# Match YYYYMMDD style tags
 NEWEST_TAG=$(echo "$TAGS_JSON" | jq -r '.tags[]' | grep -E '^[0-9]{8}$' | sort | tail -n1)
 
 echo "Latest dated tag on GHCR: $NEWEST_TAG"
@@ -37,13 +34,17 @@ echo "Latest dated tag on GHCR: $NEWEST_TAG"
 # -------------------------------
 if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
     echo "New image detected ($NEWEST_TAG). Rebasing..."
-    
+
     # Count deployments before rebase
     BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
     echo "Deployments before rebase: $BEFORE_COUNT"
 
-    # Rebase using ostree-unverified-registry: for GHCR OCI images
+    # Rebase to GHCR OCI image
     rpm-ostree rebase "ostree-unverified-registry:$REPO_URL:$NEWEST_TAG"
+
+    # Upgrade user-layered packages if any
+    echo "Upgrading layered packages..."
+    rpm-ostree upgrade --allow-inactive
 
     # Count deployments after rebase
     AFTER_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
@@ -92,7 +93,11 @@ if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
     fi
 
 else
-    echo "Already on latest image ($CURRENT_TAG) — no action required."
+    echo "Already on latest image ($CURRENT_TAG) — nothing to do."
+
+    # Even if already on latest image, still upgrade layered packages
+    echo "Upgrading layered packages..."
+    rpm-ostree upgrade --allow-inactive
 fi
 
 echo "RakuOS Auto Updater finished."
