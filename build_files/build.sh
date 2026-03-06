@@ -35,6 +35,7 @@ dnf5 -y install ananicy-cpp \
   openssl \
   freerdp \
   libnotify \
+  inotify-tools \
   podman-compose \
   steam-devices \
   openrgb-udev-rules \

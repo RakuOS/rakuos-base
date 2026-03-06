@@ -17,7 +17,7 @@ mkdir -p /var/lib/rakuos
 ########################################
 
 case "$MODE" in
-    boot|dbus)
+    boot|watcher)
         ;;
     *)
         echo "Unknown mode '$MODE', defaulting to boot"
@@ -45,10 +45,10 @@ if [[ "$MODE" == "boot" ]]; then
 fi
 
 ########################################
-# Per-app fixes (dbus trigger)
+# Per-app fixes (watcher trigger)
 ########################################
 
-if [[ "$MODE" == "dbus" && -n "$APPID" ]]; then
+if [[ "$MODE" == "watcher" && -n "$APPID" ]]; then
 
     FIX_SCRIPT="$FIX_DIR/$APPID.sh"
 
