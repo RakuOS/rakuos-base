@@ -37,6 +37,9 @@ dnf5 -y install ananicy-cpp \
   libnotify \
   inotify-tools \
   podman-compose \
+  python3-pyqt6 \
+  python3-pyqt6-dbus \
+  python3-dbus \
   steam-devices \
   openrgb-udev-rules \
   nodejs \
