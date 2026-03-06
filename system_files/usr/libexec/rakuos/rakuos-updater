@@ -23,9 +23,13 @@ if [[ -z "$CURRENT_IMAGE" ]]; then
 fi
 
 # Parse repo/tag
-REPO_URL="${CURRENT_IMAGE#ostree-unverified-registry:}"   # strip prefix
-CURRENT_TAG="${REPO_URL##*:}"                              # latest, 20260306, etc
-REPO_URL="${REPO_URL%:*}"                                  # ghcr.io/rakuos/rakuos-kde
+# Detect active deployment without worrying about Unicode bullet
+CURRENT_LINE=$(rpm-ostree status | grep '^\s*●' | sed 's/.*●\s*//')
+# Remove the ostree-unverified-registry: prefix
+CURRENT_LINE=${CURRENT_LINE#ostree-unverified-registry:}
+
+REPO_URL="${CURRENT_LINE%:*}"      # ghcr.io/rakuos/rakuos-kde
+CURRENT_TAG="${CURRENT_LINE##*:}"  # latest, or 20260306 etc
 
 LOCAL_DIGEST=$(echo "$STATUS_JSON" | jq -r '.deployments[] | select(.booted==true) | .checksum // empty')
 if [[ -z "$LOCAL_DIGEST" ]]; then
