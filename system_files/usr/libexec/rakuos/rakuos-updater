@@ -6,15 +6,31 @@ echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 # -------------------------------
 # Detect currently running GHCR image
 # -------------------------------
-CURRENT_IMAGE=$(rpm-ostree status --json | jq -r '.deployments[0].base')
-# e.g., "ostree-unverified-registry:ghcr.io/rakuos/rakuos-kde:latest"
+STATUS_JSON=$(rpm-ostree status --json)
 
-# Strip prefix and parse repo/tag
-REPO_URL="${CURRENT_IMAGE#ostree-unverified-registry:}"   # ghcr.io/rakuos/rakuos-kde:latest
+# Try to get the base from active deployment
+CURRENT_IMAGE=$(echo "$STATUS_JSON" | jq -r '.deployments[] | select(.booted==true) | .base // empty')
+
+# Fallback: use the first deployment base if booted not set
+if [[ -z "$CURRENT_IMAGE" ]]; then
+    CURRENT_IMAGE=$(echo "$STATUS_JSON" | jq -r '.deployments[0].base // empty')
+fi
+
+# Fallback again: if still empty, mark as unknown
+if [[ -z "$CURRENT_IMAGE" ]]; then
+    echo "Could not detect current image base!"
+    CURRENT_IMAGE="unknown"
+fi
+
+# Parse repo/tag
+REPO_URL="${CURRENT_IMAGE#ostree-unverified-registry:}"   # strip prefix
 CURRENT_TAG="${REPO_URL##*:}"                              # latest, 20260306, etc
 REPO_URL="${REPO_URL%:*}"                                  # ghcr.io/rakuos/rakuos-kde
 
-LOCAL_DIGEST=$(rpm-ostree status --json | jq -r '.deployments[0].checksum')
+LOCAL_DIGEST=$(echo "$STATUS_JSON" | jq -r '.deployments[] | select(.booted==true) | .checksum // empty')
+if [[ -z "$LOCAL_DIGEST" ]]; then
+    LOCAL_DIGEST=$(echo "$STATUS_JSON" | jq -r '.deployments[0].checksum // empty')
+fi
 
 echo "Current image repo: $REPO_URL"
 echo "Current tag: $CURRENT_TAG"
@@ -25,40 +41,45 @@ echo "Current digest: $LOCAL_DIGEST"
 # -------------------------------
 REPO_PATH="${REPO_URL#ghcr.io/}"   # e.g., rakuos/rakuos-kde
 
-TOKEN=$(curl -fsSL "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=ghcr.io" | jq -r .token)
-if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-    echo "Failed to get GHCR token for $REPO_PATH"
-    exit 1
+if [[ "$REPO_PATH" == "unknown" ]]; then
+    echo "Skipping GHCR check — unknown repo"
+    NEWEST_TAG="$CURRENT_TAG"
+    REMOTE_DIGEST="$LOCAL_DIGEST"
+else
+    TOKEN=$(curl -fsSL "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=ghcr.io" | jq -r .token)
+    if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+        echo "Failed to get GHCR token for $REPO_PATH"
+        exit 1
+    fi
+
+    # -------------------------------
+    # Get latest dated tag from GHCR
+    # -------------------------------
+    TAGS_JSON=$(curl -fsSL -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/$REPO_PATH/tags/list")
+    if ! echo "$TAGS_JSON" | jq -e .tags >/dev/null 2>&1; then
+        echo "Error fetching tags from GHCR. Response:"
+        echo "$TAGS_JSON"
+        exit 1
+    fi
+
+    NEWEST_TAG=$(echo "$TAGS_JSON" | jq -r '.tags[]' | grep -E '^[0-9]{8}$' | sort | tail -n1)
+    echo "Latest dated tag on GHCR: $NEWEST_TAG"
+
+    # -------------------------------
+    # Get remote digest for newest tag
+    # -------------------------------
+    REMOTE_DIGEST=$(curl -fsSL \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+      "https://ghcr.io/v2/$REPO_PATH/manifests/$NEWEST_TAG" \
+      | jq -r '.config.digest')
+
+    if [[ -z "$REMOTE_DIGEST" || "$REMOTE_DIGEST" == "null" ]]; then
+        echo "Failed to get remote digest for $NEWEST_TAG"
+        exit 1
+    fi
+    echo "Remote digest: $REMOTE_DIGEST"
 fi
-
-# -------------------------------
-# Get latest dated tag from GHCR
-# -------------------------------
-TAGS_JSON=$(curl -fsSL -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/$REPO_PATH/tags/list")
-if ! echo "$TAGS_JSON" | jq -e .tags >/dev/null 2>&1; then
-    echo "Error fetching tags from GHCR. Response:"
-    echo "$TAGS_JSON"
-    exit 1
-fi
-
-NEWEST_TAG=$(echo "$TAGS_JSON" | jq -r '.tags[]' | grep -E '^[0-9]{8}$' | sort | tail -n1)
-echo "Latest dated tag on GHCR: $NEWEST_TAG"
-
-# -------------------------------
-# Get remote digest for newest tag
-# -------------------------------
-REMOTE_DIGEST=$(curl -fsSL \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-  "https://ghcr.io/v2/$REPO_PATH/manifests/$NEWEST_TAG" \
-  | jq -r '.config.digest')
-
-if [[ -z "$REMOTE_DIGEST" || "$REMOTE_DIGEST" == "null" ]]; then
-    echo "Failed to get remote digest for $NEWEST_TAG"
-    exit 1
-fi
-
-echo "Remote digest: $REMOTE_DIGEST"
 
 # -------------------------------
 # Compare and rebase if needed
@@ -66,7 +87,7 @@ echo "Remote digest: $REMOTE_DIGEST"
 if [[ "$LOCAL_DIGEST" != "$REMOTE_DIGEST" ]]; then
     echo "New image detected — rebasing to $NEWEST_TAG"
 
-    BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
+    BEFORE_COUNT=$(echo "$STATUS_JSON" | jq '.deployments | length')
     echo "Deployments before rebase: $BEFORE_COUNT"
 
     rpm-ostree rebase "ostree-unverified-registry:$REPO_URL:$NEWEST_TAG"
