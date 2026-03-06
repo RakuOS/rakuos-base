@@ -63,6 +63,7 @@ systemctl enable \
   rakuos-flatpaks.service \
   rakuos-flatpak-wrappers.path \
   rakuos-flatpak-wrappers.service \
+  rakuos-flatpak-watcher.service \
   flatpak-cleanup.timer \
   flatpak-repair.timer \
   rpm-ostree-clean-metadata.timer \
