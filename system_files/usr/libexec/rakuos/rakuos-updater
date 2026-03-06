@@ -4,64 +4,95 @@ set -euo pipefail
 echo "Starting RakuOS Auto Updater (rpm-ostree)..."
 
 # -------------------------------
-# Count deployments before upgrade
+# Detect currently running GHCR image
 # -------------------------------
-BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
-echo "Deployments before upgrade: $BEFORE_COUNT"
+CURRENT_LINE=$(rpm-ostree status | awk '/^\●/ {print $2}')
+REPO_URL="${CURRENT_LINE%:*}"      # ghcr.io/rakuos/rakuos-kde
+CURRENT_TAG="${CURRENT_LINE##*:}"  # latest, or 20260306 etc
 
-# Run rpm-ostree upgrade
-rpm-ostree upgrade
-
-echo "System update: OK"
-echo "Updates applied."
+echo "Current image repo: $REPO_URL"
+echo "Current tag: $CURRENT_TAG"
 
 # -------------------------------
-# Count deployments after upgrade
+# Get GHCR token
 # -------------------------------
-AFTER_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
-echo "Deployments after upgrade: $AFTER_COUNT"
+# Strip ghcr.io/ prefix for the repository name
+REPO_PATH="${REPO_URL#ghcr.io/}"
 
-# Only notify if a new deployment appeared
-if [[ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]]; then
-    echo "New deployment detected — sending notification."
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:$REPO_PATH:pull&service=ghcr.io" \
+        | jq -r .token)
 
-    # Find the active graphical user
-    ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
+# -------------------------------
+# Get latest dated tag from GHCR
+# -------------------------------
+TAGS_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/$REPO_PATH/tags/list")
 
-    if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
-        USER_UID=$(id -u "$ACTIVE_USER")
-        USER_RUNTIME="/run/user/$USER_UID"
+# Match YYYYMMDD style tags
+NEWEST_TAG=$(echo "$TAGS_JSON" | jq -r '.tags[]' | grep -E '^[0-9]{8}$' | sort | tail -n1)
 
-        echo "Sending notification to user: $ACTIVE_USER"
+echo "Latest dated tag on GHCR: $NEWEST_TAG"
 
-        ACTION=$(sudo -u "$ACTIVE_USER" \
-            DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
-            DISPLAY=:0 \
-            notify-send \
-                --app-name="RakuOS Updater" \
-                --icon=system-software-update \
-                --urgency=normal \
-                --expire-time=0 \
-                --action=reboot="Reboot Now" \
-                --action=later="Later" \
-                --wait \
-                "RakuOS Updates Available" \
-                "A new system image is available. Choose an action:")
+# -------------------------------
+# Compare and rebase if needed
+# -------------------------------
+if [[ "$CURRENT_TAG" != "$NEWEST_TAG" ]]; then
+    echo "New image detected ($NEWEST_TAG). Rebasing..."
+    
+    # Count deployments before rebase
+    BEFORE_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
+    echo "Deployments before rebase: $BEFORE_COUNT"
 
-        case "$ACTION" in
-            reboot)
-                echo "User chose reboot"
-                systemctl reboot
-                ;;
-            *)
-                echo "User chose later or dismissed"
-                ;;
-        esac
+    # Rebase using ostree-unverified-registry: for GHCR OCI images
+    rpm-ostree rebase "ostree-unverified-registry:$REPO_URL:$NEWEST_TAG"
+
+    # Count deployments after rebase
+    AFTER_COUNT=$(rpm-ostree status --json | jq '.deployments | length')
+    echo "Deployments after rebase: $AFTER_COUNT"
+
+    if [[ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]]; then
+        echo "New deployment applied — sending notification."
+
+        # Find the active graphical user
+        ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
+
+        if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
+            USER_UID=$(id -u "$ACTIVE_USER")
+            USER_RUNTIME="/run/user/$USER_UID"
+
+            echo "Sending notification to user: $ACTIVE_USER"
+
+            ACTION=$(sudo -u "$ACTIVE_USER" \
+                DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
+                DISPLAY=:0 \
+                notify-send \
+                    --app-name="RakuOS Updater" \
+                    --icon=system-software-update \
+                    --urgency=normal \
+                    --expire-time=0 \
+                    --action=reboot="Reboot Now" \
+                    --action=later="Later" \
+                    --wait \
+                    "RakuOS Updates Available" \
+                    "A new system image is available. Choose an action:")
+
+            case "$ACTION" in
+                reboot)
+                    echo "User chose reboot"
+                    systemctl reboot
+                    ;;
+                *)
+                    echo "User chose later or dismissed"
+                    ;;
+            esac
+        else
+            echo "No active graphical session — skipping notification."
+        fi
     else
-        echo "No active graphical session — skipping notification."
+        echo "Rebase completed but no new deployment detected."
     fi
+
 else
-    echo "No new deployments — nothing to notify."
+    echo "Already on latest image ($CURRENT_TAG) — no action required."
 fi
 
 echo "RakuOS Auto Updater finished."
