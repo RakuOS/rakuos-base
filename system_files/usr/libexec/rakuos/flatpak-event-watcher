@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SETUP_SCRIPT="/usr/libexec/rakuos/system-flatpak-setup"
+WRAPPER_GEN="/usr/libexec/rakuos/flatpak-wrapper-gen"
 BIN_DIR="/var/lib/flatpak/exports/bin"
 
 echo "RakuOS Flatpak event watcher started, watching $BIN_DIR"
@@ -12,50 +13,64 @@ command -v inotifywait >/dev/null 2>&1 || {
     exit 1
 }
 
+# Run wrapper generator once at startup
+if [[ -x "$WRAPPER_GEN" ]]; then
+    echo "Generating Flatpak CLI wrappers..."
+    "$WRAPPER_GEN"
+fi
+
 # Initial snapshot of existing scripts
 declare -A KNOWN_APPS
 for f in "$BIN_DIR"/*; do
     [[ -e "$f" ]] || continue
     base=$(basename "$f")
-
+    
     [[ "$base" == .* ]] && continue
-
+    
     KNOWN_APPS["$base"]=1
 done
 
 echo "Setting up watches."
 
 inotifywait -m \
-    -e create \
-    -e delete \
-    -e moved_to \
-    -e moved_from \
-    --format '%e %f' "$BIN_DIR" | while read -r event file; do
-
+-e create \
+-e delete \
+-e moved_to \
+-e moved_from \
+--format '%e %f' "$BIN_DIR" | while read -r event file; do
+    
     # Ignore hidden or temp files
     [[ "$file" == .* ]] && continue
     [[ "$file" == .export-symlink-* ]] && continue
-
+    
     APPID="$file"
-
+    
     case "$event" in
-
+        
         CREATE*|MOVED_TO*)
             if [[ -z "${KNOWN_APPS[$APPID]:-}" ]]; then
                 echo "Detected Flatpak install for $APPID"
                 "$SETUP_SCRIPT" watcher "$APPID" install
                 KNOWN_APPS["$APPID"]=1
+                # regenerate CLI wrappers
+                if [[ -x "$WRAPPER_GEN" ]]; then
+                    "$WRAPPER_GEN"
+                fi
             fi
         ;;
-
+        
         DELETE*|MOVED_FROM*)
             if [[ -n "${KNOWN_APPS[$APPID]:-}" ]]; then
                 echo "Detected Flatpak uninstall for $APPID"
                 "$SETUP_SCRIPT" watcher "$APPID" uninstall
                 unset KNOWN_APPS["$APPID"]
+                # regenerate CLI wrappers
+                if [[ -x "$WRAPPER_GEN" ]]; then
+                    "$WRAPPER_GEN"
+                fi
             fi
         ;;
-
+        
     esac
-
+    
 done

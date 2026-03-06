@@ -62,8 +62,6 @@ systemctl mask systemd-remount-fs.service
 systemctl enable \
   rakuos-updater.timer \
   rakuos-flatpaks.service \
-  rakuos-flatpak-wrappers.path \
-  rakuos-flatpak-wrappers.service \
   rakuos-flatpak-watcher.service \
   flatpak-cleanup.timer \
   flatpak-repair.timer \
