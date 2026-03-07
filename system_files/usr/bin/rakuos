@@ -2,50 +2,50 @@
 set -e
 
 COMMAND="${1:-}"
-PACKAGE="${2:-}"
 
 case "$COMMAND" in
     update)
         /usr/libexec/rakuos/rakuos-updater
-    ;;
+        ;;
     install)
         shift
         /usr/libexec/rakuos/rakuos-install "$@"
-    ;;
+        ;;
     remove)
         shift
         /usr/libexec/rakuos/rakuos-remove "$@"
-    ;;
+        ;;
     list)
         /usr/libexec/rakuos/rakuos-list
-    ;;
+        ;;
     reset-overlay)
         /usr/libexec/rakuos/rakuos-reset-overlay "${2:-}"
-    ;;
+        ;;
     setup-virtualization)
         /usr/libexec/rakuos/setup-virtualization
-    ;;
+        ;;
     setup-lsfg-vk)
         /usr/libexec/rakuos/setup-lsfg-vk
-    ;;
+        ;;
     setup-stoat)
         /usr/libexec/rakuos/setup-stoat
-    ;;
+        ;;
     setup-ollama)
         /usr/libexec/rakuos/setup-ollama
-    ;;
+        ;;
     *)
         echo "RakuOS Helper"
         echo ""
         echo "Usage:"
-        echo "  rakuos update"
-        echo "  rakuos install <package>"
-        echo "  rakuos remove <package>"
-        echo "  rakuos list"
-        echo "  rakuos setup-virtualization"
-        echo "  rakuos setup-lsfg-vk"
-        echo "  rakuos setup-stoat"
-        echo "  rakuos setup-ollama"
+        echo "  rakuos update                        Check for and apply system updates"
+        echo "  rakuos install <package> [pkg2...]   Install packages via overlay"
+        echo "  rakuos remove <package> [pkg2...]    Remove packages from overlay"
+        echo "  rakuos list                          List overlay installed packages"
+        echo "  rakuos reset-overlay --confirm       Wipe overlay and all installed packages"
+        echo "  rakuos setup-virtualization          Set up KVM/QEMU virtualization"
+        echo "  rakuos setup-lsfg-vk                 Set up Lossless Scaling Frame Gen"
+        echo "  rakuos setup-stoat                   Set up Stoat"
+        echo "  rakuos setup-ollama                  Set up Ollama local AI"
         exit 1
-    ;;
+        ;;
 esac
