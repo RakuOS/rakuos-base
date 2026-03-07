@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
@@ -22,5 +21,19 @@ bootc usr-overlay
 
 echo "RakuOS overlay boot: installing ${#PACKAGES[@]} package(s)..."
 dnf5.real install -y "${PACKAGES[@]}"
+
+# -------------------------------
+# Post-install service activation
+# -------------------------------
+
+# Virtualization — enable libvirtd if any virt packages are present
+VIRT_PACKAGES=(libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm virt-manager)
+for pkg in "${VIRT_PACKAGES[@]}"; do
+    if grep -qx "$pkg" "$PACKAGES_LIST"; then
+        echo "RakuOS overlay boot: virtualization packages detected — enabling libvirtd..."
+        systemctl enable --now libvirtd || true
+        break
+    fi
+done
 
 echo "RakuOS overlay boot: done."
