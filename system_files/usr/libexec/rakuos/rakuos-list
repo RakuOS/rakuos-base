@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+
+if [[ ! -f "$PACKAGES_LIST" ]] || [[ ! -s "$PACKAGES_LIST" ]]; then
+    echo "No packages installed via RakuOS overlay."
+    exit 0
+fi
+
+echo "RakuOS overlay packages:"
+echo ""
+while IFS= read -r pkg; do
+    [[ -z "$pkg" ]] && continue
+    echo "  • $pkg"
+done < "$PACKAGES_LIST"

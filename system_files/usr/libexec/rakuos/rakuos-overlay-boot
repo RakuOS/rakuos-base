@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+
+# Nothing to do if no packages list or it's empty
+if [[ ! -f "$PACKAGES_LIST" ]] || [[ ! -s "$PACKAGES_LIST" ]]; then
+    echo "No RakuOS overlay packages configured — skipping."
+    exit 0
+fi
+
+# Read packages into array, skip empty lines
+mapfile -t PACKAGES < <(grep -v '^\s*$' "$PACKAGES_LIST")
+
+if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
+    echo "No packages in list — skipping."
+    exit 0
+fi
+
+echo "RakuOS overlay boot: mounting bootc usr-overlay..."
+bootc usr-overlay
+
+echo "RakuOS overlay boot: installing ${#PACKAGES[@]} package(s)..."
+dnf5 install -y "${PACKAGES[@]}"
+
+echo "RakuOS overlay boot: done."

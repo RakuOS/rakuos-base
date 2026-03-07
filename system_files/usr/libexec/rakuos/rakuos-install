@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGE="${1:-}"
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+
+if [[ -z "$PACKAGE" ]]; then
+    echo "Usage: rakuos install <package>"
+    exit 1
+fi
+
+# Must run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "ERROR: rakuos install must be run as root"
+    exit 1
+fi
+
+# Ensure packages list dir exists
+mkdir -p /var/lib/rakuos
+
+# Check if already installed
+if grep -qx "$PACKAGE" "$PACKAGES_LIST" 2>/dev/null; then
+    echo "$PACKAGE is already installed via RakuOS overlay."
+    exit 0
+fi
+
+echo "Installing $PACKAGE via bootc usr-overlay..."
+
+# Mount overlay if not already active
+if ! findmnt /usr | grep -q overlay; then
+    echo "Mounting bootc usr-overlay..."
+    bootc usr-overlay
+fi
+
+# Install package into overlay
+echo "Running dnf5 install $PACKAGE..."
+dnf5 install -y "$PACKAGE"
+
+# Add to packages list
+echo "$PACKAGE" >> "$PACKAGES_LIST"
+echo "$PACKAGE installed successfully and added to RakuOS package list."

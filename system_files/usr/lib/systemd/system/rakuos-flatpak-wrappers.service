@@ -1,9 +1,0 @@
-[Unit]
-Description=Generate RakuOS Flatpak wrappers
-
-[Service]
-Type=oneshot
-ExecStart=/usr/libexec/rakuos/flatpak-wrapper-gen
-
-[Install]
-WantedBy=multi-user.target

@@ -2,10 +2,22 @@
 set -e
 
 COMMAND="${1:-}"
+PACKAGE="${2:-}"
 
 case "$COMMAND" in
     update)
         /usr/libexec/rakuos/rakuos-updater
+        ;;
+    install)
+        [[ -z "$PACKAGE" ]] && echo "Usage: rakuos install <package>" && exit 1
+        /usr/libexec/rakuos/rakuos-install "$PACKAGE"
+        ;;
+    remove)
+        [[ -z "$PACKAGE" ]] && echo "Usage: rakuos remove <package>" && exit 1
+        /usr/libexec/rakuos/rakuos-remove "$PACKAGE"
+        ;;
+    list)
+        /usr/libexec/rakuos/rakuos-list
         ;;
     setup-virtualization)
         /usr/libexec/rakuos/setup-virtualization
@@ -20,10 +32,13 @@ case "$COMMAND" in
         /usr/libexec/rakuos/setup-ollama
         ;;
     *)
-        echo "RakuOS helper"
+        echo "RakuOS Helper"
         echo ""
         echo "Usage:"
         echo "  rakuos update"
+        echo "  rakuos install <package>"
+        echo "  rakuos remove <package>"
+        echo "  rakuos list"
         echo "  rakuos setup-virtualization"
         echo "  rakuos setup-lsfg-vk"
         echo "  rakuos setup-stoat"

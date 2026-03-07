@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGE="${1:-}"
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+
+if [[ -z "$PACKAGE" ]]; then
+    echo "Usage: rakuos remove <package>"
+    exit 1
+fi
+
+# Must run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "ERROR: rakuos remove must be run as root"
+    exit 1
+fi
+
+# Check if in packages list
+if ! grep -qx "$PACKAGE" "$PACKAGES_LIST" 2>/dev/null; then
+    echo "$PACKAGE is not in the RakuOS package list."
+    exit 1
+fi
+
+echo "Removing $PACKAGE..."
+
+# Remove live from overlay if mounted
+if findmnt /usr | grep -q overlay; then
+    dnf5 remove -y "$PACKAGE" || echo "Warning: dnf5 remove returned non-zero, may already be gone."
+else
+    echo "Overlay not currently mounted — package will be absent on next boot."
+fi
+
+# Remove from packages list
+sed -i "/^${PACKAGE}$/d" "$PACKAGES_LIST"
+echo "$PACKAGE removed from RakuOS package list."

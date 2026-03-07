@@ -1,0 +1,15 @@
+[Unit]
+Description=RakuOS Overlay Package Restore
+Documentation=https://rakuos.org
+After=network.target
+ConditionPathExists=/var/lib/rakuos/packages.list
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/rakuos-overlay-boot
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
