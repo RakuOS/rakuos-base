@@ -63,6 +63,7 @@ systemctl mask systemd-remount-fs.service
 #enable enable services
 systemctl enable \
   rakuos-updater.timer \
+  rakuos-overlay.service \
   rakuos-flatpaks.service \
   rakuos-flatpak-watcher.service \
   flatpak-cleanup.timer \
