@@ -57,4 +57,9 @@ done
 # Set dirty flag so boot service knows to rebuild on next boot
 touch "$DIRTY_FILE"
 
+# Save current digest to state file if not already set
+if [[ ! -f "/var/lib/rakuos/overlay.state" ]]; then
+    bootc status --json | jq -r '.status.booted.image.imageDigest // empty' > /var/lib/rakuos/overlay.state
+fi
+
 echo "${TO_INSTALL[*]} installed successfully and added to RakuOS package list."
