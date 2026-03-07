@@ -124,16 +124,20 @@ if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
                 reboot)
                     echo "User chose reboot — rebooting now."
                     systemctl reboot
+                    exit 0
                 ;;
                 *)
                     echo "User chose later or dismissed."
+                    exit 0
                 ;;
             esac
         else
             echo "No active graphical session — skipping notification."
+            exit 0
         fi
         
         echo "RakuOS Auto Updater finished."
+        exit 0
     fi
 else
     echo "Current tag is '$CURRENT_TAG' (non-date), will switch to dated tag $NEWEST_TAG."
