@@ -21,6 +21,6 @@ echo "RakuOS overlay boot: mounting bootc usr-overlay..."
 bootc usr-overlay
 
 echo "RakuOS overlay boot: installing ${#PACKAGES[@]} package(s)..."
-dnf5 install -y "${PACKAGES[@]}"
+dnf5.real install -y "${PACKAGES[@]}"
 
 echo "RakuOS overlay boot: done."

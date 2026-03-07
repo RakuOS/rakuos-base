@@ -25,7 +25,7 @@ echo "Removing $PACKAGE..."
 
 # Remove live from overlay if mounted
 if findmnt /usr | grep -q overlay; then
-    dnf5 remove -y "$PACKAGE" || echo "Warning: dnf5 remove returned non-zero, may already be gone."
+    dnf5.real remove -y "$PACKAGE" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
 else
     echo "Overlay not currently mounted — package will be absent on next boot."
 fi

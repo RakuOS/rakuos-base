@@ -33,8 +33,8 @@ if ! findmnt /usr | grep -q overlay; then
 fi
 
 # Install package into overlay
-echo "Running dnf5 install $PACKAGE..."
-dnf5 install -y "$PACKAGE"
+echo "Running dnf5.real install $PACKAGE..."
+dnf5.real install -y "$PACKAGE"
 
 # Add to packages list
 echo "$PACKAGE" >> "$PACKAGES_LIST"
