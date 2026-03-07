@@ -92,7 +92,7 @@ echo "Latest dated tag on GHCR: $NEWEST_TAG"
 # -------------------------------
 if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
     if [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
-        echo "Already on latest image ($CURRENT_TAG) — nothing to do."
+        bootc upgrade
         echo "RakuOS Auto Updater finished."
         exit 0
     fi
