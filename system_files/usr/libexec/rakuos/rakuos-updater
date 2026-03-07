@@ -15,7 +15,7 @@ IMAGE_FULL=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.image.image // e
 REPO_URL="${IMAGE_FULL%:*}"
 
 # Get current tag from version field e.g. "latest.20260306" -> "20260306"
-CURRENT_TAG=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.version // empty' | sed 's/^latest\.//') 
+CURRENT_TAG=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.version // empty' | sed 's/^latest\.//')
 CURRENT_TAG=$(echo "$CURRENT_TAG" | tr -d '[:space:]')
 
 if [[ -z "$REPO_URL" ]]; then
@@ -43,7 +43,7 @@ fi
 
 TOKEN=$(curl -fsSL \
     "https://ghcr.io/token?scope=repository:${REPO_PATH}:pull&service=ghcr.io" \
-    | jq -r .token)
+| jq -r .token)
 
 if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
     echo "ERROR: Failed to get GHCR token for $REPO_PATH"
@@ -57,11 +57,11 @@ fi
 LATEST_MANIFEST=$(curl -fsSL \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-    "https://ghcr.io/v2/$REPO_PATH/manifests/latest")
+"https://ghcr.io/v2/$REPO_PATH/manifests/latest")
 
 # Try manifest-level annotations first
 VERSION_ANNOTATION=$(echo "$LATEST_MANIFEST" \
-    | jq -r '.annotations["org.opencontainers.image.version"] // empty')
+| jq -r '.annotations["org.opencontainers.image.version"] // empty')
 
 # Fallback: check config blob labels
 if [[ -z "$VERSION_ANNOTATION" ]]; then
@@ -70,7 +70,7 @@ if [[ -z "$VERSION_ANNOTATION" ]]; then
         VERSION_ANNOTATION=$(curl -fsSL \
             -H "Authorization: Bearer $TOKEN" \
             "https://ghcr.io/v2/$REPO_PATH/blobs/$CONFIG_DIGEST" \
-            | jq -r '.config.Labels["org.opencontainers.image.version"] // empty')
+        | jq -r '.config.Labels["org.opencontainers.image.version"] // empty')
     fi
 fi
 
@@ -93,7 +93,47 @@ echo "Latest dated tag on GHCR: $NEWEST_TAG"
 if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
     if [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
         bootc upgrade
+        # -------------------------------
+        # Notify user
+        # -------------------------------
         echo "New deployment staged — notifying user."
+        
+        ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
+        
+        if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
+            USER_UID=$(id -u "$ACTIVE_USER")
+            USER_RUNTIME="/run/user/$USER_UID"
+            
+            echo "Sending notification to: $ACTIVE_USER"
+            
+            ACTION=$(sudo -u "$ACTIVE_USER" \
+                DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
+                DISPLAY=:0 \
+                notify-send \
+                --app-name="RakuOS Updater" \
+                --icon=system-software-update \
+                --urgency=normal \
+                --expire-time=0 \
+                --action=reboot="Reboot Now" \
+                --action=later="Later" \
+                --wait \
+                "RakuOS Update Ready" \
+            "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
+            
+            case "$ACTION" in
+                reboot)
+                    echo "User chose reboot — rebooting now."
+                    systemctl reboot
+                ;;
+                *)
+                    echo "User chose later or dismissed."
+                ;;
+            esac
+        else
+            echo "No active graphical session — skipping notification."
+        fi
+        
+        echo "RakuOS Auto Updater finished."
     fi
 else
     echo "Current tag is '$CURRENT_TAG' (non-date), will switch to dated tag $NEWEST_TAG."
@@ -116,9 +156,9 @@ ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
 if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
     USER_UID=$(id -u "$ACTIVE_USER")
     USER_RUNTIME="/run/user/$USER_UID"
-
+    
     echo "Sending notification to: $ACTIVE_USER"
-
+    
     ACTION=$(sudo -u "$ACTIVE_USER" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
         DISPLAY=:0 \
@@ -131,16 +171,16 @@ if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
         --action=later="Later" \
         --wait \
         "RakuOS Update Ready" \
-        "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
-
+    "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
+    
     case "$ACTION" in
         reboot)
             echo "User chose reboot — rebooting now."
             systemctl reboot
-            ;;
+        ;;
         *)
             echo "User chose later or dismissed."
-            ;;
+        ;;
     esac
 else
     echo "No active graphical session — skipping notification."
