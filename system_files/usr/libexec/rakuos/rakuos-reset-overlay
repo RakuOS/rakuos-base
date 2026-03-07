@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OVERLAY_DIR="/var/lib/rakuos/overlay"
+UPPER_DIR="$OVERLAY_DIR/upper"
+WORK_DIR="$OVERLAY_DIR/work"
+STATE_FILE="/var/lib/rakuos/overlay.state"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+
+# Must run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "ERROR: rakuos reset-overlay must be run as root"
+    exit 1
+fi
+
+# Require --confirm flag to prevent accidental wipes
+if [[ "${1:-}" != "--confirm" ]]; then
+    echo "WARNING: This will remove all packages installed via rakuos install."
+    echo "Your base system and /home will not be affected."
+    echo ""
+    echo "To confirm run: sudo rakuos reset-overlay --confirm"
+    exit 1
+fi
+
+echo "RakuOS: resetting overlay..."
+
+# Unmount overlay first if mounted — critical to avoid corrupting /home configs
+if findmnt /usr | grep -q overlay; then
+    echo "RakuOS: unmounting overlay..."
+    umount /usr
+    echo "RakuOS: overlay unmounted."
+fi
+
+# Now safe to wipe
+echo "RakuOS: wiping overlay dirs..."
+rm -rf "${UPPER_DIR:?}"/*
+rm -rf "${WORK_DIR:?}"/*
+
+# Clear state files
+rm -f "$STATE_FILE"
+rm -f "$DIRTY_FILE"
+rm -f "$PACKAGES_LIST"
+
+echo ""
+echo "RakuOS overlay reset complete."
+echo "Please reboot to return to a clean base system."
