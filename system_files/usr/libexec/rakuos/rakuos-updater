@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Starting RakuOS Auto Updater (rpm-ostree)..."
+echo "Starting RakuOS Auto Updater (bootc)..."
 
 # -------------------------------
-# Detect currently running GHCR image
+# Detect currently running image
 # -------------------------------
-STATUS_JSON=$(rpm-ostree status --json)
+BOOTC_STATUS=$(bootc status --json)
 
-# Parse repo and current tag from the booted deployment line
-CURRENT_LINE=$(rpm-ostree status | grep -E '^\s*●' | sed 's/.*●\s*//' | tr -d '[:space:]')
-CURRENT_LINE="${CURRENT_LINE#ostree-unverified-registry:}"
+# Full image string e.g. ghcr.io/rakuos/rakuos-kde:latest
+IMAGE_FULL=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
 
-REPO_URL="${CURRENT_LINE%:*}"      # e.g. ghcr.io/rakuos/rakuos-kde
-CURRENT_TAG="${CURRENT_LINE##*:}"  # e.g. 20260306 or latest
+# Strip :latest to get base repo URL
+REPO_URL="${IMAGE_FULL%:*}"
 
-# Sanitize — strip any stray whitespace or newlines
-REPO_URL="$(echo "$REPO_URL" | tr -d '[:space:]')"
-CURRENT_TAG="$(echo "$CURRENT_TAG" | tr -d '[:space:]')"
+# Get current tag from version field e.g. "latest.20260306" -> "20260306"
+CURRENT_TAG=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.version // empty' | sed 's/^latest\.//') 
+CURRENT_TAG=$(echo "$CURRENT_TAG" | tr -d '[:space:]')
+
+if [[ -z "$REPO_URL" ]]; then
+    echo "ERROR: Could not detect booted image from bootc status."
+    exit 1
+fi
+
+if [[ -z "$CURRENT_TAG" ]]; then
+    echo "ERROR: Could not detect current tag from bootc status."
+    exit 1
+fi
 
 echo "Current image repo: $REPO_URL"
 echo "Current tag:        $CURRENT_TAG"
@@ -25,7 +34,7 @@ echo "Current tag:        $CURRENT_TAG"
 # -------------------------------
 # Get GHCR token
 # -------------------------------
-REPO_PATH="${REPO_URL#ghcr.io/}"   # e.g. rakuos/rakuos-kde
+REPO_PATH="${REPO_URL#ghcr.io/}"
 
 if [[ "$REPO_PATH" == "$REPO_URL" ]]; then
     echo "ERROR: Could not parse GHCR repo path from: $REPO_URL"
@@ -75,78 +84,67 @@ if [[ -z "$NEWEST_TAG" ]]; then
     echo "$LATEST_MANIFEST" | jq . || echo "$LATEST_MANIFEST"
     exit 1
 fi
-    echo "Latest dated tag on GHCR: $NEWEST_TAG"
-    
+
+echo "Latest dated tag on GHCR: $NEWEST_TAG"
+
 # -------------------------------
 # Compare tags — skip if already on newest
 # -------------------------------
 if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
     if [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
-        echo "Already on latest image ($CURRENT_TAG) — upgrading layered packages only."
-        rpm-ostree upgrade
+        echo "Already on latest image ($CURRENT_TAG) — nothing to do."
         echo "RakuOS Auto Updater finished."
         exit 0
     fi
 else
-    echo "Current tag is '$CURRENT_TAG' (non-date), will rebase to dated tag $NEWEST_TAG."
+    echo "Current tag is '$CURRENT_TAG' (non-date), will switch to dated tag $NEWEST_TAG."
 fi
 
 # -------------------------------
-# Rebase to newest dated tag
+# Switch to newest dated tag via bootc
 # -------------------------------
-echo "New image available: $NEWEST_TAG (current: $CURRENT_TAG) — rebasing..."
+echo "New image available: $NEWEST_TAG (current: $CURRENT_TAG) — updating..."
 
-BEFORE_COUNT=$(echo "$STATUS_JSON" | jq '.deployments | length')
+bootc switch "$REPO_URL:$NEWEST_TAG"
 
-rpm-ostree rebase "ostree-unverified-registry:$REPO_URL:$NEWEST_TAG"
+# -------------------------------
+# Notify user
+# -------------------------------
+echo "New deployment staged — notifying user."
 
-echo "Upgrading layered packages..."
-rpm-ostree upgrade
+ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
 
-AFTER_JSON=$(rpm-ostree status --json)
-AFTER_COUNT=$(echo "$AFTER_JSON" | jq '.deployments | length')
+if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
+    USER_UID=$(id -u "$ACTIVE_USER")
+    USER_RUNTIME="/run/user/$USER_UID"
 
-echo "Deployments before: $BEFORE_COUNT — after: $AFTER_COUNT"
+    echo "Sending notification to: $ACTIVE_USER"
 
-if [[ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]]; then
-    echo "New deployment staged — notifying user."
+    ACTION=$(sudo -u "$ACTIVE_USER" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
+        DISPLAY=:0 \
+        notify-send \
+        --app-name="RakuOS Updater" \
+        --icon=system-software-update \
+        --urgency=normal \
+        --expire-time=0 \
+        --action=reboot="Reboot Now" \
+        --action=later="Later" \
+        --wait \
+        "RakuOS Update Ready" \
+        "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
 
-    ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
-
-    if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
-        USER_UID=$(id -u "$ACTIVE_USER")
-        USER_RUNTIME="/run/user/$USER_UID"
-
-        echo "Sending notification to: $ACTIVE_USER"
-
-        ACTION=$(sudo -u "$ACTIVE_USER" \
-            DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
-            DISPLAY=:0 \
-            notify-send \
-            --app-name="RakuOS Updater" \
-            --icon=system-software-update \
-            --urgency=normal \
-            --expire-time=0 \
-            --action=reboot="Reboot Now" \
-            --action=later="Later" \
-            --wait \
-            "RakuOS Update Ready" \
-            "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
-
-        case "$ACTION" in
-            reboot)
-                echo "User chose reboot — rebooting now."
-                systemctl reboot
-                ;;
-            *)
-                echo "User chose later or dismissed."
-                ;;
-        esac
-    else
-        echo "No active graphical session — skipping notification."
-    fi
+    case "$ACTION" in
+        reboot)
+            echo "User chose reboot — rebooting now."
+            systemctl reboot
+            ;;
+        *)
+            echo "User chose later or dismissed."
+            ;;
+    esac
 else
-    echo "Rebase ran but no new deployment detected — may already be current."
+    echo "No active graphical session — skipping notification."
 fi
 
 echo "RakuOS Auto Updater finished."

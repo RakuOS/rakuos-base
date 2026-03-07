@@ -1,7 +1,8 @@
 [Unit]
 Description=RakuOS Overlay Package Restore
 Documentation=https://rakuos.org
-After=network.target
+After=network-online.target
+Wants=network-online.target
 ConditionPathExists=/var/lib/rakuos/packages.list
 
 [Service]
