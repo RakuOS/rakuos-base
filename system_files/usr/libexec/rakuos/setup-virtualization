@@ -10,6 +10,7 @@ sudo rakuos install \
     virt-manager
 
 # After installing virt packages copy polkit rules to /etc so they persist
+mkdir -p /etc/polkit-1/actions
 cp /usr/share/polkit-1/actions/org.libvirt.*.policy /etc/polkit-1/actions/
 
 echo "Enabling libvirt service..."
