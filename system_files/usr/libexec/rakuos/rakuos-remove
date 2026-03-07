@@ -3,6 +3,9 @@ set -euo pipefail
 
 PACKAGES=("${@}")
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+WORK_DIR="/var/lib/rakuos/overlay/work"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "Usage: rakuos remove <package> [package2] [package3]..."
@@ -32,16 +35,23 @@ fi
 
 echo "Removing ${TO_REMOVE[*]}..."
 
-# Remove live from overlay if mounted
-if findmnt /usr | grep -q overlay; then
-    dnf5.real remove -y "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
-else
-    echo "Overlay not currently mounted — packages will be absent on next boot."
+# Mount our persistent overlay if not already active
+if ! findmnt /usr | grep -q overlay; then
+    echo "Mounting RakuOS overlay..."
+    mount -t overlay overlay \
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
 fi
+
+# Remove live from overlay
+dnf5.real remove -y "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
 
 # Remove each from packages list
 for pkg in "${TO_REMOVE[@]}"; do
     sed -i "/^${pkg}$/d" "$PACKAGES_LIST"
 done
+
+# Set dirty flag so boot service rebuilds overlay on next boot
+touch "$DIRTY_FILE"
 
 echo "${TO_REMOVE[*]} removed from RakuOS package list."

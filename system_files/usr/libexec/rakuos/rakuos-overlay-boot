@@ -2,6 +2,11 @@
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+OVERLAY_DIR="/var/lib/rakuos/overlay"
+UPPER_DIR="$OVERLAY_DIR/upper"
+WORK_DIR="$OVERLAY_DIR/work"
+STATE_FILE="/var/lib/rakuos/overlay.state"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
 # Nothing to do if no packages list or it's empty
 if [[ ! -f "$PACKAGES_LIST" ]] || [[ ! -s "$PACKAGES_LIST" ]]; then
@@ -17,21 +22,66 @@ if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     exit 0
 fi
 
-echo "RakuOS overlay boot: mounting bootc usr-overlay..."
-bootc usr-overlay
+# Ensure overlay dirs exist
+mkdir -p "$UPPER_DIR" "$WORK_DIR"
 
-echo "RakuOS overlay boot: installing ${#PACKAGES[@]} package(s)..."
-dnf5.real install -y "${PACKAGES[@]}"
+# Get current booted image digest
+CURRENT_DIGEST=$(bootc status --json | jq -r '.status.booted.image.imageDigest // empty')
+
+if [[ -z "$CURRENT_DIGEST" ]]; then
+    echo "WARNING: Could not detect current image digest — forcing overlay rebuild."
+    CURRENT_DIGEST="unknown"
+fi
+
+# Read saved digest
+SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+
+# Mount our persistent overlay on /usr
+mount_overlay() {
+    mount -t overlay overlay \
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
+}
+
+# -------------------------------
+# Decide whether to mount or rebuild
+# -------------------------------
+if [[ "$CURRENT_DIGEST" == "$SAVED_DIGEST" ]] && [[ ! -f "$DIRTY_FILE" ]]; then
+    echo "RakuOS overlay: image unchanged, no package changes — mounting existing overlay..."
+    mount_overlay
+    echo "RakuOS overlay: mounted."
+else
+    echo "RakuOS overlay: rebuild required (image changed or packages modified)..."
+
+    # Clear old overlay contents so we start fresh
+    echo "RakuOS overlay: clearing old overlay..."
+    rm -rf "${UPPER_DIR:?}"/*
+    rm -rf "${WORK_DIR:?}"/*
+
+    # Mount our overlay so dnf5 installs into it
+    echo "RakuOS overlay: mounting fresh overlay..."
+    mount_overlay
+
+    # Install all packages into the overlay
+    echo "RakuOS overlay: installing ${#PACKAGES[@]} package(s)..."
+    dnf5.real install -y "${PACKAGES[@]}"
+
+    # Save current digest and clear dirty flag
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+
+    echo "RakuOS overlay: rebuild complete."
+fi
 
 # -------------------------------
 # Post-install service activation
 # -------------------------------
 
-# Virtualization — enable libvirtd if any virt packages are present
+# Virtualization — enable libvirtd if virt packages are present
 VIRT_PACKAGES=(libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm virt-manager)
 for pkg in "${VIRT_PACKAGES[@]}"; do
     if grep -qx "$pkg" "$PACKAGES_LIST"; then
-        echo "RakuOS overlay boot: virtualization packages detected — enabling libvirtd..."
+        echo "RakuOS overlay: virtualization packages detected — enabling libvirtd..."
         systemctl enable --now libvirtd || true
         break
     fi

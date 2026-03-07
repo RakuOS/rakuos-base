@@ -3,6 +3,9 @@ set -euo pipefail
 
 PACKAGES=("${@}")
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+WORK_DIR="/var/lib/rakuos/overlay/work"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "Usage: rakuos install <package> [package2] [package3]..."
@@ -15,8 +18,8 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
-# Ensure packages list dir exists
-mkdir -p /var/lib/rakuos
+# Ensure dirs exist
+mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
 
 # Filter out already installed packages
 TO_INSTALL=()
@@ -33,21 +36,25 @@ if [[ "${#TO_INSTALL[@]}" -eq 0 ]]; then
     exit 0
 fi
 
-echo "Installing ${TO_INSTALL[*]} via bootc usr-overlay..."
+echo "Installing ${TO_INSTALL[*]} via RakuOS overlay..."
 
-# Mount overlay if not already active
+# Mount our persistent overlay if not already active
 if ! findmnt /usr | grep -q overlay; then
-    echo "Mounting bootc usr-overlay..."
-    bootc usr-overlay
+    echo "Mounting RakuOS overlay..."
+    mount -t overlay overlay \
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
 fi
 
-# Install packages into overlay
-echo "Running dnf5.real install ${TO_INSTALL[*]}..."
+# Install into overlay
 dnf5.real install -y "${TO_INSTALL[@]}"
 
-# Add each to packages list
+# Add to packages list
 for pkg in "${TO_INSTALL[@]}"; do
     echo "$pkg" >> "$PACKAGES_LIST"
 done
+
+# Set dirty flag so boot service knows to rebuild on next boot
+touch "$DIRTY_FILE"
 
 echo "${TO_INSTALL[*]} installed successfully and added to RakuOS package list."
