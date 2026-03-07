@@ -3,7 +3,7 @@ set -e
 
 echo "Setting up virtualization for RakuOS..."
 
-sudo rpm-ostree install \
+sudo rakuos install \
     libvirt-daemon-config-network \
     libvirt-daemon-kvm \
     qemu-kvm
