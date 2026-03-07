@@ -118,7 +118,7 @@ if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
                 --action=later="Later" \
                 --wait \
                 "RakuOS Update Ready" \
-            "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
+            "Image $NEWEST_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
             
             case "$ACTION" in
                 reboot)
@@ -175,7 +175,7 @@ if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
         --action=later="Later" \
         --wait \
         "RakuOS Update Ready" \
-    "Image $NEWEST_TAG is staged. Reboot to apply." 2>/dev/null || echo "later")
+    "Image $NEWEST_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
     
     case "$ACTION" in
         reboot)

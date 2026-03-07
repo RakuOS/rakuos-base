@@ -29,48 +29,68 @@ mkdir -p "$UPPER_DIR" "$WORK_DIR"
 CURRENT_DIGEST=$(bootc status --json | jq -r '.status.booted.image.imageDigest // empty')
 
 if [[ -z "$CURRENT_DIGEST" ]]; then
-    echo "WARNING: Could not detect current image digest — forcing overlay rebuild."
+    echo "WARNING: Could not detect current image digest — using unknown."
     CURRENT_DIGEST="unknown"
 fi
 
 # Read saved digest
 SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
 
-# Mount our persistent overlay on /usr
+# Check if upper dir has content
+OVERLAY_HAS_CONTENT=false
+if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    OVERLAY_HAS_CONTENT=true
+fi
+
+# -------------------------------
+# Mount our persistent overlay
+# -------------------------------
 mount_overlay() {
     mount -t overlay overlay \
         -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
         /usr
 }
 
-# -------------------------------
-# Decide whether to mount or rebuild
-# -------------------------------
-if [[ "$CURRENT_DIGEST" == "$SAVED_DIGEST" ]] && [[ ! -f "$DIRTY_FILE" ]]; then
-    echo "RakuOS overlay: image unchanged, no package changes — mounting existing overlay..."
+if ! findmnt /usr | grep -q overlay; then
+    echo "RakuOS overlay: mounting persistent overlay..."
     mount_overlay
-    echo "RakuOS overlay: mounted."
-else
-    echo "RakuOS overlay: rebuild required (image changed or packages modified)..."
+fi
 
-    # Clear old overlay contents so we start fresh
-    echo "RakuOS overlay: clearing old overlay..."
-    rm -rf "${UPPER_DIR:?}"/*
-    rm -rf "${WORK_DIR:?}"/*
+# -------------------------------
+# Decide what action is needed
+# -------------------------------
 
-    # Mount our overlay so dnf5 installs into it
-    echo "RakuOS overlay: mounting fresh overlay..."
-    mount_overlay
-
-    # Install all packages into the overlay
-    echo "RakuOS overlay: installing ${#PACKAGES[@]} package(s)..."
+if [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
+    # Overlay was wiped or first run — full install from package list
+    echo "RakuOS overlay: overlay is empty — performing full install..."
     dnf5.real install -y "${PACKAGES[@]}"
-
-    # Save current digest and clear dirty flag
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay: full install complete."
 
-    echo "RakuOS overlay: rebuild complete."
+elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
+    # Image was updated — upgrade packages in place, no wipe
+    echo "RakuOS overlay: image updated — upgrading overlay packages..."
+    dnf5.real upgrade -y "${PACKAGES[@]}"
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay: package upgrade complete."
+
+elif [[ -f "$DIRTY_FILE" ]]; then
+    # Packages were added or removed — reinstall list to sync
+    echo "RakuOS overlay: package changes detected — syncing..."
+    dnf5.real install -y "${PACKAGES[@]}"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay: sync complete."
+
+else
+    # Nothing changed — overlay already mounted, nothing to do
+    echo "RakuOS overlay: up to date, nothing to do."
+fi
+
+# Save digest if not already saved
+if [[ -z "$SAVED_DIGEST" ]] || [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
 fi
 
 # -------------------------------
