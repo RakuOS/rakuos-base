@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
