@@ -3,6 +3,7 @@ Description=RakuOS Overlay Package Restore
 Documentation=https://rakuos.org
 After=network-online.target systemd-resolved.service
 Wants=network-online.target systemd-resolved.service
+Before=graphical.target display-manager.service sddm.service gdm.service
 ConditionPathExists=/var/lib/rakuos/packages.list
 
 [Service]
@@ -15,4 +16,4 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
