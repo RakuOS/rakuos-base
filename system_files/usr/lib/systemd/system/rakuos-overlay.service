@@ -1,12 +1,14 @@
 [Unit]
 Description=RakuOS Overlay Package Restore
 Documentation=https://rakuos.org
-After=network-online.target
-Wants=network-online.target
+After=network-online.target systemd-resolved.service
+Wants=network-online.target systemd-resolved.service
 ConditionPathExists=/var/lib/rakuos/packages.list
 
 [Service]
 Type=oneshot
+# Wait until DNS is actually resolving before attempting package install
+ExecStartPre=/bin/bash -c 'until nslookup mirrors.fedoraproject.org >/dev/null 2>&1; do echo "Waiting for DNS..."; sleep 2; done'
 ExecStart=/usr/libexec/rakuos/rakuos-overlay-boot
 RemainAfterExit=yes
 StandardOutput=journal
