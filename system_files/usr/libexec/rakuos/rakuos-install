@@ -49,6 +49,11 @@ fi
 # Install into overlay
 dnf5.real install -y "${TO_INSTALL[@]}"
 
+# Mark newly installed packages as user so PackageKit can manage them
+for pkg in "${TO_INSTALL[@]}"; do
+    dnf5.real mark user "$pkg" || true
+done
+
 # Add to packages list
 for pkg in "${TO_INSTALL[@]}"; do
     echo "$pkg" >> "$PACKAGES_LIST"
