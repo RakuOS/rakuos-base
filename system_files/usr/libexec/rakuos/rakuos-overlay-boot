@@ -94,17 +94,16 @@ if [[ -z "$SAVED_DIGEST" ]] || [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
 fi
 
 # -------------------------------
-# Post-install service activation
+# Restart services whose files are now available via overlay
 # -------------------------------
-
-# Virtualization — enable libvirtd if virt packages are present
-VIRT_PACKAGES=(libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm virt-manager)
-for pkg in "${VIRT_PACKAGES[@]}"; do
-    if grep -qx "$pkg" "$PACKAGES_LIST"; then
-        echo "RakuOS overlay: virtualization packages detected — enabling libvirtd..."
-        systemctl enable --now libvirtd || true
-        break
+echo "RakuOS overlay: restarting services enabled from overlay packages..."
+while IFS= read -r -d '' symlink; do
+    service=$(basename "$symlink")
+    # Only restart if enabled but not active
+    if systemctl is-enabled "$service" &>/dev/null && ! systemctl is-active "$service" &>/dev/null; then
+        echo "RakuOS overlay: starting $service..."
+        systemctl start "$service" || true
     fi
-done
+done < <(find /etc/systemd/system -maxdepth 2 -type l -print0)
 
 echo "RakuOS overlay boot: done."
