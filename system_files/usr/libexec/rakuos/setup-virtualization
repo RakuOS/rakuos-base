@@ -6,13 +6,14 @@ echo "Setting up virtualization for RakuOS..."
 sudo rakuos install \
     libvirt-daemon-config-network \
     libvirt-daemon-kvm \
-    qemu-kvm
+    qemu-kvm \
+    virt-manager
+
+# After installing virt packages copy polkit rules to /etc so they persist
+cp /usr/share/polkit-1/actions/org.libvirt.*.policy /etc/polkit-1/actions/
 
 echo "Enabling libvirt service..."
 sudo systemctl enable --now libvirtd
-
-echo "Installing virt-manager via flathub..."
-flatpak install -y flathub org.virt_manager.virt-manager
 
 echo ""
 echo "Virtualization packages layered."
