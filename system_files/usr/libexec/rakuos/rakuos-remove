@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PACKAGE="${1:-}"
+PACKAGES=("${@}")
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 
-if [[ -z "$PACKAGE" ]]; then
-    echo "Usage: rakuos remove <package>"
+if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
+    echo "Usage: rakuos remove <package> [package2] [package3]..."
     exit 1
 fi
 
@@ -15,21 +15,33 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
-# Check if in packages list
-if ! grep -qx "$PACKAGE" "$PACKAGES_LIST" 2>/dev/null; then
-    echo "$PACKAGE is not in the RakuOS package list."
-    exit 1
+# Filter out packages not in the list
+TO_REMOVE=()
+for pkg in "${PACKAGES[@]}"; do
+    if ! grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
+        echo "$pkg is not in the RakuOS package list — skipping."
+    else
+        TO_REMOVE+=("$pkg")
+    fi
+done
+
+if [[ "${#TO_REMOVE[@]}" -eq 0 ]]; then
+    echo "None of the requested packages are in the RakuOS package list."
+    exit 0
 fi
 
-echo "Removing $PACKAGE..."
+echo "Removing ${TO_REMOVE[*]}..."
 
 # Remove live from overlay if mounted
 if findmnt /usr | grep -q overlay; then
-    dnf5.real remove -y "$PACKAGE" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
+    dnf5.real remove -y "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
 else
-    echo "Overlay not currently mounted — package will be absent on next boot."
+    echo "Overlay not currently mounted — packages will be absent on next boot."
 fi
 
-# Remove from packages list
-sed -i "/^${PACKAGE}$/d" "$PACKAGES_LIST"
-echo "$PACKAGE removed from RakuOS package list."
+# Remove each from packages list
+for pkg in "${TO_REMOVE[@]}"; do
+    sed -i "/^${pkg}$/d" "$PACKAGES_LIST"
+done
+
+echo "${TO_REMOVE[*]} removed from RakuOS package list."
