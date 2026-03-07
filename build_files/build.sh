@@ -26,6 +26,8 @@ dnf5 -y install ananicy-cpp \
   scx-tools \
   gamemode \
   gamemode.i686 \
+  mangohud \
+  mangohud.i686 \
   pulseaudio-utils \
   git \
   flatpak \
