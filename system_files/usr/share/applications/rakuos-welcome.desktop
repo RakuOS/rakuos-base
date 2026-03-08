@@ -1,20 +1,14 @@
 [Desktop Entry]
 Categories=System;
 Comment=RakuOS first run setup wizard
-Comment=RakuOS first run setup wizard
-Exec=/usr/bin/rakuos-welcome --force
-GenericName=
-GenericName=
 Icon=rakuos-logo
-MimeType=
-Name=RakuOS Welcome
-Name=RakuOS Welcome
-Path=
+Exec=/usr/bin/rakuos-welcome --force
+Name=rakuos-welcome
+NoDisplay=false
+PrefersNonDefaultGPU=false
 StartupNotify=true
 Terminal=false
 TerminalOptions=
-Type=ApplicationS
-X-GNOME-Autostart-enabled=true
+Type=Application
 X-KDE-SubstituteUID=false
 X-KDE-Username=
-X-KDE-autostart-after=panel
