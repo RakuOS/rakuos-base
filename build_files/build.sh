@@ -32,8 +32,6 @@ dnf5 -y install ananicy-cpp \
   git \
   flatpak \
   PackageKit \
-  PackageKit-backend-dnf5 \
-  PackageKit-glib \
   libxcrypt-compat \
   rsync \
   podman \
