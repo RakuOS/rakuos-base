@@ -207,13 +207,13 @@ class DonePage(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(20)
-        layout.setContentsMargins(60, 40, 60, 40)
+        layout.setSpacing(16)
+        layout.setContentsMargins(60, 20, 60, 20)
 
         icon = QLabel("🎉")
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         font = QFont()
-        font.setPointSize(56)
+        font.setPointSize(42)
         icon.setFont(font)
         layout.addWidget(icon)
 
@@ -234,15 +234,17 @@ class DonePage(QWidget):
         desc.setMaximumWidth(560)
         layout.addWidget(desc, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        layout.addSpacing(10)
+        layout.addSpacing(8)
 
         tip = QLabel("💡 Tip: Run  rakuos  in a terminal to see all available commands.")
         tip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tip.setWordWrap(True)
+        tip.setMaximumWidth(560)
         font3 = QFont()
         font3.setFamily("monospace")
         font3.setPointSize(10)
         tip.setFont(font3)
-        layout.addWidget(tip)
+        layout.addWidget(tip, alignment=Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()
 
