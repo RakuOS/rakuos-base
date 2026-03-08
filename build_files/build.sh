@@ -8,6 +8,7 @@ dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable atim/heroic-games-launcher fedora-${FEDORA_VERSION}-x86_64
+dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
     https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
     https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
