@@ -68,16 +68,16 @@ fi
 # Save digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
-# # -------------------------------
-# # Restart services enabled from overlay packages
-# # -------------------------------
-# echo "RakuOS overlay sync: restarting overlay services..."
-# while IFS= read -r -d '' symlink; do
-#     service=$(basename "$symlink")
-#     if systemctl is-enabled "$service" &>/dev/null && ! systemctl is-active "$service" &>/dev/null; then
-#         echo "RakuOS overlay sync: starting $service..."
-#         systemctl start "$service" || true
-#     fi
-# done < <(find /etc/systemd/system -maxdepth 2 -type l -print0)
+# -------------------------------
+# Restart services enabled from overlay packages
+# -------------------------------
+echo "RakuOS overlay sync: restarting overlay services..."
+while IFS= read -r -d '' symlink; do
+    service=$(basename "$symlink")
+    if systemctl is-enabled "$service" &>/dev/null && ! systemctl is-active "$service" &>/dev/null; then
+        echo "RakuOS overlay sync: starting $service..."
+        systemctl start "$service" || true
+    fi
+done < <(find /etc/systemd/system -maxdepth 2 -type l -print0)
 
 echo "RakuOS overlay sync: done."
