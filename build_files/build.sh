@@ -42,6 +42,12 @@ dnf5 -y install ananicy-cpp \
   libnotify \
   inotify-tools \
   podman-compose \
+  python3-pywebview \
+  webkit2gtk4.1 \
+  python3-flask \
+  appstream \
+  appstream-data \
+  fwupd \
   python3-pyqt6 \
   python3-dbus \
   python3-gobject \
