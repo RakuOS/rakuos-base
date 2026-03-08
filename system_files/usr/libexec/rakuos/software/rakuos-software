@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""
+RakuOS Software — Unified software center and system manager
+Manages native packages, Flatpak, and system updates via bootc
+"""
+
+import sys
+import os
+import threading
+import webview
+from backend.api import app as flask_app
+
+UI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
+PORT = 57421  # fixed local port
+
+
+def start_flask():
+    # Preload AppStream cache in background so UI opens instantly
+    from backend.packages import preload_appstream
+    preload_appstream()
+    flask_app.run(port=PORT, threaded=True, use_reloader=False)
+
+
+def main():
+    # Start Flask backend in background thread
+    t = threading.Thread(target=start_flask, daemon=True)
+    t.start()
+
+    # Give Flask a moment to start
+    import time
+    time.sleep(0.5)
+
+    # Create webview window
+    window = webview.create_window(
+        title="RakuOS Software",
+        url=f"http://localhost:{PORT}/",
+        width=1100,
+        height=720,
+        min_size=(900, 600),
+        background_color="#1a1a2e",
+    )
+
+    webview.start(debug="--debug" in sys.argv)
+
+
+if __name__ == "__main__":
+    main()
