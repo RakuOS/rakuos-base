@@ -3,8 +3,35 @@ set -euo pipefail
 
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
+STATE_FILE="/var/lib/rakuos/overlay.state"
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+RESET_MARKER="/var/lib/rakuos/overlay.reset"
 
-# Ensure work dir exists
+# ── Reset requested on last boot ──
+if [[ -f "$RESET_MARKER" ]]; then
+    echo "RakuOS overlay: reset marker found — wiping overlay..."
+
+    # Wipe overlay dirs
+    rm -rf "${UPPER_DIR:?}"/*
+    rm -rf "${WORK_DIR:?}"/*
+
+    # Clear state files
+    rm -f "$STATE_FILE"
+    rm -f "$PACKAGES_LIST"
+
+    # Reset RPM database to base image state
+    echo "RakuOS overlay: resetting RPM database to base image state..."
+    rm -rf /var/lib/rpm/*
+    rsync -a --delete /usr/share/rpm/ /var/lib/rpm/
+
+    # Remove marker — reset complete
+    rm -f "$RESET_MARKER"
+
+    echo "RakuOS overlay: reset complete. Starting with clean base."
+    exit 0
+fi
+
+# ── Normal mount ──
 mkdir -p "$UPPER_DIR" "$WORK_DIR"
 
 # Already mounted — nothing to do
@@ -13,13 +40,13 @@ if findmnt /usr | grep -q overlay; then
     exit 0
 fi
 
-# Check upper dir has content
+# Upper dir empty — nothing to mount, sync will handle install
 if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     echo "RakuOS overlay: upper dir is empty — skipping mount, sync will handle install."
     exit 0
 fi
 
-echo "RakuOS overlay: mounting persistent overlay early..."
+echo "RakuOS overlay: mounting persistent overlay..."
 mount -t overlay overlay \
     -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
     /usr
