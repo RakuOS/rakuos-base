@@ -44,6 +44,7 @@ dnf5 -y install ananicy-cpp \
   podman-compose \
   python3-pyqt6 \
   python3-dbus \
+  python3-gobject \
   steam-devices \
   openrgb-udev-rules \
   nodejs \
