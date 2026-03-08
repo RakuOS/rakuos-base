@@ -275,7 +275,7 @@ class WelcomeWindow(QMainWindow):
             WelcomePage(logo_path),
             SetupPage(
                 "Gaming Setup",
-                "Install Steam and Lutris natively for the best gaming performance. "
+                "Install Steam, Lutris, Heroic Launcher natively and a few Utilities for the best gaming performance. "
                 "Native packages give better Proton and Wine compatibility than Flatpak.",
                 "🎮", "setup-gaming"
             ),

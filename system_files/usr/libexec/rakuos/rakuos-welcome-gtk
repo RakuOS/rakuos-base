@@ -120,7 +120,7 @@ class WelcomeWindow(Adw.ApplicationWindow):
         # ── Build pages ──
         self._add_welcome_page()
         self._add_setup_page("gaming", "Gaming Setup", "🎮",
-            "Install Steam and Lutris natively for the best gaming performance. "
+            "Install Steam, Lutris, Heroic Launcher natively and a few Utilities for the best gaming performance. "
             "Native packages give better Proton and Wine compatibility than Flatpak.",
             "setup-gaming")
         self._add_setup_page("virt", "Virtualization", "🖥️",

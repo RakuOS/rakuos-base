@@ -2,7 +2,7 @@
 Categories=System;
 Comment=RakuOS first run setup wizard
 Comment=RakuOS first run setup wizard
-Exec=/usr/bin/rakuos-welcome
+Exec=/usr/bin/rakuos-welcome --force
 GenericName=
 GenericName=
 Icon=rakuos-logo
@@ -13,7 +13,7 @@ Path=
 StartupNotify=true
 Terminal=false
 TerminalOptions=
-Type=Application
+Type=ApplicationS
 X-GNOME-Autostart-enabled=true
 X-KDE-SubstituteUID=false
 X-KDE-Username=
