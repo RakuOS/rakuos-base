@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""
+RakuOS Welcome App - GTK4 version for GNOME
+Runs once on first login. Fully inherits system GTK theme.
+"""
+
+import os
+import sys
+import subprocess
+import threading
+from pathlib import Path
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gtk, Adw, GLib, GdkPixbuf, Gio
+
+WELCOME_DONE_FILE = Path.home() / ".config" / "rakuos" / "welcome-done"
+LOGO_DARK  = "/usr/share/pixmaps/fedora_whitelogo_med.png"
+LOGO_LIGHT = "/usr/share/pixmaps/fedora_logo_med.png"
+ICON_PATH  = "/usr/share/pixmaps/rakuos-logo.png"
+
+
+def get_logo_path() -> str:
+    """Pick logo based on system dark/light mode via Adwaita color scheme."""
+    try:
+        style_manager = Adw.StyleManager.get_default()
+        is_dark = style_manager.get_dark()
+    except Exception:
+        # Fallback: check GTK theme name
+        settings = Gtk.Settings.get_default()
+        theme = settings.get_property("gtk-theme-name") or ""
+        is_dark = "dark" in theme.lower()
+    return LOGO_DARK if is_dark else LOGO_LIGHT
+
+
+# ─────────────────────────────────────────────
+# Main Application Window
+# ─────────────────────────────────────────────
+class WelcomeWindow(Adw.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app)
+        self.set_title("Welcome to RakuOS")
+        self.set_default_size(720, 560)
+        self.set_resizable(True)
+
+        # Window icon
+        display = self.get_display()
+        if display:
+            Gtk.IconTheme.get_for_display(display).add_search_path("/usr/share/pixmaps")
+        self.set_icon_name("rakuos-logo")
+
+        self.current_page = 0
+        self.pages = []
+
+        # ── Root layout ──
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_content(root)
+
+        # ── Header bar with window controls ──
+        header = Adw.HeaderBar()
+        header.set_show_end_title_buttons(True)
+        header.set_show_start_title_buttons(True)
+        root.append(header)
+
+        # ── Stack ──
+        self.stack = Gtk.Stack()
+        self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.stack.set_transition_duration(200)
+        self.stack.set_vexpand(True)
+        root.append(self.stack)
+
+        # ── Shared log — below stack, above nav ──
+        self.log_view = Gtk.TextView()
+        self.log_view.set_editable(False)
+        self.log_view.set_cursor_visible(False)
+        self.log_view.set_monospace(True)
+        self.log_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.log_buffer = self.log_view.get_buffer()
+
+        log_scroll = Gtk.ScrolledWindow()
+        log_scroll.set_child(self.log_view)
+        log_scroll.set_min_content_height(150)
+        log_scroll.set_max_content_height(150)
+        log_scroll.set_vexpand(False)
+        log_scroll.set_visible(False)
+        self.log_scroll = log_scroll
+        root.append(log_scroll)
+
+        # ── Navigation bar ──
+        nav_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        nav_box.set_margin_start(24)
+        nav_box.set_margin_end(24)
+        nav_box.set_margin_top(12)
+        nav_box.set_margin_bottom(12)
+
+        # Dot indicators
+        self.dots_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        nav_box.append(self.dots_box)
+
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        nav_box.append(spacer)
+
+        self.back_btn = Gtk.Button(label="← Back")
+        self.back_btn.connect("clicked", self.go_back)
+        self.back_btn.set_visible(False)
+        nav_box.append(self.back_btn)
+
+        self.next_btn = Gtk.Button(label="Next →")
+        self.next_btn.add_css_class("suggested-action")
+        self.next_btn.connect("clicked", self.go_next)
+        nav_box.append(self.next_btn)
+
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        root.append(sep)
+        root.append(nav_box)
+
+        # ── Build pages ──
+        self._add_welcome_page()
+        self._add_setup_page("gaming", "Gaming Setup", "🎮",
+            "Install Steam and Lutris natively for the best gaming performance. "
+            "Native packages give better Proton and Wine compatibility than Flatpak.",
+            "setup-gaming")
+        self._add_setup_page("virt", "Virtualization", "🖥️",
+            "Set up KVM/QEMU and virt-manager to run virtual machines. "
+            "Ideal for running Windows or other Linux distros alongside RakuOS.",
+            "setup-virtualization")
+        self._add_setup_page("ollama", "Local AI with Ollama", "🤖",
+            "Install Ollama to run AI language models locally on your GPU. "
+            "Keep your conversations private and use AI without the cloud.",
+            "setup-ollama")
+        self._add_done_page()
+
+        self._build_dots()
+        self._update_nav()
+
+    # ── Page builders ──────────────────────────
+
+    def _add_welcome_page(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_margin_start(60)
+        box.set_margin_end(60)
+        box.set_margin_top(40)
+        box.set_margin_bottom(40)
+
+        # Banner logo — light/dark aware
+        logo_path = get_logo_path()
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 300, -1, True)
+            img = Gtk.Image.new_from_pixbuf(pixbuf)
+            img.set_halign(Gtk.Align.CENTER)
+            img.set_pixel_size(300)
+            box.append(img)
+        except Exception as e:
+            print(f"Logo load error: {e}")
+            fallback = Gtk.Label(label="RakuOS")
+            fallback.add_css_class("title-1")
+            fallback.set_halign(Gtk.Align.CENTER)
+            box.append(fallback)
+
+        heading = Gtk.Label(label="Welcome to RakuOS Linux")
+        heading.add_css_class("title-1")
+        heading.set_halign(Gtk.Align.CENTER)
+        box.append(heading)
+
+        tagline = Gtk.Label(label="The Hybrid Atomic Linux Desktop")
+        tagline.add_css_class("title-4")
+        tagline.set_halign(Gtk.Align.CENTER)
+        box.append(tagline)
+
+        desc = Gtk.Label(
+            label="RakuOS combines the stability and security of an atomic immutable base "
+                  "with the flexibility of a traditional Linux distribution. "
+                  "Your system can never be broken by a bad update."
+        )
+        desc.set_wrap(True)
+        desc.set_max_width_chars(70)
+        desc.set_halign(Gtk.Align.CENTER)
+        desc.set_justify(Gtk.Justification.CENTER)
+        box.append(desc)
+
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        box.append(sep)
+
+        links_label = Gtk.Label(label="Find us online:")
+        links_label.set_halign(Gtk.Align.CENTER)
+        box.append(links_label)
+
+        links_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
+        links_box.set_halign(Gtk.Align.CENTER)
+
+        for text, url in [
+            ("🌐 Website", "https://rakuos.org"),
+            ("💻 GitHub", "https://github.com/RakuOS"),
+            ("📦 SourceForge", "https://sourceforge.net/projects/rakuos/"),
+        ]:
+            btn = Gtk.LinkButton.new_with_label(url, text)
+            links_box.append(btn)
+
+        box.append(links_box)
+
+        self.stack.add_named(box, "welcome")
+        self.pages.append("welcome")
+
+    def _add_setup_page(self, name, title, icon, description, script):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_margin_start(60)
+        box.set_margin_end(60)
+        box.set_margin_top(40)
+        box.set_margin_bottom(40)
+
+        icon_label = Gtk.Label(label=icon)
+        icon_label.add_css_class("title-1")
+        attrs = icon_label.get_attributes() or None
+        # Make emoji bigger via CSS
+        icon_label.set_markup(f'<span size="3000%">{icon}</span>')
+        icon_label.set_halign(Gtk.Align.CENTER)
+        box.append(icon_label)
+
+        title_label = Gtk.Label(label=title)
+        title_label.add_css_class("title-2")
+        title_label.set_halign(Gtk.Align.CENTER)
+        box.append(title_label)
+
+        desc_label = Gtk.Label(label=description)
+        desc_label.set_wrap(True)
+        desc_label.set_max_width_chars(70)
+        desc_label.set_halign(Gtk.Align.CENTER)
+        desc_label.set_justify(Gtk.Justification.CENTER)
+        box.append(desc_label)
+
+        install_btn = Gtk.Button(label=f"Set Up {title}")
+        install_btn.add_css_class("suggested-action")
+        install_btn.add_css_class("pill")
+        install_btn.set_halign(Gtk.Align.CENTER)
+        install_btn.set_size_request(200, 42)
+        install_btn.connect("clicked", self._run_setup, script, install_btn)
+        box.append(install_btn)
+
+        self.stack.add_named(box, name)
+        self.pages.append(name)
+
+    def _add_done_page(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_margin_start(60)
+        box.set_margin_end(60)
+        box.set_margin_top(40)
+        box.set_margin_bottom(40)
+
+        icon = Gtk.Label()
+        icon.set_markup('<span size="3000%">🎉</span>')
+        icon.set_halign(Gtk.Align.CENTER)
+        box.append(icon)
+
+        heading = Gtk.Label(label="You're All Set!")
+        heading.add_css_class("title-1")
+        heading.set_halign(Gtk.Align.CENTER)
+        box.append(heading)
+
+        desc = Gtk.Label(
+            label="RakuOS is ready to use. You can always run additional setup "
+                  "at any time from the terminal using the rakuos command."
+        )
+        desc.set_wrap(True)
+        desc.set_max_width_chars(70)
+        desc.set_halign(Gtk.Align.CENTER)
+        desc.set_justify(Gtk.Justification.CENTER)
+        box.append(desc)
+
+        tip = Gtk.Label(label="💡 Tip: Run  rakuos  in a terminal to see all available commands.")
+        tip.set_halign(Gtk.Align.CENTER)
+        tip.add_css_class("monospace")
+        box.append(tip)
+
+        self.stack.add_named(box, "done")
+        self.pages.append("done")
+
+    # ── Setup runner ───────────────────────────
+
+    def _run_setup(self, btn, script, install_btn):
+        install_btn.set_sensitive(False)
+        install_btn.set_label("Installing...")
+        self.log_scroll.set_visible(True)
+        self._log_append("Starting setup, please wait...")
+
+        def worker():
+            try:
+                proc = subprocess.Popen(
+                    ["pkexec", f"/usr/libexec/rakuos/{script}"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                for line in proc.stdout:
+                    line = line.strip()
+                    if line:
+                        GLib.idle_add(self._log_append, line)
+                proc.wait()
+                success = proc.returncode == 0
+            except Exception as e:
+                success = False
+                GLib.idle_add(self._log_append, str(e))
+
+            GLib.idle_add(self._on_setup_done, success, install_btn)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _log_append(self, line):
+        end = self.log_buffer.get_end_iter()
+        self.log_buffer.insert(end, line + "\n")
+        # Auto scroll to bottom
+        adj = self.log_scroll.get_vadjustment()
+        adj.set_value(adj.get_upper())
+        return False
+
+    def _on_setup_done(self, success, install_btn):
+        if success:
+            install_btn.set_label("✓ Done")
+            self._log_append("\nSetup completed successfully!")
+        else:
+            install_btn.set_sensitive(True)
+            install_btn.set_label("Retry")
+            self._log_append("\nSetup failed. You can retry or skip for now.")
+        return False
+
+    # ── Navigation ─────────────────────────────
+
+    def _build_dots(self):
+        for child in list(self.dots_box):
+            self.dots_box.remove(child)
+        self.dot_labels = []
+        for i in range(len(self.pages)):
+            dot = Gtk.Label(label="●")
+            self.dots_box.append(dot)
+            self.dot_labels.append(dot)
+
+    def _update_nav(self):
+        for i, dot in enumerate(self.dot_labels):
+            if i == self.current_page:
+                dot.add_css_class("accent")
+                dot.remove_css_class("dim-label")
+            else:
+                dot.add_css_class("dim-label")
+                dot.remove_css_class("accent")
+
+        self.back_btn.set_visible(self.current_page > 0)
+        last = self.current_page == len(self.pages) - 1
+        self.next_btn.set_label("Finish" if last else "Next →")
+
+    def go_next(self, btn):
+        if self.current_page == len(self.pages) - 1:
+            self._finish()
+            return
+        self.current_page += 1
+        self.stack.set_visible_child_name(self.pages[self.current_page])
+        self.log_scroll.set_visible(False)
+        self._update_nav()
+
+    def go_back(self, btn):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.stack.set_visible_child_name(self.pages[self.current_page])
+            self.log_scroll.set_visible(False)
+            self._update_nav()
+
+    def _finish(self):
+        WELCOME_DONE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        WELCOME_DONE_FILE.touch()
+        self.close()
+
+
+# ─────────────────────────────────────────────
+# Application
+# ─────────────────────────────────────────────
+class WelcomeApp(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id="org.rakuos.Welcome",
+                         flags=Gio.ApplicationFlags.FLAGS_NONE)
+        self.connect("activate", self.on_activate)
+
+    def on_activate(self, app):
+        win = WelcomeWindow(app)
+        win.present()
+
+
+def main():
+    if WELCOME_DONE_FILE.exists() and "--force" not in sys.argv:
+        sys.exit(0)
+
+    app = WelcomeApp()
+    sys.exit(app.run(sys.argv))
+
+
+if __name__ == "__main__":
+    main()
