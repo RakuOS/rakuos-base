@@ -44,6 +44,7 @@ dnf5 -y install ananicy-cpp \
   podman-compose \
   webkit2gtk4.1 \
   python3-flask \
+  python3-pip \
   appstream \
   appstream-data \
   fwupd \
