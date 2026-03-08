@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+WORK_DIR="/var/lib/rakuos/overlay/work"
+STATE_FILE="/var/lib/rakuos/overlay.state"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+
+# Read packages into array, skip empty lines
+mapfile -t PACKAGES < <(grep -v '^\s*$' "$PACKAGES_LIST")
+
+if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
+    echo "RakuOS overlay sync: no packages in list — skipping."
+    exit 0
+fi
+
+# Ensure overlay dirs exist
+mkdir -p "$UPPER_DIR" "$WORK_DIR"
+
+# Get current booted image digest
+CURRENT_DIGEST=$(bootc status --json | jq -r '.status.booted.image.imageDigest // empty')
+if [[ -z "$CURRENT_DIGEST" ]]; then
+    echo "WARNING: Could not detect image digest — using unknown."
+    CURRENT_DIGEST="unknown"
+fi
+
+SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+
+# Mount overlay if not already mounted
+if ! findmnt /usr | grep -q overlay; then
+    echo "RakuOS overlay sync: mounting overlay..."
+    mount -t overlay overlay \
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
+fi
+
+# Check if upper dir is empty — needs full install
+OVERLAY_HAS_CONTENT=false
+if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    OVERLAY_HAS_CONTENT=true
+fi
+
+if [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
+    echo "RakuOS overlay sync: overlay empty — performing full install..."
+    dnf5.real install -y "${PACKAGES[@]}"
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: full install complete."
+
+elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
+    echo "RakuOS overlay sync: image updated — upgrading overlay packages..."
+    dnf5.real upgrade -y "${PACKAGES[@]}"
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: upgrade complete."
+
+elif [[ -f "$DIRTY_FILE" ]]; then
+    echo "RakuOS overlay sync: package changes detected — syncing..."
+    dnf5.real install -y "${PACKAGES[@]}"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: sync complete."
+
+else
+    echo "RakuOS overlay sync: nothing to do."
+fi
+
+# Save digest
+echo "$CURRENT_DIGEST" > "$STATE_FILE"
+
+# # -------------------------------
+# # Restart services enabled from overlay packages
+# # -------------------------------
+# echo "RakuOS overlay sync: restarting overlay services..."
+# while IFS= read -r -d '' symlink; do
+#     service=$(basename "$symlink")
+#     if systemctl is-enabled "$service" &>/dev/null && ! systemctl is-active "$service" &>/dev/null; then
+#         echo "RakuOS overlay sync: starting $service..."
+#         systemctl start "$service" || true
+#     fi
+# done < <(find /etc/systemd/system -maxdepth 2 -type l -print0)
+
+echo "RakuOS overlay sync: done."

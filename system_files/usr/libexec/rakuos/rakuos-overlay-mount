@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+WORK_DIR="/var/lib/rakuos/overlay/work"
+
+# Ensure work dir exists
+mkdir -p "$UPPER_DIR" "$WORK_DIR"
+
+# Already mounted — nothing to do
+if findmnt /usr | grep -q overlay; then
+    echo "RakuOS overlay: already mounted."
+    exit 0
+fi
+
+# Check upper dir has content
+if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    echo "RakuOS overlay: upper dir is empty — skipping mount, sync will handle install."
+    exit 0
+fi
+
+echo "RakuOS overlay: mounting persistent overlay early..."
+mount -t overlay overlay \
+    -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+    /usr
+
+echo "RakuOS overlay: mounted."
