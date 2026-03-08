@@ -42,7 +42,6 @@ dnf5 -y install ananicy-cpp \
   libnotify \
   inotify-tools \
   podman-compose \
-  python3-pywebview \
   webkit2gtk4.1 \
   python3-flask \
   appstream \
@@ -66,6 +65,8 @@ dnf5 -y remove firefox
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+pip3 install pywebview --break-system-packages
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
