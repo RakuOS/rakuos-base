@@ -120,7 +120,7 @@ class WelcomeWindow(Adw.ApplicationWindow):
         # ── Build pages ──
         self._add_welcome_page()
         self._add_setup_page("gaming", "Gaming Setup", "🎮",
-            "Install Steam, Lutris, Heroic Launcher natively and a few Utilities for the best gaming performance. "
+            "Install Steam and Lutris natively for the best gaming performance. "
             "Native packages give better Proton and Wine compatibility than Flatpak.",
             "setup-gaming")
         self._add_setup_page("virt", "Virtualization", "🖥️",
@@ -383,18 +383,36 @@ class WelcomeWindow(Adw.ApplicationWindow):
 class WelcomeApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id="org.rakuos.Welcome",
-                         flags=Gio.ApplicationFlags.FLAGS_NONE)
+                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.force = False
+        self.add_main_option(
+            "force", ord("f"),
+            GLib.OptionFlags.NONE,
+            GLib.OptionArg.NONE,
+            "Force open even if already run", None
+        )
         self.connect("activate", self.on_activate)
+        self.connect("command-line", self.on_command_line)
 
-    def on_activate(self, app):
-        win = WelcomeWindow(app)
+    def on_command_line(self, app, command_line):
+        options = command_line.get_options_dict()
+        self.force = options.contains("force")
+        self.activate()
+        return 0
+
+    def on_activate(self, app=None):
+        if WELCOME_DONE_FILE.exists() and not self.force:
+            self.quit()
+            return
+        # Prevent opening multiple windows
+        if self.get_windows():
+            self.get_windows()[0].present()
+            return
+        win = WelcomeWindow(self)
         win.present()
 
 
 def main():
-    if WELCOME_DONE_FILE.exists() and "--force" not in sys.argv:
-        sys.exit(0)
-
     app = WelcomeApp()
     sys.exit(app.run(sys.argv))
 
