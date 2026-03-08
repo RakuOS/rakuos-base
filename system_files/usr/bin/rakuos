@@ -21,6 +21,9 @@ case "$COMMAND" in
     reset-overlay)
         /usr/libexec/rakuos/rakuos-reset-overlay "${2:-}"
         ;;
+    setup-gaming)
+        /usr/libexec/rakuos/setup-gaming
+        ;;
     setup-virtualization)
         /usr/libexec/rakuos/setup-virtualization
         ;;
@@ -42,6 +45,7 @@ case "$COMMAND" in
         echo "  rakuos remove <package> [pkg2...]    Remove packages from overlay"
         echo "  rakuos list                          List overlay installed packages"
         echo "  rakuos reset-overlay --confirm       Wipe overlay and all installed packages"
+        echo "  rakuos setup-gaming                  Set up native gaming packages along with some apps from flathub"
         echo "  rakuos setup-virtualization          Set up KVM/QEMU virtualization"
         echo "  rakuos setup-lsfg-vk                 Set up Lossless Scaling Frame Gen"
         echo "  rakuos setup-stoat                   Set up Stoat"

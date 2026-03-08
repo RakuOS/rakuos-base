@@ -7,6 +7,7 @@ dnf5 -y install dnf5-plugins
 dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
+dnf5 -y copr enable atim/heroic-games-launcher fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
     https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
     https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
@@ -26,8 +27,6 @@ dnf5 -y install ananicy-cpp \
   scx-tools \
   gamemode \
   gamemode.i686 \
-  mangohud \
-  mangohud.i686 \
   pulseaudio-utils \
   git \
   flatpak \

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Setting up gaming for RakuOS..."
+
+rakuos install \
+    steam \
+    lutris \
+    heroic-games-launcher-bin \
+    mangohud \
+    mangohud.i686 \
+    vkBasalt \
+    vkBasalt.i686
+
+flatpak install -y flathub \
+    io.github.benjamimgois.goverlay \
+    com.github.Matoking.protontricks \
+    com.vysp3r.ProtonPlus
+
+echo ""
+echo "Gaming setup complete!"
