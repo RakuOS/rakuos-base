@@ -32,7 +32,9 @@ def search():
 @app.route("/api/category/<category>")
 def by_category(category):
     source = request.args.get("source", "all")
-    results = packages.get_by_category(category, source=source)
+    limit = int(request.args.get("limit", 40))
+    offset = int(request.args.get("offset", 0))
+    results = packages.get_by_category(category, limit=limit, offset=offset, source=source)
     return jsonify(results)
 
 # ── Icons ─────────────────────────────────────────────────────────────

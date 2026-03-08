@@ -177,6 +177,9 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
             icon = icon_el.text or ""
         elif icon_el.get("type") == "stock" and not icon:
             icon = icon_el.text or ""
+    # Flatpak icons are always named after the full app id
+    if source == "flatpak":
+        icon = f"{app_id}.png"
 
     # Screenshots
     screenshots = []
@@ -242,17 +245,17 @@ def search_packages(query: str, limit: int = 40) -> list[dict]:
     return results
 
 
-def get_by_category(category: str, limit: int = 40, source: str = "all") -> list[dict]:
+def get_by_category(category: str, limit: int = 40, offset: int = 0, source: str = "all") -> dict:
     apps = _load_appstream()
-    results = []
+    all_results = []
     for app in apps.values():
         if source != "all" and app["source"] != source:
             continue
         if any(category.lower() in c.lower() for c in app["categories"]):
-            results.append(_enrich_installed(app))
-        if len(results) >= limit:
-            break
-    return results
+            all_results.append(app)
+    total = len(all_results)
+    page = [_enrich_installed(a) for a in all_results[offset:offset + limit]]
+    return {"items": page, "total": total, "offset": offset, "limit": limit}
 
 
 def get_installed_with_metadata() -> list[dict]:

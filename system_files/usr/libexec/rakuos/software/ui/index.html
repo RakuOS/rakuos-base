@@ -701,7 +701,7 @@ let currentSource = 'all';
 const CATEGORIES = [
   { label: '🎮 Games', value: 'Game' },
   { label: '🌐 Internet', value: 'Network' },
-  { label: '🎵 Audio', value: 'AudioVideo' },
+  { label: '🎵 Audio', value: 'Audio' },
   { label: '🎬 Video', value: 'Video' },
   { label: '🖼️ Graphics', value: 'Graphics' },
   { label: '💻 Development', value: 'Development' },
@@ -743,20 +743,13 @@ document.getElementById('search-input').addEventListener('input', e => {
 });
 
 document.querySelectorAll('.filter-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        currentSource = tab.dataset.source;
-        const q = document.getElementById('search-input').value.trim();
-        if (q) {
-            doSearch(q);
-        } else {
-            // Reload current page with new filter
-            const activePage = document.querySelector('.nav-item.active')?.dataset.page;
-            if (activePage === 'home') loadHome();
-            if (activePage === 'explore') loadExplore();
-        }
-    });
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentSource = tab.dataset.source;
+    const q = document.getElementById('search-input').value.trim();
+    if (q) doSearch(q);
+  });
 });
 
 async function doSearch(q) {
@@ -784,18 +777,18 @@ async function loadHome() {
 
   // Load a few categories for the home page
   const [games, net, audio, video] = await Promise.all([
-    fetch(`${API}/category/Game?source=${currentSource}`).then(r => r.json()),
-    fetch(`${API}/category/Network?source=${currentSource}`).then(r => r.json()),
-    fetch(`${API}/category/AudioVideo?source=${currentSource}`).then(r => r.json()),
-    fetch(`${API}/category/Video?source=${currentSource}`).then(r => r.json()),
+    fetch(`${API}/category/Game?source=${currentSource}&limit=6`).then(r => r.json()),
+    fetch(`${API}/category/Network?source=${currentSource}&limit=6`).then(r => r.json()),
+    fetch(`${API}/category/AudioVideo?source=${currentSource}&limit=6`).then(r => r.json()),
+    fetch(`${API}/category/Video?source=${currentSource}&limit=6`).then(r => r.json()),
   ]);
 
   let html = '';
 
-  if (games.length) html += renderSection('🎮 Games', games.slice(0, 6));
-  if (net.length) html += renderSection('🌐 Internet & Network', net.slice(0, 6));
-  if (audio.length) html += renderSection('🎵 Audio', audio.slice(0, 6));
-  if (video.length) html += renderSection('🎬 Video', video.slice(0, 6));
+  if (games.items?.length) html += renderSection('🎮 Games', games.items, 'Game');
+  if (net.items?.length) html += renderSection('🌐 Internet & Network', net.items, 'Network');
+  if (audio.items?.length) html += renderSection('🎵 Audio', audio.items, 'AudioVideo');
+  if (video.items?.length) html += renderSection('🎬 Video', video.items, 'Video');
 
   if (!html) html = '<div class="empty-state"><div class="icon">📦</div><div class="title">No app data found</div><p>AppStream metadata may not be installed.</p></div>';
 
@@ -803,10 +796,14 @@ async function loadHome() {
   attachCardListeners();
 }
 
-function renderSection(title, apps) {
+function renderSection(title, apps, category = '') {
+  const seeAll = category
+    ? `<div class="btn btn-secondary" style="font-size:12px;padding:5px 12px;cursor:pointer" onclick="navigateTo('explore');loadExplore('${category}')">See All</div>`
+    : '';
   return `
     <div class="section-header" style="margin-bottom:12px">
       <div class="section-title" style="font-size:16px">${title}</div>
+      ${seeAll}
     </div>
     <div class="app-grid" style="margin-bottom:28px">${apps.map(renderCard).join('')}</div>
   `;
@@ -814,27 +811,63 @@ function renderSection(title, apps) {
 
 // ── Explore ─────────────────────────────────────────────────────────────
 
-async function loadExplore(category = 'Game') {
-  // Build category chips
+let exploreCategory = 'Game';
+let exploreOffset = 0;
+let exploreTotal = 0;
+let exploreLoading = false;
+let exploreObserver = null;
+
+async function loadExplore(category = 'Game', reset = true) {
+  if (reset) {
+    exploreCategory = category;
+    exploreOffset = 0;
+    exploreTotal = 0;
+    exploreLoading = false;
+    if (exploreObserver) { exploreObserver.disconnect(); exploreObserver = null; }
+  }
+
   const chipsEl = document.getElementById('category-chips');
   chipsEl.innerHTML = CATEGORIES.map(c =>
     `<div class="category-chip ${c.value === category ? 'active' : ''}" data-cat="${c.value}">${c.label}</div>`
   ).join('');
-
   chipsEl.querySelectorAll('.category-chip').forEach(chip => {
     chip.addEventListener('click', () => loadExplore(chip.dataset.cat));
   });
 
-  document.getElementById('explore-grid').innerHTML = '<div class="loading-wrap"><div class="spinner"></div> Loading…</div>';
+  if (reset) document.getElementById('explore-grid').innerHTML = '<div class="loading-wrap"><div class="spinner"></div> Loading…</div>';
+  if (exploreLoading) return;
+  exploreLoading = true;
 
-  const res = await fetch(`${API}/category/${encodeURIComponent(category)}`);
-  const apps = await res.json();
+  const res = await fetch(`${API}/category/${encodeURIComponent(exploreCategory)}?source=${currentSource}&limit=40&offset=${exploreOffset}`);
+  const data = await res.json();
+  const items = data.items || [];
+  exploreTotal = data.total || 0;
+  exploreOffset += items.length;
+  exploreLoading = false;
 
-  document.getElementById('explore-grid').innerHTML = apps.length
-    ? `<div class="app-grid">${apps.map(renderCard).join('')}</div>`
-    : '<div class="empty-state"><div class="icon">📦</div><div class="title">No apps in this category</div></div>';
+  const gridEl = document.getElementById('explore-grid');
+  if (reset) {
+    if (!items.length) {
+      gridEl.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div class="title">No apps in this category</div></div>';
+      return;
+    }
+    gridEl.innerHTML = `<div class="app-grid" id="explore-app-grid">${items.map(renderCard).join('')}</div><div id="explore-sentinel" style="height:40px"></div>`;
+  } else {
+    const appGrid = document.getElementById('explore-app-grid');
+    if (appGrid) appGrid.insertAdjacentHTML('beforeend', items.map(renderCard).join(''));
+  }
 
   attachCardListeners();
+
+  if (exploreOffset < exploreTotal) {
+    const sentinel = document.getElementById('explore-sentinel');
+    if (sentinel) {
+      exploreObserver = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) loadExplore(exploreCategory, false);
+      }, { threshold: 0.1 });
+      exploreObserver.observe(sentinel);
+    }
+  }
 }
 
 // ── Installed ───────────────────────────────────────────────────────────
