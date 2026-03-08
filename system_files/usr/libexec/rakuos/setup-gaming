@@ -7,10 +7,13 @@ rakuos install \
     steam \
     lutris \
     heroic-games-launcher-bin \
+    lact \
     mangohud \
     mangohud.i686 \
     vkBasalt \
     vkBasalt.i686
+
+systemctl enable --now lactd
 
 flatpak install -y flathub \
     io.github.benjamimgois.goverlay \
