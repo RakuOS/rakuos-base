@@ -27,6 +27,82 @@ def search():
     return jsonify(results)
 
 
+# ── App Detail ─────────────────────────────────────────────────────────────
+
+@app.route("/api/app/<path:app_id>")
+def app_detail(app_id):
+    """Return full app details including both native and flatpak options."""
+    appstream = packages._load_appstream()
+
+    # Find by id or pkg_name
+    native_app = appstream.get(app_id)
+    if not native_app:
+        for a in appstream.values():
+            if a["pkg_name"] == app_id and a["source"] == "native":
+                native_app = a
+                break
+
+    flatpak_app = appstream.get(app_id)
+    if not flatpak_app or flatpak_app.get("source") != "flatpak":
+        flatpak_app = None
+        for a in appstream.values():
+            if a["source"] == "flatpak" and (
+                a["id"] == app_id or
+                a["pkg_name"] == app_id or
+                a["name"].lower() == (native_app or {}).get("name", "").lower()
+            ):
+                flatpak_app = a
+                break
+
+    if not native_app and not flatpak_app:
+        return jsonify({"error": "App not found"}), 404
+
+    base = native_app or flatpak_app
+
+    # Enrich URLs from AppStream
+    import xml.etree.ElementTree as ET
+    import gzip, os
+    extra_urls = {"homepage": "", "donation": "", "bugtracker": "", "help": ""}
+    # Already parsed into base app — re-parse for extra url types
+    for appstream_dir, source in packages.APPSTREAM_DIRS:
+        if not os.path.isdir(appstream_dir):
+            continue
+        for fname in os.listdir(appstream_dir):
+            fpath = os.path.join(appstream_dir, fname)
+            try:
+                if fname.endswith(".gz"):
+                    fh = gzip.open(fpath, "rt", encoding="utf-8", errors="ignore")
+                else:
+                    fh = open(fpath, "rt", encoding="utf-8", errors="ignore")
+                tree = ET.parse(fh)
+                fh.close()
+                root = tree.getroot()
+                comps = [root] if root.tag == "component" else root.findall("component")
+                for comp in comps:
+                    cid = (comp.findtext("id") or "").strip()
+                    if cid == base["id"]:
+                        for url_el in comp.findall("url"):
+                            utype = url_el.get("type", "")
+                            if utype in extra_urls and url_el.text:
+                                extra_urls[utype] = url_el.text.strip()
+                        break
+                else:
+                    continue
+                break
+            except Exception:
+                continue
+        else:
+            continue
+        break
+
+    return jsonify({
+        "base": base,
+        "native": packages._enrich_installed(native_app) if native_app else None,
+        "flatpak": packages._enrich_installed(flatpak_app) if flatpak_app else None,
+        "urls": extra_urls,
+    })
+
+
 # ── Categories ─────────────────────────────────────────────────────────────
 
 @app.route("/api/category/<category>")
@@ -109,8 +185,11 @@ def update_status():
 
 @app.route("/api/updates/system")
 def apply_system_update():
+    status = updates.check_for_update()
+    new_tag = status.get("new_tag", "")
+    repo_url = status.get("repo_url", "")
     def generate():
-        for line in updates.apply_update_stream():
+        for line in updates.apply_update_stream(new_tag=new_tag, repo_url=repo_url):
             yield f"data: {json.dumps({'line': line})}\n\n"
     return Response(stream_with_context(generate()),
                     content_type="text/event-stream")

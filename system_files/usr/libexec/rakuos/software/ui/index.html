@@ -122,6 +122,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
   }
 
   .topbar {
@@ -301,62 +302,242 @@
   .badge-installed { background: rgba(74,222,128,0.15); color: var(--success); }
 
   /* ── App detail panel ── */
-  .detail-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 100;
+  /* ── Full-page app detail ── */
+  .detail-page {
     display: none;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-  }
-
-  .detail-overlay.open { display: flex; }
-
-  .detail-panel {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    width: 640px;
-    max-height: 80vh;
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    z-index: 10;
     overflow-y: auto;
-    padding: 28px;
+    animation: slideIn 0.2s ease;
+  }
+  .detail-page.open { display: block; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  .detail-header {
+  .detail-back {
     display: flex;
-    gap: 16px;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 24px 0;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: fit-content;
+  }
+  .detail-back:hover { opacity: 0.8; }
+
+  .detail-hero {
+    display: flex;
+    gap: 24px;
     align-items: flex-start;
-    margin-bottom: 20px;
+    padding: 24px 24px 20px;
+    border-bottom: 1px solid var(--border);
   }
 
   .detail-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 14px;
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
     background: var(--bg3);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 36px;
+    font-size: 48px;
     flex-shrink: 0;
     overflow: hidden;
   }
-
   .detail-icon img { width: 100%; height: 100%; object-fit: contain; }
 
-  .detail-info { flex: 1; }
+  .detail-info { flex: 1; min-width: 0; }
 
   .detail-name {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
     margin-bottom: 4px;
   }
 
-  .detail-summary { color: var(--text2); font-size: 13.5px; margin-bottom: 10px; }
+  .detail-summary { color: var(--text2); font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
 
-  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .detail-install-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .detail-install-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .install-type-label {
+    font-size: 11px;
+    color: var(--text2);
+    min-width: 48px;
+  }
+
+  /* ── Split/dropdown install button ── */
+  .install-split {
+    display: flex;
+    align-items: stretch;
+    border-radius: 9px;
+    overflow: visible;
+    position: relative;
+  }
+  .install-split .btn-main {
+    border-radius: 9px 0 0 9px;
+    flex: 1;
+  }
+  .install-split .btn-arrow {
+    padding: 8px 10px;
+    border-radius: 0 9px 9px 0;
+    border-left: 1px solid rgba(255,255,255,0.15);
+    background: var(--accent);
+    color: white;
+    border-top: none;
+    border-bottom: none;
+    border-right: none;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .install-split .btn-arrow:hover { background: #6b9ff9; }
+  .install-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 180px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 100;
+    overflow: hidden;
+    display: none;
+  }
+  .install-dropdown.open { display: block; }
+  .install-dropdown-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .install-dropdown-item:last-child { border-bottom: none; }
+  .install-dropdown-item:hover { background: var(--bg3); }
+  .install-dropdown-item-label { font-weight: 600; }
+  .install-dropdown-item-sub { font-size: 11px; color: var(--text2); }
+
+  /* ── Lightbox ── */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: 90vw;
+    max-height: 88vh;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    cursor: default;
+  }
+  .lightbox-close {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    opacity: 0.7;
+    line-height: 1;
+  }
+  .lightbox-close:hover { opacity: 1; }
+
+  .detail-meta {
+    display: flex;
+    gap: 16px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .detail-meta-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .detail-meta-link:hover { opacity: 0.8; }
+
+  .detail-body {
+    padding: 20px 24px;
+    max-width: 860px;
+  }
+
+  .detail-screenshots {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .detail-screenshots img {
+    height: 200px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .detail-screenshots img:hover { border-color: var(--accent); }
+
+  .detail-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  .detail-description {
+    font-size: 13.5px;
+    color: var(--text2);
+    line-height: 1.75;
+    margin-bottom: 24px;
+    white-space: pre-wrap;
+  }
+
+  .detail-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .detail-info-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .detail-info-card-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .detail-info-card-value { font-size: 13px; font-weight: 600; word-break: break-all; }
 
   .btn {
     padding: 8px 20px;
@@ -669,27 +850,30 @@
     </div>
 
   </div>
-</div>
 
-<!-- App Detail Overlay -->
-<div class="detail-overlay" id="detail-overlay">
-  <div class="detail-panel" id="detail-panel">
-    <div class="detail-header">
-      <div class="detail-icon" id="detail-icon">📦</div>
-      <div class="detail-info">
-        <div class="detail-name" id="detail-name"></div>
-        <div class="detail-summary" id="detail-summary"></div>
-        <div class="detail-actions">
-          <button class="btn btn-primary" id="detail-install-btn">Install</button>
-          <button class="btn btn-danger" id="detail-remove-btn" style="display:none">Remove</button>
-          <button class="btn btn-secondary" id="detail-close-btn">Close</button>
-        </div>
+  <!-- App Detail Page -->
+  <div class="detail-page" id="detail-page">
+  <div class="detail-back" id="detail-back-btn">← Back</div>
+  <div class="detail-hero">
+    <div class="detail-icon" id="detail-icon">📦</div>
+    <div class="detail-info">
+      <div class="detail-name" id="detail-name"></div>
+      <div class="detail-summary" id="detail-summary"></div>
+      <div class="detail-actions" id="detail-actions">
+        <!-- populated by JS -->
       </div>
     </div>
+  </div>
+  <div class="detail-meta" id="detail-meta"></div>
+  <div class="detail-body">
     <div class="detail-screenshots" id="detail-screenshots"></div>
+    <div class="detail-section-title" id="detail-desc-title" style="display:none">About</div>
     <div class="detail-description" id="detail-description"></div>
+    <div class="detail-info-grid" id="detail-info-grid"></div>
     <div class="log-panel" id="detail-log"></div>
   </div>
+  </div>
+
 </div>
 
 <script>
@@ -1129,59 +1313,175 @@ function attachCardListeners() {
   });
 }
 
-// ── Detail panel ─────────────────────────────────────────────────────────
+// ── Full-page App Detail ─────────────────────────────────────────────────
+
+let detailPreviousPage = 'home';
 
 function openDetail(app) {
   currentApp = app;
+  detailPreviousPage = document.querySelector('.nav-item.active')?.dataset.page || 'home';
 
+  // Hide all pages, show detail
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('detail-page').classList.add('open');
+
+  // Reset log
+  const log = document.getElementById('detail-log');
+  log.textContent = '';
+  log.classList.remove('visible');
+
+  // Icon
   const icon = app.icon
     ? `<img src="/icons/${app.icon}" onerror="this.parentElement.innerHTML='📦'" alt="">`
     : '📦';
   document.getElementById('detail-icon').innerHTML = icon;
   document.getElementById('detail-name').textContent = app.name;
   document.getElementById('detail-summary').textContent = app.summary || '';
-  document.getElementById('detail-description').textContent = app.description || '';
 
+  // Screenshots
   const ss = document.getElementById('detail-screenshots');
-  ss.innerHTML = (app.screenshots || []).slice(0, 4).map(s => `<img src="${s}" alt="" loading="lazy">`).join('');
+  const shots = (app.screenshots || []).slice(0, 6);
+  ss.innerHTML = shots.map(s => `<img src="${s}" alt="" loading="lazy" onclick="openLightbox('${s}')">`).join('');
 
-  const installBtn = document.getElementById('detail-install-btn');
-  const removeBtn = document.getElementById('detail-remove-btn');
-  const log = document.getElementById('detail-log');
-  log.textContent = '';
-  log.classList.remove('visible');
+  // Description
+  const desc = app.description || '';
+  document.getElementById('detail-description').textContent = desc;
+  document.getElementById('detail-desc-title').style.display = desc ? '' : 'none';
 
-  if (app.installed) {
-    installBtn.style.display = 'none';
-    removeBtn.style.display = '';
-  } else {
-    installBtn.style.display = '';
-    removeBtn.style.display = 'none';
-  }
-
-  installBtn.onclick = () => doInstall(app);
-  removeBtn.onclick = () => doRemove(app);
-
-  document.getElementById('detail-overlay').classList.add('open');
+  // Fetch full detail from API for native+flatpak options and extra URLs
+  fetch(`${API}/app/${encodeURIComponent(app.id)}`)
+    .then(r => r.json())
+    .then(data => renderDetailFull(data))
+    .catch(() => renderDetailBasic(app));
 }
 
-document.getElementById('detail-close-btn').addEventListener('click', () => {
-  document.getElementById('detail-overlay').classList.remove('open');
-});
+function renderDetailBasic(app) {
+  renderDetailActions(app.source === 'native' ? app : null, app.source === 'flatpak' ? app : null);
+  document.getElementById('detail-meta').innerHTML = '';
+  document.getElementById('detail-info-grid').innerHTML = '';
+}
 
-document.getElementById('detail-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('detail-overlay')) {
-    document.getElementById('detail-overlay').classList.remove('open');
+function renderDetailFull(data) {
+  const { native, flatpak: fp, urls } = data;
+  renderDetailActions(native, fp);
+
+  // Meta links
+  const meta = document.getElementById('detail-meta');
+  const links = [];
+  if (urls.homepage) links.push(`<a class="detail-meta-link" href="${urls.homepage}" target="_blank">🌐 Website</a>`);
+  if (urls.donation) links.push(`<a class="detail-meta-link" href="${urls.donation}" target="_blank">❤️ Donate</a>`);
+  if (urls.bugtracker) links.push(`<a class="detail-meta-link" href="${urls.bugtracker}" target="_blank">🐛 Bug Tracker</a>`);
+  if (urls.help) links.push(`<a class="detail-meta-link" href="${urls.help}" target="_blank">📖 Help</a>`);
+  meta.innerHTML = links.join('');
+
+  // Info cards
+  const base = data.base || {};
+  const grid = document.getElementById('detail-info-grid');
+  const cards = [];
+  if (native) cards.push(`<div class="detail-info-card"><div class="detail-info-card-label">Native Package</div><div class="detail-info-card-value">${native.pkg_name}</div></div>`);
+  if (fp) cards.push(`<div class="detail-info-card"><div class="detail-info-card-label">Flatpak ID</div><div class="detail-info-card-value">${fp.id}</div></div>`);
+  if (base.categories?.length) cards.push(`<div class="detail-info-card"><div class="detail-info-card-label">Categories</div><div class="detail-info-card-value">${base.categories.slice(0,3).join(', ')}</div></div>`);
+  grid.innerHTML = cards.join('');
+}
+
+function renderDetailActions(native, fp) {
+  const actions = document.getElementById('detail-actions');
+  let html = '';
+
+  if (native && fp) {
+    // Both available — split dropdown button
+    const primaryApp = native.installed ? native : (fp.installed ? fp : native);
+    const primaryLabel = primaryApp === native ? 'Install (RPM)' : 'Install (Flatpak)';
+    const primaryInstalled = primaryApp.installed;
+    const appJson = JSON.stringify(primaryApp).replace(/'/g, "&#39;");
+
+    if (primaryInstalled) {
+      // Show remove for whichever is installed, with dropdown for other
+      const installedApp = native.installed ? native : fp;
+      const otherApp = native.installed ? fp : native;
+      const installedJson = JSON.stringify(installedApp).replace(/'/g, "&#39;");
+      const otherJson = JSON.stringify(otherApp).replace(/'/g, "&#39;");
+      const otherLabel = otherApp === native ? 'RPM' : 'Flatpak';
+      const otherInstalled = otherApp.installed;
+      html = `
+        <div class="install-split" id="install-split">
+          <button class="btn btn-danger btn-main" data-action="remove" data-app='${installedJson}'>Remove</button>
+          <button class="btn-arrow" id="install-arrow">▾</button>
+          <div class="install-dropdown" id="install-dropdown">
+            <div class="install-dropdown-item" data-action="${otherInstalled ? 'remove' : 'install'}" data-app='${otherJson}'>
+              <span class="install-dropdown-item-label">${otherInstalled ? 'Remove' : 'Install'} (${otherLabel})</span>
+              <span class="install-dropdown-item-sub">${otherApp.pkg_name}</span>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      const nativeJson = JSON.stringify(native).replace(/'/g, "&#39;");
+      const fpJson = JSON.stringify(fp).replace(/'/g, "&#39;");
+      html = `
+        <div class="install-split" id="install-split">
+          <button class="btn btn-primary btn-main" data-action="install" data-app='${nativeJson}'>Install (RPM)</button>
+          <button class="btn-arrow" id="install-arrow">▾</button>
+          <div class="install-dropdown" id="install-dropdown">
+            <div class="install-dropdown-item" data-action="install" data-app='${fpJson}'>
+              <span class="install-dropdown-item-label">Install (Flatpak)</span>
+              <span class="install-dropdown-item-sub">${fp.pkg_name}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+  } else if (native) {
+    html = renderInstallOption(native);
+  } else if (fp) {
+    html = renderInstallOption(fp);
   }
+
+  actions.innerHTML = html;
+
+  // Dropdown toggle
+  const arrow = document.getElementById('install-arrow');
+  const dropdown = document.getElementById('install-dropdown');
+  if (arrow && dropdown) {
+    arrow.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+    };
+    document.addEventListener('click', () => dropdown.classList.remove('open'), { once: false });
+  }
+
+  // Attach button/item events
+  actions.querySelectorAll('[data-action]').forEach(el => {
+    const appData = JSON.parse(el.dataset.app);
+    el.addEventListener('click', () => {
+      if (dropdown) dropdown.classList.remove('open');
+      if (el.dataset.action === 'install') doInstall(appData, el);
+      if (el.dataset.action === 'remove') doRemove(appData, el);
+    });
+  });
+}
+
+function renderInstallOption(app) {
+  const appJson = JSON.stringify(app).replace(/'/g, "&#39;");
+  if (app.installed) {
+    return `<button class="btn btn-danger" data-action="remove" data-app='${appJson}'>Remove</button>`;
+  }
+  return `<button class="btn btn-primary" data-action="install" data-app='${appJson}'>Install</button>`;
+}
+
+document.getElementById('detail-back-btn').addEventListener('click', () => {
+  document.getElementById('detail-page').classList.remove('open');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const prev = document.getElementById(`page-${detailPreviousPage}`);
+  if (prev) prev.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === detailPreviousPage);
+  });
 });
 
-function doInstall(app) {
+function doInstall(app, btn) {
   const log = document.getElementById('detail-log');
-  const btn = document.getElementById('detail-install-btn');
   log.textContent = '';
   log.classList.add('visible');
-  btn.disabled = true;
-  btn.textContent = 'Installing…';
+  if (btn) { btn.disabled = true; btn.textContent = 'Installing…'; }
 
   const url = app.source === 'flatpak'
     ? `${API}/install/flatpak/${encodeURIComponent(app.id)}`
@@ -1193,11 +1493,15 @@ function doInstall(app) {
     if (d.line.startsWith('__done__')) {
       es.close();
       const ok = d.line === '__done__0';
-      btn.textContent = ok ? '✓ Installed' : 'Retry';
-      btn.disabled = false;
-      if (ok) {
-        document.getElementById('detail-remove-btn').style.display = '';
-        btn.style.display = 'none';
+      if (btn) {
+        btn.textContent = ok ? '✓ Installed' : 'Retry';
+        btn.disabled = false;
+        if (ok) {
+          // Refresh actions with updated installed state
+          app.installed = true;
+          fetch(`${API}/app/${encodeURIComponent(app.id)}`)
+            .then(r => r.json()).then(data => renderDetailFull(data)).catch(() => {});
+        }
       }
     } else if (d.line) {
       log.textContent += d.line + '\n';
@@ -1206,14 +1510,12 @@ function doInstall(app) {
   };
 }
 
-function doRemove(app) {
+function doRemove(app, btn) {
   if (!confirm(`Remove ${app.name}?`)) return;
   const log = document.getElementById('detail-log');
-  const btn = document.getElementById('detail-remove-btn');
   log.textContent = '';
   log.classList.add('visible');
-  btn.disabled = true;
-  btn.textContent = 'Removing…';
+  if (btn) { btn.disabled = true; btn.textContent = 'Removing…'; }
 
   const url = app.source === 'flatpak'
     ? `${API}/remove/flatpak/${encodeURIComponent(app.id)}`
@@ -1225,12 +1527,15 @@ function doRemove(app) {
     if (d.line.startsWith('__done__')) {
       es.close();
       const ok = d.line === '__done__0';
-      if (ok) {
-        document.getElementById('detail-install-btn').style.display = '';
-        btn.style.display = 'none';
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+        if (ok) {
+          app.installed = false;
+          fetch(`${API}/app/${encodeURIComponent(app.id)}`)
+            .then(r => r.json()).then(data => renderDetailFull(data)).catch(() => {});
+        }
       }
-      btn.disabled = false;
-      btn.textContent = 'Remove';
     } else if (d.line) {
       log.textContent += d.line + '\n';
       log.scrollTop = log.scrollHeight;
@@ -1238,10 +1543,35 @@ function doRemove(app) {
   };
 }
 
+// ── Lightbox ─────────────────────────────────────────────────────────────
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+document.getElementById('lightbox').addEventListener('click', (e) => {
+  if (e.target !== document.getElementById('lightbox-img')) {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+});
+
+document.getElementById('lightbox-close').addEventListener('click', () => {
+  document.getElementById('lightbox').classList.remove('open');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('open');
+});
+
 // ── Init ─────────────────────────────────────────────────────────────────
 
 loadHome();
 loadUpdates();
 </script>
+<div class="lightbox" id="lightbox">
+  <span class="lightbox-close" id="lightbox-close">✕</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
 </body>
 </html>

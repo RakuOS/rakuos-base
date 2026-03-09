@@ -8,31 +8,48 @@ from typing import Optional
 
 
 def get_installed_flatpaks() -> list[dict]:
-    """Return list of installed Flatpaks."""
+    """Return list of installed Flatpaks enriched with AppStream metadata."""
     try:
         result = subprocess.run(
             ["flatpak", "list", "--app", "--columns=application,name,version,description,origin"],
             capture_output=True, text=True
         )
+
+        # Load AppStream cache for metadata enrichment
+        from backend.packages import _load_appstream
+        appstream = _load_appstream()
+        appstream_by_id = {a["id"]: a for a in appstream.values() if a["source"] == "flatpak"}
+
         apps = []
         for line in result.stdout.splitlines():
             parts = line.split("\t")
             if len(parts) >= 2:
+                app_id = parts[0].strip()
+                name = parts[1].strip() if len(parts) > 1 else app_id
+                version = parts[2].strip() if len(parts) > 2 else ""
+                summary = parts[3].strip() if len(parts) > 3 else ""
+                origin = parts[4].strip() if len(parts) > 4 else "flathub"
+
+                # Enrich from AppStream if available
+                meta = appstream_by_id.get(app_id, {})
                 apps.append({
-                    "id": parts[0].strip(),
-                    "name": parts[1].strip() if len(parts) > 1 else parts[0],
-                    "version": parts[2].strip() if len(parts) > 2 else "",
-                    "summary": parts[3].strip() if len(parts) > 3 else "",
-                    "origin": parts[4].strip() if len(parts) > 4 else "flathub",
+                    "id": app_id,
+                    "name": meta.get("name") or name,
+                    "version": version,
+                    "summary": meta.get("summary") or summary,
+                    "description": meta.get("description", ""),
+                    "origin": origin,
                     "source": "flatpak",
                     "installed": True,
-                    "icon": "",
-                    "screenshots": [],
-                    "categories": [],
-                    "pkg_name": parts[0].strip(),
+                    "icon": meta.get("icon") or f"{app_id}.png",
+                    "screenshots": meta.get("screenshots", []),
+                    "categories": meta.get("categories", []),
+                    "pkg_name": app_id,
+                    "url": meta.get("url", ""),
                 })
         return apps
-    except Exception:
+    except Exception as e:
+        print(f"get_installed_flatpaks error: {e}")
         return []
 
 
