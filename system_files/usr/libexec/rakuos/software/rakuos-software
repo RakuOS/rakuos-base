@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
+"""
+RakuOS Software Center — entry point.
+Sets cache/bytecode dirs before any imports, then hands off to the right frontend.
+"""
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ── Redirect all Python bytecode out of the install tree ─────────────────────
+_cache_base = os.path.join(os.path.expanduser("~"), ".cache", "rakuos")
+os.makedirs(_cache_base, exist_ok=True)
 
-de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+os.environ["PYTHONPYCACHEPREFIX"] = os.path.join(_cache_base, "pycache")
+sys.pycache_prefix = os.path.join(_cache_base, "pycache")  # works at runtime too
 
-if "gnome" in de:
+# ── Locate the software directory and add it to path ─────────────────────────
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _here)
+
+# ── Pick frontend based on DE ─────────────────────────────────────────────────
+_de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+
+if "gnome" in _de:
     from ui_gtk.main import run
 else:
-    # KDE, COSMIC, anything else → Qt
     from ui_qt.main import run
 
 run()

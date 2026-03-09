@@ -198,7 +198,8 @@ def _load_appstream() -> dict:
 def _parse_component(comp, source: str = "native") -> Optional[dict]:
     """Parse a single AppStream component element."""
     kind = comp.get("type", "")
-    if kind not in ("desktop", "desktop-application", "console-application", ""):
+    is_addon = (kind == "addon")
+    if kind not in ("desktop", "desktop-application", "console-application", "", "addon"):
         return None
 
     app_id = (comp.findtext("id") or "").strip()
@@ -251,7 +252,9 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
             url = url_el.text or ""
             break
 
-    return {
+    extends_id = (comp.findtext("extends") or "").strip()
+
+    result = {
         "id": app_id,
         "name": name,
         "summary": summary,
@@ -263,7 +266,11 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
         "url": url,
         "source": source,
         "installed": False,
+        "is_addon": is_addon,
     }
+    if extends_id:
+        result["extends"] = extends_id
+    return result
 
 
 def _enrich_installed(app: dict) -> dict:
@@ -462,3 +469,12 @@ def find_icon(filename: str) -> Optional[str]:
         if os.path.exists(fpath):
             return fpath
     return None
+
+def get_addons_for(app_id: str) -> list[dict]:
+    """
+    Return AppStream addon components that extend the given app_id.
+    Add-ons have <component type="addon"> with <extends>parent_id</extends>.
+    Returns list of dicts with: id, name, summary, pkg_name, source, installed.
+    """
+    cache = _load_appstream()
+    return [item for item in cache.values() if item.get("extends") == app_id]

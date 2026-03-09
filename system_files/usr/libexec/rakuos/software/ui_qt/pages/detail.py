@@ -1,5 +1,6 @@
 """
-pages/detail.py — Full app detail page with install/remove, screenshots, lightbox.
+pages/detail.py — App detail page, Plasma Discover-style.
+Screenshot carousel with prev/next arrows, hero header, description below.
 """
 
 import os
@@ -7,18 +8,166 @@ import subprocess
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame,
-    QLabel, QPushButton, QToolButton, QMenu,
+    QLabel, QPushButton, QToolButton, QMenu, QSizePolicy,
+    QDialog,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QCursor
 
 from ..workers import Worker, StreamWorker, ImageLoader
-from ..widgets import (
-    IconWidget, TerminalWidget, ClickableImage, hline,
-)
+from ..widgets import IconWidget, TerminalWidget, LightboxDialog, hline, StarRatingWidget, ReviewCard, WriteReviewDialog, AddonsDialog
 from ..theme import dimmed, bold_font, colored_text, _c
 from backend import packages, flatpak
 
+
+class ScreenshotCarousel(QWidget):
+    """
+    Discover-style: one large screenshot at a time, overlaid prev/next arrows,
+    dot indicators below. Click image to open lightbox.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmaps: list[QPixmap] = []
+        self._index = 0
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setFixedHeight(340)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(8)
+
+        # Image frame — arrows are children so they overlay
+        self._img_frame = QWidget()
+        self._img_frame.setFixedHeight(300)
+        self._img_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        self._img_lbl = QLabel(self._img_frame)
+        self._img_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._img_lbl.setGeometry(0, 0, 800, 300)
+        self._img_lbl.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self._prev_btn = self._arrow("‹", self._img_frame)
+        self._next_btn = self._arrow("›", self._img_frame)
+        self._prev_btn.clicked.connect(self._prev)
+        self._next_btn.clicked.connect(self._next)
+
+        root.addWidget(self._img_frame)
+
+        # Dot row
+        dot_wrap = QWidget()
+        self._dot_row = QHBoxLayout(dot_wrap)
+        self._dot_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._dot_row.setSpacing(8)
+        self._dot_row.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(dot_wrap)
+
+        self.hide()
+
+    def _arrow(self, text: str, parent: QWidget) -> QPushButton:
+        btn = QPushButton(text, parent)
+        btn.setFixedSize(44, 44)
+        btn.setStyleSheet(
+            "QPushButton {"
+            "  border-radius:22px;"
+            "  background:rgba(30,30,30,0.55);"
+            "  color:white; font-size:24px; font-weight:bold; border:none;"
+            "}"
+            "QPushButton:hover{background:rgba(30,30,30,0.82);}"
+            "QPushButton:disabled{background:rgba(30,30,30,0.18); color:rgba(255,255,255,0.25);}"
+        )
+        return btn
+
+    # ── resize: reflow image label and arrow positions ────────────────────────
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._reflow()
+
+    def _reflow(self):
+        w = self._img_frame.width()
+        h = self._img_frame.height()
+        self._img_lbl.setGeometry(0, 0, w, h)
+        cy = (h - 44) // 2
+        self._prev_btn.move(14, cy)
+        self._next_btn.move(w - 58, cy)
+        self._paint_current()
+
+    # ── public ────────────────────────────────────────────────────────────────
+
+    def add_pixmap(self, pixmap: QPixmap):
+        self._pixmaps.append(pixmap)
+        dot = QLabel("●")
+        dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._dot_row.addWidget(dot)
+        if len(self._pixmaps) == 1:
+            self._index = 0
+            self.show()
+        self._refresh()
+
+    def clear(self):
+        self._pixmaps.clear()
+        self._index = 0
+        while self._dot_row.count():
+            item = self._dot_row.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._img_lbl.clear()
+        self.hide()
+
+    # ── internal ──────────────────────────────────────────────────────────────
+
+    def _prev(self):
+        if self._index > 0:
+            self._index -= 1
+            self._refresh()
+
+    def _next(self):
+        if self._index < len(self._pixmaps) - 1:
+            self._index += 1
+            self._refresh()
+
+    def _refresh(self):
+        n = len(self._pixmaps)
+        self._prev_btn.setVisible(n > 1)
+        self._next_btn.setVisible(n > 1)
+        self._prev_btn.setEnabled(self._index > 0)
+        self._next_btn.setEnabled(self._index < n - 1)
+        self._paint_current()
+        self._refresh_dots()
+
+    def _paint_current(self):
+        if not self._pixmaps:
+            return
+        w = max(self._img_lbl.width(), 200)
+        h = max(self._img_lbl.height(), 100)
+        pix = self._pixmaps[self._index].scaled(
+            w, h,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._img_lbl.setPixmap(pix)
+
+    def _refresh_dots(self):
+        accent = _c(QPalette.ColorRole.Highlight).name()
+        dim    = _c(QPalette.ColorRole.PlaceholderText).name()
+        for i in range(self._dot_row.count()):
+            w = self._dot_row.itemAt(i).widget()
+            if w:
+                c = accent if i == self._index else dim
+                w.setStyleSheet(f"font-size:10px; color:{c};")
+
+    def mousePressEvent(self, e):
+        try:
+            if e.button() == Qt.MouseButton.LeftButton and self._pixmaps:
+                dlg = LightboxDialog(self._pixmaps[self._index], self)
+                dlg.exec()
+        except Exception:
+            pass
+        super().mousePressEvent(e)
+
+
+# ── Main detail page ──────────────────────────────────────────────────────────
 
 class AppDetailPage(QWidget):
     back_requested = pyqtSignal()
@@ -36,21 +185,41 @@ class AppDetailPage(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # Back bar
+        # ── Top action bar (Discover-style) ──────────────────────────────────
         back_bar = QFrame()
         back_bar.setObjectName("topbar")
         back_bar.setFixedHeight(48)
         back_bar.setFrameShape(QFrame.Shape.StyledPanel)
         bl = QHBoxLayout(back_bar)
-        bl.setContentsMargins(16, 0, 16, 0)
+        bl.setContentsMargins(12, 0, 12, 0)
+        bl.setSpacing(6)
+
         back_btn = QPushButton("← Back")
-        back_btn.setFixedWidth(90)
+        back_btn.setFixedWidth(80)
+        back_btn.setFlat(True)
         back_btn.clicked.connect(self.back_requested)
         bl.addWidget(back_btn)
         bl.addStretch()
+
+        # Add-ons button (hidden until addons are found)
+        self._addons_btn = QPushButton("🧩  Add-ons")
+        self._addons_btn.setFlat(True)
+        self._addons_btn.setFixedHeight(32)
+        self._addons_btn.hide()
+        self._addons_btn.clicked.connect(self._show_addons_dialog)
+        bl.addWidget(self._addons_btn)
+
+        # Action widget — swapped out by _render_actions
+        self._action_container = QWidget()
+        self._action_container.setFixedHeight(36)
+        self._actions = QHBoxLayout(self._action_container)
+        self._actions.setContentsMargins(0, 0, 0, 0)
+        self._actions.setSpacing(0)
+        bl.addWidget(self._action_container)
+
         root.addWidget(back_bar)
 
-        # Scrollable content
+        # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -59,90 +228,116 @@ class AppDetailPage(QWidget):
         content = QWidget()
         scroll.setWidget(content)
         self._vl = QVBoxLayout(content)
-        self._vl.setContentsMargins(24, 24, 24, 24)
-        self._vl.setSpacing(16)
+        self._vl.setContentsMargins(28, 22, 28, 24)
+        self._vl.setSpacing(0)
 
-        # ── Hero ──────────────────────────────────────────────────────────────
+        # ── Hero (matches Discover layout) ────────────────────────────────────
         hero = QHBoxLayout()
         hero.setSpacing(20)
-        self._icon = IconWidget(96)
+        hero.setContentsMargins(0, 0, 0, 18)
+
+        self._icon = IconWidget(80)
         hero.addWidget(self._icon, alignment=Qt.AlignmentFlag.AlignTop)
 
-        info = QVBoxLayout()
-        info.setSpacing(4)
+        # Left: name / summary / author / meta links
+        left = QVBoxLayout()
+        left.setSpacing(3)
+
         self._name_lbl = bold_font(QLabel(), extra_pts=6)
         self._name_lbl.setWordWrap(True)
-        info.addWidget(self._name_lbl)
+        left.addWidget(self._name_lbl)
 
         self._summary_lbl = dimmed(QLabel())
         self._summary_lbl.setWordWrap(True)
-        info.addWidget(self._summary_lbl)
-        info.addSpacing(8)
+        left.addWidget(self._summary_lbl)
+        self._star_widget = StarRatingWidget()
+        left.addWidget(self._star_widget)
 
-        self._actions = QHBoxLayout()
-        self._actions.setSpacing(8)
-        info.addLayout(self._actions)
-        hero.addLayout(info)
-        hero.addStretch()
+        left.addSpacing(8)
+        self._meta_row = QHBoxLayout()
+        self._meta_row.setSpacing(6)
+        self._meta_row.setContentsMargins(0, 0, 0, 0)
+        left.addLayout(self._meta_row)
+
+        hero.addLayout(left, stretch=1)
+
+        # Right: version/size info block (actions moved to top bar)
+        right = QVBoxLayout()
+        right.setSpacing(6)
+        right.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
+        self._info_block = QVBoxLayout()
+        self._info_block.setSpacing(2)
+        right.addLayout(self._info_block)
+
+        hero.addLayout(right)
         self._vl.addLayout(hero)
         self._vl.addWidget(hline())
+        self._vl.addSpacing(20)
 
-        # Meta links (website, donate, etc.)
-        self._meta_row = QHBoxLayout()
-        self._meta_row.setSpacing(8)
-        self._vl.addLayout(self._meta_row)
+        # ── Screenshot carousel ───────────────────────────────────────────────
+        self._carousel = ScreenshotCarousel()
+        self._vl.addWidget(self._carousel)
+        self._vl.addSpacing(24)
 
-        # Screenshots
-        self._ss_label = bold_font(QLabel("Screenshots"))
-        self._ss_label.hide()
-        self._vl.addWidget(self._ss_label)
+        # ── Description ───────────────────────────────────────────────────────
+        self._desc_head = bold_font(QLabel("About this app"), extra_pts=1)
+        self._desc_head.hide()
+        self._vl.addWidget(self._desc_head)
+        self._vl.addSpacing(6)
 
-        # Screenshot row — mirrors the working test_scroll.py exactly
-        self._ss_scroll = QScrollArea()
-        self._ss_scroll.setFixedHeight(212)
-        self._ss_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._ss_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._ss_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
-        self._ss_scroll.setWidgetResizable(False)
-        self._ss_container = QWidget()
-        self._ss_container.setFixedSize(1, 178)  # grows via setFixedSize as images arrive
-        self._ss_scroll.setWidget(self._ss_container)
-        self._ss_images: list = []
-        self._ss_x = 0
-        self._ss_scroll.hide()
-        self._vl.addWidget(self._ss_scroll)
-
-        # Description
-        self._desc_label = bold_font(QLabel("About"))
-        self._desc_label.hide()
-        self._vl.addWidget(self._desc_label)
-
-        self._desc = dimmed(QLabel())
+        self._desc = QLabel()
         self._desc.setWordWrap(True)
         self._desc.setTextFormat(Qt.TextFormat.PlainText)
+        self._desc.hide()
         self._vl.addWidget(self._desc)
+        self._vl.addSpacing(24)
 
-        # Info cards (package name, flatpak id, categories)
-        self._info_row = QHBoxLayout()
-        self._info_row.setSpacing(10)
-        self._vl.addLayout(self._info_row)
+        # ── Bottom info cards ─────────────────────────────────────────────────
+        self._cards_row = QHBoxLayout()
+        self._cards_row.setSpacing(12)
+        self._vl.addLayout(self._cards_row)
+        self._vl.addSpacing(16)
 
-        # Terminal log
+        # ── Terminal ──────────────────────────────────────────────────────────
         self._terminal = TerminalWidget()
         self._vl.addWidget(self._terminal)
+        self._vl.addSpacing(24)
+
+        # ── Reviews ───────────────────────────────────────────────────────────
+        reviews_head_row = QHBoxLayout()
+        self._reviews_head = bold_font(QLabel("Reviews"), extra_pts=1)
+        self._reviews_head.hide()
+        reviews_head_row.addWidget(self._reviews_head)
+        reviews_head_row.addStretch()
+        self._write_review_btn = QPushButton("✏  Write a Review")
+        self._write_review_btn.setFlat(True)
+        self._write_review_btn.hide()
+        self._write_review_btn.clicked.connect(self._on_write_review)
+        reviews_head_row.addWidget(self._write_review_btn)
+        self._vl.addLayout(reviews_head_row)
+        self._vl.addSpacing(8)
+
+        self._reviews_container = QVBoxLayout()
+        self._reviews_container.setSpacing(10)
+        self._vl.addLayout(self._reviews_container)
         self._vl.addStretch()
 
     # ── Public ────────────────────────────────────────────────────────────────
 
     def load_app(self, app: dict):
         self._app = app
-        self._native = None
-        self._flatpak_app = None
+        self._native = self._flatpak_app = None
         self._terminal.reset()
-        self._clear_layout(self._actions)
-        self._clear_layout(self._meta_row)
-        self._clear_screenshots()
-        self._clear_layout(self._info_row)
+        self._carousel.clear()
+        for layout in (self._actions, self._meta_row, self._info_block, self._cards_row,
+                       self._reviews_container):
+            self._clear_layout(layout)
+        self._star_widget.set_rating(0, 0)
+        self._reviews_head.hide()
+        self._write_review_btn.hide()
+        self._addons_btn.hide()
+        self._addons = []  # reset stored addons
 
         self._name_lbl.setText(app.get("name", ""))
         self._summary_lbl.setText(app.get("summary", ""))
@@ -150,11 +345,12 @@ class AppDetailPage(QWidget):
 
         desc = app.get("description", "")
         self._desc.setText(desc)
-        self._desc_label.setVisible(bool(desc))
+        self._desc.setVisible(bool(desc))
+        self._desc_head.setVisible(bool(desc))
 
         self._render_basic_actions(app)
 
-        for url in (app.get("screenshots") or [])[:6]:
+        for url in (app.get("screenshots") or [])[:8]:
             ldr = ImageLoader(url)
             ldr.loaded.connect(self._on_screenshot)
             ldr.start()
@@ -165,10 +361,21 @@ class AppDetailPage(QWidget):
         w.start()
         self._workers.append(w)
 
-    # ── Data fetching ─────────────────────────────────────────────────────────
+        # Load reviews + addons in parallel
+        app_id = app.get("id", app.get("pkg_name", ""))
+        w2 = Worker(self._fetch_reviews, app_id)
+        w2.result.connect(self._on_reviews)
+        w2.start()
+        self._workers.append(w2)
+
+        w3 = Worker(self._fetch_addons, app_id)
+        w3.result.connect(self._on_addons)
+        w3.start()
+        self._workers.append(w3)
+
+    # ── Fetching ──────────────────────────────────────────────────────────────
 
     def _fetch_detail(self, app: dict) -> dict:
-        """Fetch native + flatpak variants and URL metadata."""
         appstream = packages._load_appstream()
         name_lower = app.get("name", "").lower()
         app_id = app.get("id", "")
@@ -189,8 +396,7 @@ class AppDetailPage(QWidget):
                 fp = packages._enrich_installed(a)
 
         urls = {k: "" for k in ("homepage", "donation", "bugtracker", "help")}
-        import gzip
-        import xml.etree.ElementTree as ET
+        import gzip, xml.etree.ElementTree as ET
         for appstream_dir, _ in packages.APPSTREAM_DIRS:
             if not os.path.isdir(appstream_dir):
                 continue
@@ -228,82 +434,131 @@ class AppDetailPage(QWidget):
         self._flatpak_app = data["flatpak"]
         self._render_actions(self._native, self._flatpak_app)
         self._render_meta(data["urls"])
-        self._render_info(self._native, self._flatpak_app)
+        self._render_info_block(self._native, self._flatpak_app)
+        self._render_cards(self._native, self._flatpak_app)
 
     # ── Screenshots ───────────────────────────────────────────────────────────
 
     def _on_screenshot(self, pixmap: QPixmap, key: str):
-        if pixmap.isNull():
-            return
-        self._ss_label.show()
-        self._ss_scroll.show()
-        thumb = pixmap.scaledToHeight(170, Qt.TransformationMode.SmoothTransformation)
-        img = ClickableImage(pixmap)
-        img.setPixmap(thumb)
-        img.setParent(self._ss_container)
-        img.setFixedSize(thumb.width(), 170)
-        img.move(self._ss_x, 4)
-        img.show()
-        self._ss_x += thumb.width() + 10
-        self._ss_images.append(img)
-        # setFixedSize (not just setFixedWidth) is what the test uses — must match
-        self._ss_container.setFixedSize(self._ss_x, 178)
+        if not pixmap.isNull():
+            self._carousel.add_pixmap(pixmap)
 
-    # ── Action buttons ────────────────────────────────────────────────────────
+    # ── Top-right info block (version, size, license — like Discover) ─────────
+
+    def _render_info_block(self, native: dict | None, fp: dict | None):
+        self._clear_layout(self._info_block)
+        base = native or fp or {}
+        rows = []
+        if base.get("version"):
+            rows.append(("Version", base["version"]))
+        if base.get("size"):
+            mb = base["size"] / (1024 * 1024)
+            rows.append(("Size", f"{mb:.1f} MiB"))
+        if base.get("license"):
+            rows.append(("License", base["license"]))
+        for label, value in rows:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            lbl = dimmed(QLabel(f"{label}:"))
+            lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+            lbl.setFixedWidth(60)
+            val = bold_font(QLabel(value))
+            row.addWidget(lbl)
+            row.addWidget(val)
+            self._info_block.addLayout(row)
+
+    # ── Install actions ───────────────────────────────────────────────────────
 
     def _render_basic_actions(self, app: dict):
-        """Show a basic install/remove button before full detail loads."""
         self._clear_layout(self._actions)
         installed = app.get("installed", False)
-        btn = QPushButton("Remove" if installed else "Install")
-        if not installed:
-            btn.setDefault(True)
-        btn.setMinimumWidth(110)
-        handler = self._do_remove if installed else self._do_install
-        btn.clicked.connect(lambda: handler(app))
-        self._actions.addWidget(btn)
-        self._actions.addStretch()
+        src_label = "Flatpak" if app.get("source") == "flatpak" else "RPM"
+        text = "Remove" if installed else f"Install from {src_label}"
+        self._main_btn = self._make_progress_btn(text, installed)
+        self._main_btn.clicked.connect(
+            lambda: self._do_remove(app) if app.get("installed") else self._do_install(app)
+        )
+        self._actions.addWidget(self._main_btn)
 
     def _render_actions(self, native: dict | None, fp: dict | None):
-        """Render split dropdown when both RPM + Flatpak available."""
         self._clear_layout(self._actions)
 
         if native and fp:
-            installed = native.get("installed")
-            main_btn = QPushButton("Remove (RPM)" if installed else "Install (RPM)")
-            if not installed:
-                main_btn.setDefault(True)
-            main_btn.setMinimumWidth(130)
-            handler = self._do_remove if installed else self._do_install
-            main_btn.clicked.connect(lambda: handler(native))
-            self._actions.addWidget(main_btn)
+            # Both sources — main button + ▾ dropdown (Discover style)
+            if native.get("installed"):
+                primary, secondary = native, fp
+                primary_label, secondary_label = "RPM", "Flatpak"
+            elif fp.get("installed"):
+                primary, secondary = fp, native
+                primary_label, secondary_label = "Flatpak", "RPM"
+            else:
+                primary, secondary = native, fp
+                primary_label, secondary_label = "RPM", "Flatpak"
+
+            installed = primary.get("installed")
+            self._action_app = primary
+            self._main_btn = self._make_progress_btn(
+                "Remove" if installed else f"Install from {primary_label}",
+                installed,
+            )
+            self._main_btn.setStyleSheet(
+                "QPushButton { border-top-right-radius: 0px; border-bottom-right-radius: 0px; }"
+            )
+            self._main_btn.clicked.connect(
+                lambda chk=False, p=primary:
+                    self._do_remove(p) if p.get("installed") else self._do_install(p)
+            )
+            self._actions.addWidget(self._main_btn)
 
             arrow = QToolButton()
             arrow.setText("▾")
+            arrow.setFixedSize(24, 36)
+            arrow.setStyleSheet(
+                "QToolButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px;"
+                " border-left: none; font-size: 13px; }"
+            )
             arrow.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu = QMenu(arrow)
-            fp_installed = fp.get("installed")
+            sec_installed = secondary.get("installed")
             act = menu.addAction(
-                f"{'Remove' if fp_installed else 'Install'} (Flatpak) — {fp['pkg_name']}"
+                f"{'Remove' if sec_installed else 'Install'} from {secondary_label}"
             )
-            fp_handler = self._do_remove if fp_installed else self._do_install
-            act.triggered.connect(lambda: fp_handler(fp))
+            act.triggered.connect(
+                lambda chk=False, s=secondary:
+                    self._do_remove(s) if s.get("installed") else self._do_install(s)
+            )
             arrow.setMenu(menu)
             self._actions.addWidget(arrow)
 
         elif native or fp:
             app = native or fp
             installed = app.get("installed")
-            src_label = " (Flatpak)" if fp else ""
-            btn = QPushButton(f"{'Remove' if installed else 'Install'}{src_label}")
-            if not installed:
-                btn.setDefault(True)
-            btn.setMinimumWidth(110)
-            handler = self._do_remove if installed else self._do_install
-            btn.clicked.connect(lambda: handler(app))
-            self._actions.addWidget(btn)
+            self._action_app = app
+            src_label = "Flatpak" if fp else "RPM"
+            text = "Remove" if installed else f"Install from {src_label}"
+            self._main_btn = self._make_progress_btn(text, installed)
+            self._main_btn.clicked.connect(
+                lambda chk=False, a=app:
+                    self._do_remove(a) if a.get("installed") else self._do_install(a)
+            )
+            self._actions.addWidget(self._main_btn)
 
-        self._actions.addStretch()
+    def _make_progress_btn(self, text: str, is_remove: bool = False) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setMinimumWidth(170)
+        btn.setFixedHeight(36)
+        if not is_remove:
+            btn.setDefault(True)
+        return btn
+
+    def _set_action_progress(self, active: bool, text: str = ""):
+        if hasattr(self, "_main_btn") and self._main_btn:
+            if text:
+                self._main_btn.setText(text)
+            self._main_btn.setEnabled(not active)
+
+    def _set_action_busy(self, busy: bool, text: str = ""):
+        self._set_action_progress(busy, text)
 
     # ── Meta links ────────────────────────────────────────────────────────────
 
@@ -328,10 +583,10 @@ class AppDetailPage(QWidget):
         if added:
             self._meta_row.addStretch()
 
-    # ── Info cards ────────────────────────────────────────────────────────────
+    # ── Bottom cards (package name, flatpak id, categories) ──────────────────
 
-    def _render_info(self, native: dict | None, fp: dict | None):
-        self._clear_layout(self._info_row)
+    def _render_cards(self, native: dict | None, fp: dict | None):
+        self._clear_layout(self._cards_row)
         items = []
         if native:
             items.append(("RPM Package", native["pkg_name"]))
@@ -345,7 +600,7 @@ class AppDetailPage(QWidget):
             card = QFrame()
             card.setObjectName("card")
             card.setFrameShape(QFrame.Shape.StyledPanel)
-            card.setFixedWidth(200)
+            card.setFixedWidth(210)
             cl = QVBoxLayout(card)
             cl.setContentsMargins(12, 10, 12, 10)
             cl.setSpacing(3)
@@ -353,10 +608,9 @@ class AppDetailPage(QWidget):
             vl = bold_font(QLabel(value))
             vl.setWordWrap(True)
             cl.addWidget(vl)
-            self._info_row.addWidget(card)
-
+            self._cards_row.addWidget(card)
         if items:
-            self._info_row.addStretch()
+            self._cards_row.addStretch()
 
     # ── Install / remove ──────────────────────────────────────────────────────
 
@@ -376,25 +630,102 @@ class AppDetailPage(QWidget):
             app, "remove",
         )
 
-    def _run_stream(self, gen_fn, arg, app: dict, op: str):
+    def _run_stream(self, gen_fn, arg, app: dict, op: str,
+                    done_cb=None, ext_btn: "QPushButton | None" = None):
         self._terminal.reset()
+        label = "Installing…" if op == "install" else "Removing…"
+        if ext_btn:
+            ext_btn.setText(label)
+            ext_btn.setEnabled(False)
+        else:
+            self._set_action_progress(True, label)
         w = StreamWorker(gen_fn, arg)
         w.line.connect(self._terminal.append_line)
-        w.done.connect(lambda code: self._op_done(code, app, op))
+        w.done.connect(lambda code: self._op_done(
+            code, app, op, done_cb=done_cb, ext_btn=ext_btn))
         w.start()
         self._workers.append(w)
 
-    def _op_done(self, code: int, app: dict, op: str):
+    def _op_done(self, code: int, app: dict, op: str,
+                 done_cb=None, ext_btn: "QPushButton | None" = None):
+        verb = "Installed" if op == "install" else "Removed"
         if code == 0:
-            self._terminal.append_line(
-                f"\n✓ {'Installed' if op == 'install' else 'Removed'} successfully."
-            )
-            w = Worker(self._fetch_detail, app)
-            w.result.connect(self._on_detail)
-            w.start()
-            self._workers.append(w)
+            self._terminal.append_line(f"\n✓ {verb} successfully.")
+            if done_cb:
+                done_cb(True)
+            else:
+                self._set_action_progress(False)
+                w = Worker(self._fetch_detail, app)
+                w.result.connect(self._on_detail)
+                w.start()
+                self._workers.append(w)
         else:
             self._terminal.append_line(f"\n✗ Failed (exit {code}).")
+            if ext_btn:
+                ext_btn.setText("Retry")
+                ext_btn.setEnabled(True)
+            else:
+                self._set_action_progress(False, "Retry")
+            if done_cb:
+                done_cb(False)
+
+    # ── Reviews ──────────────────────────────────────────────────────────────
+
+    def _fetch_addons(self, app_id: str) -> list[dict]:
+        from backend import packages
+        addons = packages.get_addons_for(app_id)
+        # Enrich installed status
+        for a in addons:
+            from backend import packages as pkg
+            a["installed"] = pkg.is_installed_native(a["pkg_name"]) or                               pkg.is_installed_flatpak(a.get("id", ""))
+        return addons
+
+    def _on_addons(self, addons: list[dict]):
+        self._addons = addons
+        if not addons:
+            self._addons_btn.hide()
+            return
+        self._addons_btn.setText(f"🧩  Add-ons  ({len(addons)})")
+        self._addons_btn.show()
+
+    def _show_addons_dialog(self):
+        dlg = AddonsDialog(self._addons, self._run_stream, self)
+        dlg.exec()
+
+    def _fetch_reviews(self, app_id: str) -> dict:
+        from backend import reviews as rev
+        review_list = rev.get_reviews(app_id)
+        ratings = rev.get_ratings(app_id)
+        avg, total = rev.avg_rating_from_counts(ratings) if ratings else (0, 0)
+        return {"reviews": review_list, "avg": avg, "total": total, "app_id": app_id}
+
+    def _on_reviews(self, data: dict):
+        self._star_widget.set_rating(data["avg"], data["total"])
+        reviews = data["reviews"]
+        self._clear_layout(self._reviews_container)
+        if reviews:
+            self._reviews_head.show()
+            self._write_review_btn.show()
+            for r in reviews[:10]:
+                card = ReviewCard(r)
+                self._reviews_container.addWidget(card)
+        else:
+            self._reviews_head.show()
+            self._write_review_btn.show()
+            from ..theme import dimmed
+            no_reviews = dimmed(QLabel("No reviews yet — be the first!"))
+            self._reviews_container.addWidget(no_reviews)
+        self._current_review_app_id = data["app_id"]
+
+    def _on_write_review(self):
+        app_id = getattr(self, "_current_review_app_id", self._app.get("id", ""))
+        dlg = WriteReviewDialog(self._app.get("name", ""), app_id, self)
+        if dlg.exec() == WriteReviewDialog.DialogCode.Accepted:
+            # Reload reviews after submit
+            w = Worker(self._fetch_reviews, app_id)
+            w.result.connect(self._on_reviews)
+            w.start()
+            self._workers.append(w)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -403,12 +734,124 @@ class AppDetailPage(QWidget):
             item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
 
-    def _clear_screenshots(self):
-        for img in self._ss_images:
-            img.deleteLater()
-        self._ss_images = []
-        self._ss_x = 0
-        self._ss_container.setFixedSize(1, 178)
-        self._ss_label.hide()
-        self._ss_scroll.hide()
+
+class AddonsDialog(QDialog):
+    """
+    Popup showing add-ons for an app, Discover-style.
+    Each row has icon / name / summary / install button that
+    turns into a progress indicator during the operation.
+    """
+
+    def __init__(self, addons: list[dict], run_stream_fn, parent=None):
+        super().__init__(parent)
+        self._run_stream = run_stream_fn
+        self.setWindowTitle("Add-ons")
+        self.setMinimumWidth(520)
+        self.setMinimumHeight(400)
+        self.setModal(True)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # Header
+        header = QFrame()
+        header.setObjectName("topbar")
+        header.setFixedHeight(52)
+        hl = QHBoxLayout(header)
+        hl.setContentsMargins(20, 0, 20, 0)
+        title = QLabel(f"Add-ons  ({len(addons)})")
+        f = title.font(); f.setPointSize(f.pointSize() + 2); f.setBold(True)
+        title.setFont(f)
+        hl.addWidget(title)
+        hl.addStretch()
+        close_btn = QPushButton("✕")
+        close_btn.setFlat(True)
+        close_btn.setFixedSize(28, 28)
+        close_btn.clicked.connect(self.accept)
+        hl.addWidget(close_btn)
+        root.addWidget(header)
+
+        # Scrollable addon list
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        root.addWidget(scroll)
+
+        container = QWidget()
+        scroll.setWidget(container)
+        vl = QVBoxLayout(container)
+        vl.setContentsMargins(16, 12, 16, 12)
+        vl.setSpacing(8)
+
+        self._rows: list[dict] = []  # {addon, btn, row_frame}
+
+        for addon in addons:
+            row = QFrame()
+            row.setObjectName("card")
+            row.setFrameShape(QFrame.Shape.StyledPanel)
+            rl = QHBoxLayout(row)
+            rl.setContentsMargins(14, 10, 14, 10)
+            rl.setSpacing(12)
+
+            # Icon
+            icon_w = IconWidget(36)  # IconWidget already imported at top
+            icon_w.set_icon_name(addon.get("icon", ""))
+            rl.addWidget(icon_w)
+
+            # Text
+            text_col = QVBoxLayout()
+            text_col.setSpacing(2)
+            name_lbl = bold_font(QLabel(addon.get("name", addon.get("id", ""))))
+            text_col.addWidget(name_lbl)
+            summary = addon.get("summary", "")
+            if summary:
+                sum_lbl = dimmed(QLabel(summary))
+                sum_lbl.setWordWrap(True)
+                text_col.addWidget(sum_lbl)
+            rl.addLayout(text_col, stretch=1)
+
+            # Install / Remove button
+            installed = addon.get("installed", False)
+            btn = QPushButton("Remove" if installed else "Install")
+            btn.setFixedWidth(100)
+            btn.setFixedHeight(32)
+            btn.clicked.connect(
+                lambda checked=False, a=addon, b=btn:
+                    self._do_addon(a, b)
+            )
+            rl.addWidget(btn)
+
+            vl.addWidget(row)
+            self._rows.append({"addon": addon, "btn": btn})
+
+        vl.addStretch()
+
+    def _do_addon(self, addon: dict, btn: QPushButton):
+        from backend import packages, flatpak
+        installed = addon.get("installed", False)
+        if installed:
+            gen_fn = (flatpak.remove_flatpak_stream if addon.get("source") == "flatpak"
+                      else packages.remove_package_stream)
+            arg = addon["id"] if addon.get("source") == "flatpak" else addon["pkg_name"]
+            op = "remove"
+        else:
+            gen_fn = (flatpak.install_flatpak_stream if addon.get("source") == "flatpak"
+                      else packages.install_package_stream)
+            arg = addon["id"] if addon.get("source") == "flatpak" else addon["pkg_name"]
+            op = "install"
+
+        def done_cb(success: bool):
+            if success:
+                addon["installed"] = not installed
+                btn.setText("Remove" if addon["installed"] else "Install")
+                btn.setEnabled(True)
+            else:
+                btn.setText("Retry")
+                btn.setEnabled(True)
+
+        self._run_stream(gen_fn, arg, addon, op,
+                         done_cb=done_cb, ext_btn=btn)

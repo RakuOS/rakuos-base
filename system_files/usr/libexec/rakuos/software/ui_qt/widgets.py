@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QWidget, QLabel, QFrame, QVBoxLayout, QHBoxLayout,
     QPushButton, QTextEdit, QScrollArea, QSizePolicy,
     QSpacerItem, QDialog, QApplication, QGridLayout,
+    QLineEdit, QSlider, QDialogButtonBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QCursor, QColor
@@ -314,3 +315,290 @@ class ClickableImage(QLabel):
             pass
         super().mousePressEvent(event)
 
+
+
+# ── Reviews widget ────────────────────────────────────────────────────────────
+
+from PyQt6.QtWidgets import QTextEdit, QDialog, QDialogButtonBox, QSlider
+
+
+class StarRatingWidget(QLabel):
+    """Displays a star rating with count label."""
+
+    def __init__(self):
+        super().__init__()
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.set_rating(0, 0)
+
+    def set_rating(self, rating_0_100: int, count: int):
+        from backend.reviews import stars_from_rating
+        if count == 0:
+            self.setText("No ratings yet")
+            dimmed(self)
+        else:
+            stars = stars_from_rating(rating_0_100)
+            f = self.font()
+            f.setPointSize(f.pointSize() + 2)
+            self.setFont(f)
+            self.setText(f"{stars}  ({count} ratings)")
+
+
+class ReviewCard(QFrame):
+    """Single review card."""
+
+    def __init__(self, review: dict):
+        super().__init__()
+        self.setObjectName("card")
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(4)
+
+        # Header: stars + summary + author
+        header = QHBoxLayout()
+        from backend.reviews import stars_from_rating
+        rating = review.get("rating", 0)
+        stars_lbl = QLabel(stars_from_rating(rating))
+        stars_lbl.setStyleSheet("font-size: 13px;")
+        header.addWidget(stars_lbl)
+
+        summary = bold_font(QLabel(review.get("summary", "")))
+        summary.setWordWrap(True)
+        header.addWidget(summary, stretch=1)
+
+        author = dimmed(QLabel(review.get("user_display") or "Anonymous"))
+        author.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        header.addWidget(author)
+        layout.addLayout(header)
+
+        # Body
+        desc = review.get("description", "").strip()
+        if desc:
+            body = QLabel(desc)
+            body.setWordWrap(True)
+            body.setTextFormat(Qt.TextFormat.PlainText)
+            layout.addWidget(body)
+
+        # Footer: distro + version + date
+        footer_parts = []
+        if review.get("distro"):
+            footer_parts.append(review["distro"])
+        if review.get("version"):
+            footer_parts.append(f"v{review['version']}")
+        if review.get("date_created"):
+            from datetime import datetime
+            try:
+                dt = datetime.fromtimestamp(review["date_created"])
+                footer_parts.append(dt.strftime("%b %Y"))
+            except Exception:
+                pass
+        if footer_parts:
+            footer = dimmed(QLabel(" · ".join(footer_parts)))
+            footer.setStyleSheet("font-size: 11px;")
+            layout.addWidget(footer)
+
+
+class WriteReviewDialog(QDialog):
+    """Dialog for submitting a new review."""
+
+    def __init__(self, app_name: str, app_id: str, parent=None):
+        super().__init__(parent)
+        self.app_id = app_id
+        self.setWindowTitle(f"Review {app_name}")
+        self.setMinimumWidth(460)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        layout.addWidget(bold_font(QLabel(f"Write a review for {app_name}")))
+
+        # Star slider
+        star_row = QHBoxLayout()
+        star_row.addWidget(dimmed(QLabel("Your rating:")))
+        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setRange(1, 5)
+        self._slider.setValue(4)
+        self._slider.setTickInterval(1)
+        self._slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        star_row.addWidget(self._slider)
+        self._star_lbl = QLabel("★★★★☆")
+        self._star_lbl.setFixedWidth(80)
+        star_row.addWidget(self._star_lbl)
+        self._slider.valueChanged.connect(self._on_stars)
+        layout.addLayout(star_row)
+
+        # Summary
+        layout.addWidget(QLabel("Summary (one line):"))
+        self._summary = QLineEdit()
+        self._summary.setPlaceholderText("e.g. Great app for everyday use")
+        self._summary.setMaxLength(80)
+        layout.addWidget(self._summary)
+
+        # Description
+        layout.addWidget(QLabel("Your review:"))
+        self._desc = QTextEdit()
+        self._desc.setPlaceholderText("Tell others what you think…")
+        self._desc.setFixedHeight(100)
+        layout.addWidget(self._desc)
+
+        # Privacy note
+        note = dimmed(QLabel(
+            "ⓘ  Reviews are submitted anonymously to odrs.gnome.org "
+            "and shared with GNOME Software, KDE Discover, and other app centers."
+        ))
+        note.setWordWrap(True)
+        note.setStyleSheet("font-size: 11px;")
+        layout.addWidget(note)
+
+        # Buttons
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.button(QDialogButtonBox.StandardButton.Ok).setText("Submit Review")
+        btns.accepted.connect(self._submit)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+        self._result_lbl = QLabel("")
+        self._result_lbl.setWordWrap(True)
+        layout.addWidget(self._result_lbl)
+
+    def _on_stars(self, value: int):
+        self._star_lbl.setText("★" * value + "☆" * (5 - value))
+
+    def _submit(self):
+        from backend import reviews as rev_backend
+        summary = self._summary.text().strip()
+        desc = self._desc.toPlainText().strip()
+        rating = self._slider.value() * 20  # 1-5 → 20-100
+
+        ok, msg = rev_backend.submit_review(
+            self.app_id, summary, desc, rating
+        )
+        if ok:
+            from .theme import col_success
+            colored_text(self._result_lbl, col_success())
+            self._result_lbl.setText(f"✓ {msg}")
+            self.accept()
+        else:
+            from .theme import col_danger
+            colored_text(self._result_lbl, col_danger())
+            self._result_lbl.setText(f"✗ {msg}")
+
+
+# ── Add-ons Dialog ────────────────────────────────────────────────────────────
+
+class AddonRow(QFrame):
+    """Single row in the add-ons dialog with an install/remove progress button."""
+
+    install_requested = pyqtSignal(dict)
+    remove_requested  = pyqtSignal(dict)
+
+    def __init__(self, addon: dict):
+        super().__init__()
+        self._addon = addon
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setObjectName("card")
+
+        rl = QHBoxLayout(self)
+        rl.setContentsMargins(12, 10, 12, 10)
+        rl.setSpacing(10)
+
+        icon_w = IconWidget(40)
+        icon_w.set_icon_name(addon.get("icon", ""))
+        rl.addWidget(icon_w)
+
+        text_col = QVBoxLayout()
+        text_col.setSpacing(2)
+        name = addon.get("name") or addon.get("id", "")
+        text_col.addWidget(bold_font(QLabel(name)))
+        summary = addon.get("summary", "")
+        if summary:
+            sl = dimmed(QLabel(summary))
+            sl.setWordWrap(True)
+            text_col.addWidget(sl)
+        rl.addLayout(text_col, stretch=1)
+
+        self._btn = QPushButton()
+        self._btn.setFixedWidth(110)
+        self._btn.setFixedHeight(32)
+        self._update_btn()
+        self._btn.clicked.connect(self._on_click)
+        rl.addWidget(self._btn)
+
+    def _update_btn(self):
+        installed = self._addon.get("installed", False)
+        self._btn.setText("Remove" if installed else "Install")
+        self._btn.setEnabled(True)
+
+    def _on_click(self):
+        self._btn.setText("Working…")
+        self._btn.setEnabled(False)
+        if self._addon.get("installed"):
+            self.remove_requested.emit(self._addon)
+        else:
+            self.install_requested.emit(self._addon)
+
+    def mark_done(self, installed: bool):
+        self._addon["installed"] = installed
+        self._update_btn()
+
+    def mark_failed(self):
+        self._addon_installed = self._addon.get("installed", False)
+        self._btn.setText("Failed")
+        self._btn.setEnabled(True)
+
+
+class AddonsDialog(QDialog):
+    """Popup listing all add-ons for an app with Install/Remove buttons."""
+
+    install_requested = pyqtSignal(dict)
+    remove_requested  = pyqtSignal(dict)
+
+    def __init__(self, addons: list, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add-ons")
+        self.setMinimumWidth(520)
+        self.setMinimumHeight(min(120 + len(addons) * 80, 600))
+        self.setModal(True)
+
+        vl = QVBoxLayout(self)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(10)
+
+        vl.addWidget(bold_font(QLabel(f"{len(addons)} add-on{'s' if len(addons) != 1 else ''} available"), extra_pts=1))
+        vl.addSpacing(4)
+
+        # Scrollable list
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inner = QWidget()
+        inner_vl = QVBoxLayout(inner)
+        inner_vl.setContentsMargins(0, 0, 0, 0)
+        inner_vl.setSpacing(8)
+
+        self._rows: dict[str, AddonRow] = {}
+        for addon in addons:
+            row = AddonRow(addon)
+            row.install_requested.connect(self._on_install)
+            row.remove_requested.connect(self._on_remove)
+            inner_vl.addWidget(row)
+            self._rows[addon.get("id", addon.get("pkg_name", ""))] = row
+
+        inner_vl.addStretch()
+        scroll.setWidget(inner)
+        vl.addWidget(scroll)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        vl.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
+
+    def _on_install(self, addon: dict):
+        self.install_requested.emit(addon)
+
+    def _on_remove(self, addon: dict):
+        self.remove_requested.emit(addon)
