@@ -1,11 +1,11 @@
-NAME="RakuOS"
+NAME="RakuOS Linux"
 VERSION="43"
 RELEASE_TYPE=stable
 ID=rakuos
 ID_LIKE="fedora"
 VERSION_ID=43
 VERSION_CODENAME=""
-PRETTY_NAME="RakuOS 43"
+PRETTY_NAME="RakuOS Linux 43"
 ANSI_COLOR="0;38;2;120;40;160"
 LOGO=rakuos-logo
 CPE_NAME="cpe:/o:rakuos:rakuos:43"
