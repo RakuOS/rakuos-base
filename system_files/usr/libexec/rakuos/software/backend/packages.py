@@ -59,6 +59,48 @@ def _get_localized_description(comp) -> str:
         or ""
     )
 
+# ── Package manager detection ─────────────────────────────────────────────────
+
+def is_rakuos() -> bool:
+    """True if running on RakuOS — packages.list and rakuos CLI present."""
+    import shutil
+    return PACKAGES_LIST.exists() or shutil.which("rakuos") is not None
+
+
+def _get_pkg_manager() -> list[str]:
+    """
+    Return the best available package manager command as a list.
+    Priority: rakuos CLI → dnf5 → dnf
+    This allows the software center to work on any DNF-based distro.
+    """
+    import shutil
+    if shutil.which("rakuos"):
+        return ["rakuos"]
+    if shutil.which("dnf5"):
+        return ["dnf5"]
+    if shutil.which("dnf"):
+        return ["dnf"]
+    return ["dnf"]  # last resort — let it fail naturally with a useful error
+
+
+def _get_pkexec_install_cmd(pkg_name: str) -> list[str]:
+    """Return the full privileged install command for pkg_name."""
+    import shutil
+    if shutil.which("rakuos"):
+        return ["pkexec", "/usr/libexec/rakuos/rakuos-install", pkg_name]
+    mgr = _get_pkg_manager()
+    return ["pkexec"] + mgr + ["install", "-y", pkg_name]
+
+
+def _get_pkexec_remove_cmd(pkg_name: str) -> list[str]:
+    """Return the full privileged remove command for pkg_name."""
+    import shutil
+    if shutil.which("rakuos"):
+        return ["pkexec", "/usr/libexec/rakuos/rakuos-remove", pkg_name]
+    mgr = _get_pkg_manager()
+    return ["pkexec"] + mgr + ["remove", "-y", pkg_name]
+
+
 PACKAGES_LIST = Path("/var/lib/rakuos/packages.list")
 
 APPSTREAM_DIRS = [
@@ -83,14 +125,45 @@ _cache_ready = threading.Event()
 
 
 def get_installed_packages() -> list[str]:
-    """Return list of packages installed via rakuos overlay."""
-    if not PACKAGES_LIST.exists():
-        return []
-    return [p.strip() for p in PACKAGES_LIST.read_text().splitlines() if p.strip()]
+    """
+    Return list of user-installed packages.
+    On RakuOS: reads /var/lib/rakuos/packages.list (overlay).
+    On other distros: queries DNF for explicitly installed packages.
+    """
+    if PACKAGES_LIST.exists():
+        return [
+            p.strip() for p in PACKAGES_LIST.read_text().splitlines()
+            if p.strip() and not p.strip().startswith("#")
+        ]
+
+    # Non-RakuOS fallback — ask DNF for explicitly installed packages
+    # (userinstalled excludes base OS packages, giving a manageable list)
+    mgr = _get_pkg_manager()
+    for args in [
+        mgr + ["repoquery", "--userinstalled", "--queryformat", "%{name}"],
+        mgr + ["history", "userinstalled"],          # dnf4 fallback
+    ]:
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=20)
+            if r.returncode == 0 and r.stdout.strip():
+                return [p.strip() for p in r.stdout.splitlines() if p.strip()]
+        except Exception:
+            continue
+    return []
 
 
 def is_installed_native(pkg_name: str) -> bool:
-    return pkg_name in get_installed_packages()
+    if PACKAGES_LIST.exists():
+        return pkg_name in get_installed_packages()
+    # Non-RakuOS: ask rpm directly — much faster than scanning full DNF list
+    try:
+        r = subprocess.run(
+            ["rpm", "-q", "--quiet", pkg_name],
+            capture_output=True, timeout=5
+        )
+        return r.returncode == 0
+    except Exception:
+        return pkg_name in get_installed_packages()
 
 
 def is_installed_flatpak(app_id: str) -> bool:
@@ -105,10 +178,11 @@ def is_installed_flatpak(app_id: str) -> bool:
 
 
 def install_package_stream(pkg_name: str):
-    """Generator that yields output lines from rakuos install."""
+    """Generator that yields output lines from install command.
+    Uses rakuos CLI if available, falls back to dnf5/dnf."""
     try:
         proc = subprocess.Popen(
-            ["pkexec", "/usr/libexec/rakuos/rakuos-install", pkg_name],
+            _get_pkexec_install_cmd(pkg_name),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -123,10 +197,11 @@ def install_package_stream(pkg_name: str):
 
 
 def remove_package_stream(pkg_name: str):
-    """Generator that yields output lines from rakuos remove."""
+    """Generator that yields output lines from remove command.
+    Uses rakuos CLI if available, falls back to dnf5/dnf."""
     try:
         proc = subprocess.Popen(
-            ["pkexec", "/usr/libexec/rakuos/rakuos-remove", pkg_name],
+            _get_pkexec_remove_cmd(pkg_name),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -288,7 +363,7 @@ def search_dnf(query: str, limit: int = 20) -> list[dict]:
     try:
         # Use separate queries to avoid multiline description breaking parsing
         name_result = subprocess.run(
-            ["dnf5", "repoquery", "--queryformat", "%{name}", f"*{query}*"],
+            _get_pkg_manager() + ["repoquery", "--queryformat", "%{name}", f"*{query}*"],
             capture_output=True, text=True, timeout=15
         )
         names = [n.strip() for n in name_result.stdout.splitlines() if n.strip()]
@@ -341,7 +416,7 @@ def search_dnf(query: str, limit: int = 20) -> list[dict]:
 
             # No Flatpak match — fetch details from DNF
             info = subprocess.run(
-                ["dnf5", "repoquery", "--queryformat",
+                _get_pkg_manager() + ["repoquery", "--queryformat",
                  "%{summary}||END||%{url}", name],
                 capture_output=True, text=True, timeout=10
             )
@@ -350,7 +425,7 @@ def search_dnf(query: str, limit: int = 20) -> list[dict]:
             url = parts[1].strip() if len(parts) > 1 else ""
 
             desc = subprocess.run(
-                ["dnf5", "repoquery", "--queryformat", "%{description}", name],
+                _get_pkg_manager() + ["repoquery", "--queryformat", "%{description}", name],
                 capture_output=True, text=True, timeout=10
             )
             description = desc.stdout.strip()
@@ -449,7 +524,7 @@ def get_installed_with_metadata() -> list[dict]:
                 results.append({
                     "id": pkg,
                     "name": pkg,
-                    "summary": "Installed via overlay",
+                    "summary": "Installed package",
                     "description": "",
                     "categories": [],
                     "icon": "",
