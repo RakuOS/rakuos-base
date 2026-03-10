@@ -406,12 +406,11 @@ class MainWindow(QMainWindow):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def run():
+def run(rpm_file: str = None):
     de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if "kde" in de or "plasma" in de:
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
     else:
-        # GNOME, COSMIC, XFCE, etc. — use qt6ct for consistent styling
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "qt6ct")
 
     app = QApplication(sys.argv)
@@ -421,6 +420,16 @@ def run():
 
     win = MainWindow()
     win.show()
+
+    # If a local .rpm was passed, open it directly on the detail page
+    if rpm_file:
+        from PyQt6.QtCore import QTimer
+        from backend import packages as _pkg
+        def _open_rpm():
+            info = _pkg.get_local_rpm_info(rpm_file)
+            win._open_detail(info)
+        QTimer.singleShot(200, _open_rpm)
+
     sys.exit(app.exec())
 
 

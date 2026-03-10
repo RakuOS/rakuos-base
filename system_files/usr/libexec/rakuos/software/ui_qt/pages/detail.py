@@ -389,6 +389,13 @@ class AppDetailPage(QWidget):
     # ── Fetching ──────────────────────────────────────────────────────────────
 
     def _fetch_detail(self, app: dict) -> dict:
+        # Local .rpm — no AppStream lookup needed, use metadata as-is
+        if app.get("local_rpm"):
+            return {"native": app, "fp": None, "urls": {
+                "homepage": app.get("url", ""), "donation": "",
+                "bugtracker": "", "help": "",
+            }}
+
         appstream = packages._load_appstream()
         name_lower = app.get("name", "").lower()
         app_id = app.get("id", "")
@@ -827,12 +834,20 @@ class AppDetailPage(QWidget):
     # ── Install / remove ──────────────────────────────────────────────────────
 
     def _do_install(self, app: dict):
-        self._run_stream(
-            flatpak.install_flatpak_stream if app.get("source") == "flatpak"
-            else packages.install_package_stream,
-            app["id"] if app.get("source") == "flatpak" else app["pkg_name"],
-            app, "install",
-        )
+        if app.get("local_rpm"):
+            # Local .rpm file — install via dnf to resolve deps
+            self._run_stream(
+                packages.install_local_rpm_stream,
+                app["local_rpm"],
+                app, "install",
+            )
+        else:
+            self._run_stream(
+                flatpak.install_flatpak_stream if app.get("source") == "flatpak"
+                else packages.install_package_stream,
+                app["id"] if app.get("source") == "flatpak" else app["pkg_name"],
+                app, "install",
+            )
 
     def _do_remove(self, app: dict):
         self._run_stream(

@@ -553,3 +553,84 @@ def get_addons_for(app_id: str) -> list[dict]:
     """
     cache = _load_appstream()
     return [item for item in cache.values() if item.get("extends") == app_id]
+
+
+def get_local_rpm_info(rpm_path: str) -> dict:
+    """
+    Extract metadata from a local .rpm file using rpm -qip.
+    Returns an app dict compatible with the detail page.
+    Falls back gracefully if rpm isn't available.
+    """
+    fields = {
+        "Name":        "%{NAME}",
+        "Version":     "%{VERSION}-%{RELEASE}",
+        "Summary":     "%{SUMMARY}",
+        "Description": "%{DESCRIPTION}",
+        "URL":         "%{URL}",
+        "License":     "%{LICENSE}",
+        "Size":        "%{SIZE}",
+        "Arch":        "%{ARCH}",
+    }
+    fmt = "\n".join(f"{k}: {v}" for k, v in fields.items())
+    try:
+        r = subprocess.run(
+            ["rpm", "--queryformat", fmt, "-qp", rpm_path],
+            capture_output=True, text=True, timeout=10
+        )
+        data = {}
+        for line in r.stdout.splitlines():
+            if ": " in line:
+                k, _, v = line.partition(": ")
+                data[k.strip()] = v.strip()
+    except Exception:
+        data = {}
+
+    name    = data.get("Name", os.path.basename(rpm_path).replace(".rpm", ""))
+    version = data.get("Version", "")
+    summary = data.get("Summary", "")
+    desc    = data.get("Description", "")
+    url     = data.get("URL", "") if data.get("URL", "") != "(none)" else ""
+    size    = int(data.get("Size", 0) or 0)
+
+    # Check if already installed
+    already_installed = is_installed_native(name)
+
+    return {
+        "id":           name,
+        "name":         name,
+        "version":      version,
+        "summary":      summary,
+        "description":  desc,
+        "categories":   [],
+        "icon":         "",
+        "screenshots":  [],
+        "pkg_name":     name,
+        "url":          url,
+        "source":       "native",
+        "local_rpm":    rpm_path,       # signals detail page this is a local file
+        "installed":    already_installed,
+        "size":         size,
+        "license":      data.get("License", ""),
+        "arch":         data.get("Arch", ""),
+    }
+
+
+def install_local_rpm_stream(rpm_path: str):
+    """
+    Generator that yields output lines from installing a local .rpm file.
+    Uses dnf5/dnf to install so deps are resolved automatically.
+    """
+    mgr = _get_pkg_manager()
+    cmd = mgr + ["install", "-y", rpm_path]
+    try:
+        proc = subprocess.Popen(
+            ["pkexec"] + cmd,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+        for line in proc.stdout:
+            yield line.rstrip()
+        proc.wait()
+        yield f"__done__{proc.returncode}"
+    except Exception as e:
+        yield f"Error: {e}"
+        yield "__done__1"

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 RakuOS Software Center — entry point.
-Sets cache/bytecode dirs before any imports, then hands off to the right frontend.
+Sets cache/bytecode dirs before any imports, then launches the Qt frontend.
+GTK frontend is planned for a future release once the Qt interface is complete.
 """
 import os
 import sys
@@ -11,11 +12,18 @@ _cache_base = os.path.join(os.path.expanduser("~"), ".cache", "rakuos")
 os.makedirs(_cache_base, exist_ok=True)
 
 os.environ["PYTHONPYCACHEPREFIX"] = os.path.join(_cache_base, "pycache")
-sys.pycache_prefix = os.path.join(_cache_base, "pycache")  # works at runtime too
+sys.pycache_prefix = os.path.join(_cache_base, "pycache")
 
 # ── Locate the software directory and add it to path ─────────────────────────
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
+
+# ── Check for a local .rpm file argument (e.g. opened from file manager) ─────
+_rpm_file = None
+for _arg in sys.argv[1:]:
+    if _arg.endswith(".rpm") and os.path.isfile(_arg):
+        _rpm_file = _arg
+        break
 
 # ── Pick frontend based on DE ─────────────────────────────────────────────────
 _de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
@@ -25,4 +33,4 @@ if "gnome" in _de:
 else:
     from ui_qt.main import run
 
-run()
+run(rpm_file=_rpm_file)
