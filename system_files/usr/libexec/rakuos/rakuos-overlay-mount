@@ -5,9 +5,10 @@ UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+DEFAULT_PACKAGES_LIST="/usr/share/rakuos/packages.list"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
 
-# ── Reset requested on last boot ──
+# ── Reset requested on last boot ──────────────────────────────────────────────
 if [[ -f "$RESET_MARKER" ]]; then
     echo "RakuOS overlay: reset marker found — wiping overlay..."
 
@@ -28,10 +29,25 @@ if [[ -f "$RESET_MARKER" ]]; then
     rm -f "$RESET_MARKER"
 
     echo "RakuOS overlay: reset complete. Starting with clean base."
-    exit 0
+    # Fall through — seed packages.list and let sync handle install on next step
 fi
 
-# ── Normal mount ──
+# ── Seed packages.list from image default if missing ─────────────────────────
+# This covers first boot on a fresh install and post-reset.
+# The sync step reads this file to know what to install into the overlay.
+mkdir -p "$(dirname "$PACKAGES_LIST")"
+
+if [[ ! -f "$PACKAGES_LIST" ]]; then
+    if [[ -f "$DEFAULT_PACKAGES_LIST" ]]; then
+        echo "RakuOS overlay: seeding packages.list from $DEFAULT_PACKAGES_LIST ..."
+        cp "$DEFAULT_PACKAGES_LIST" "$PACKAGES_LIST"
+    else
+        echo "RakuOS overlay: no default packages.list found at $DEFAULT_PACKAGES_LIST — starting empty."
+        touch "$PACKAGES_LIST"
+    fi
+fi
+
+# ── Normal mount ──────────────────────────────────────────────────────────────
 mkdir -p "$UPPER_DIR" "$WORK_DIR"
 
 # Already mounted — nothing to do

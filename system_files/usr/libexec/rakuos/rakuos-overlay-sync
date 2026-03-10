@@ -7,8 +7,8 @@ WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
-# Read packages into array, skip empty lines
-mapfile -t PACKAGES < <(grep -v '^\s*$' "$PACKAGES_LIST")
+# Read packages into array, skip empty lines and comments
+mapfile -t PACKAGES < <(grep -v '^\s*#' "$PACKAGES_LIST" | grep -v '^\s*$' | sed 's/\s*#.*//' | tr -d '[:space:]')
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "RakuOS overlay sync: no packages in list — skipping."
@@ -35,14 +35,24 @@ if ! findmnt /usr | grep -q overlay; then
         /usr
 fi
 
-# Check if upper dir is empty — needs full install
+# ── Determine what needs doing ────────────────────────────────────────────────
+
 OVERLAY_HAS_CONTENT=false
 if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     OVERLAY_HAS_CONTENT=true
 fi
 
-if [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
-    echo "RakuOS overlay sync: overlay empty — performing full install..."
+# A missing STATE_FILE means either:
+#   - fresh first boot (packages.list just seeded by mount script), or
+#   - post-reset (mount script wiped state and re-seeded packages.list)
+# Either way: full install needed.
+STATE_MISSING=false
+if [[ -z "$SAVED_DIGEST" ]]; then
+    STATE_MISSING=true
+fi
+
+if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
+    echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
     dnf5.real install -y "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
@@ -68,13 +78,10 @@ fi
 # Save digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
-# -------------------------------
-# Restart services enabled from overlay packages
-# -------------------------------
+# ── Restart services enabled from overlay packages ────────────────────────────
 echo "RakuOS overlay sync: restarting overlay services..."
 while IFS= read -r -d '' service_file; do
     service=$(basename "$service_file")
-    # Check if this overlay service is enabled in /etc/systemd/system
     if [[ -L "/etc/systemd/system/$service" ]] || \
        [[ -L "/etc/systemd/system/multi-user.target.wants/$service" ]] || \
        [[ -L "/etc/systemd/system/graphical.target.wants/$service" ]]; then
