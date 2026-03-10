@@ -113,7 +113,7 @@ Comment[zh_CN]=RakuOS 软件中心
 Comment[zh_TW]=RakuOS 軟體中心
 
 Exec=/usr/bin/rakuos-software %f
-Icon=rakuos-software
+Icon=system-software-install
 Terminal=false
 Categories=System;PackageManager;
 MimeType=application/x-rpm;
