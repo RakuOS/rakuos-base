@@ -21,7 +21,7 @@ sys.path.insert(0, _here)
 _de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
 
 if "gnome" in _de:
-    from ui_gtk.main import run
+    from ui_qt.main import run
 else:
     from ui_qt.main import run
 
