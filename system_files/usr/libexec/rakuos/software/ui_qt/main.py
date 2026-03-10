@@ -310,16 +310,6 @@ class MainWindow(QMainWindow):
         tl.addWidget(self._search)
         tl.addStretch()
 
-        self._src_btns: dict[str, QPushButton] = {}
-        for src, lbl_text in [("all", "All"), ("native", "RPM"), ("flatpak", "Flatpak")]:
-            b = QPushButton(lbl_text)
-            b.setCheckable(True)
-            b.setChecked(src == "all")
-            b.setFlat(src != "all")
-            b.clicked.connect(lambda checked=False, s=src: self._set_source(s))
-            tl.addWidget(b)
-            self._src_btns[src] = b
-
         ml.addWidget(topbar)
 
         # Page stack

@@ -9,10 +9,27 @@ import subprocess
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame,
     QLabel, QPushButton, QToolButton, QMenu, QSizePolicy,
-    QDialog,
+    QDialog, QProgressBar, QStackedWidget, QStackedLayout,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QPalette, QCursor
+
+
+# ── Distro name from /etc/os-release ─────────────────────────────────────────
+
+def _read_os_release() -> str:
+    """Return the distro name from /etc/os-release, e.g. 'RakuOS'."""
+    for path in ("/etc/os-release", "/usr/lib/os-release"):
+        try:
+            with open(path) as f:
+                for line in f:
+                    if line.startswith("NAME="):
+                        return line.split("=", 1)[1].strip().strip('"\'')
+        except OSError:
+            continue
+    return "Linux"
+
+_DISTRO_NAME = _read_os_release()
 
 from ..workers import Worker, StreamWorker, ImageLoader
 from ..widgets import IconWidget, TerminalWidget, LightboxDialog, hline, StarRatingWidget, ReviewCard, WriteReviewDialog, AddonsDialog
@@ -209,13 +226,8 @@ class AppDetailPage(QWidget):
         self._addons_btn.clicked.connect(self._show_addons_dialog)
         bl.addWidget(self._addons_btn)
 
-        # Action widget — swapped out by _render_actions
-        self._action_container = QWidget()
-        self._action_container.setFixedHeight(36)
-        self._actions = QHBoxLayout(self._action_container)
-        self._actions.setContentsMargins(0, 0, 0, 0)
-        self._actions.setSpacing(0)
-        bl.addWidget(self._action_container)
+        # _bl is the top bar layout — _render_actions inserts button/dropdown here
+        self._bl = bl
 
         root.addWidget(back_bar)
 
@@ -299,10 +311,10 @@ class AppDetailPage(QWidget):
         self._vl.addLayout(self._cards_row)
         self._vl.addSpacing(16)
 
-        # ── Terminal ──────────────────────────────────────────────────────────
+        # ── Terminal (hidden — output goes to progress bar only) ──────────────
         self._terminal = TerminalWidget()
-        self._vl.addWidget(self._terminal)
-        self._vl.addSpacing(24)
+        self._terminal.hide()
+        # not added to _vl — detail page has no visible terminal output
 
         # ── Reviews ───────────────────────────────────────────────────────────
         reviews_head_row = QHBoxLayout()
@@ -330,7 +342,8 @@ class AppDetailPage(QWidget):
         self._native = self._flatpak_app = None
         self._terminal.reset()
         self._carousel.clear()
-        for layout in (self._actions, self._meta_row, self._info_block, self._cards_row,
+        self._clear_action_widgets()
+        for layout in (self._meta_row, self._info_block, self._cards_row,
                        self._reviews_container):
             self._clear_layout(layout)
         self._star_widget.set_rating(0, 0)
@@ -394,6 +407,20 @@ class AppDetailPage(QWidget):
                 or a["id"].split(".")[-1].lower() == app.get("pkg_name", "").lower()
             ):
                 fp = packages._enrich_installed(a)
+
+        # Inject origin from installed flatpak list — AppStream doesn't carry it
+        if fp and not fp.get("origin"):
+            installed_fps = {f["id"]: f for f in flatpak.get_installed_flatpaks()}
+            match = installed_fps.get(fp.get("id", ""))
+            if match:
+                fp["origin"] = match.get("origin", "")
+            elif app.get("origin"):
+                fp["origin"] = app["origin"]
+            else:
+                # Not installed yet — use first enabled remote name
+                remotes = [r for r in flatpak.get_remotes() if r.get("enabled", True)]
+                if remotes:
+                    fp["origin"] = remotes[0]["name"]
 
         urls = {k: "" for k in ("homepage", "donation", "bugtracker", "help")}
         import gzip, xml.etree.ElementTree as ET
@@ -468,94 +495,279 @@ class AppDetailPage(QWidget):
             self._info_block.addLayout(row)
 
     # ── Install actions ───────────────────────────────────────────────────────
+    #
+    # Single source:  [ Install from RakuOS ]   or   [ Install from flathub ]
+    #                 (no dropdown)
+    #
+    # Multiple sources:
+    #   [ Install ] [ ▾ ]   ← dropdown selects source, button acts on selection
+    #   [ Remove  ] [ ▾ ]   ← if selected source is installed
+    #
+    # Dropdown items show source names only (no action verbs) — selecting
+    # one updates the button text to Install/Remove depending on that
+    # source's installed state. The button always acts on the current selection.
+
+    def _source_label(self, app: dict) -> str:
+        """Human-readable source label: distro name for native, remote name for Flatpak."""
+        if app.get("source") == "flatpak":
+            raw = app.get("remote") or app.get("origin") or "Flatpak"
+            # Title-case each word: "flathub" → "Flathub", "fedora-flatpaks" → "Fedora-Flatpaks"
+            return "-".join(w.capitalize() for w in raw.replace("-", " - ").split())
+        return _DISTRO_NAME
 
     def _render_basic_actions(self, app: dict):
-        self._clear_layout(self._actions)
+        """Single source — plain button only, no dropdown."""
+        self._clear_action_widgets()
+        self._selected_app = app
         installed = app.get("installed", False)
-        src_label = "Flatpak" if app.get("source") == "flatpak" else "RPM"
-        text = "Remove" if installed else f"Install from {src_label}"
-        self._main_btn = self._make_progress_btn(text, installed)
-        self._main_btn.clicked.connect(
-            lambda: self._do_remove(app) if app.get("installed") else self._do_install(app)
+        btn_text = "Remove" if installed else "Install"
+        self._action_stack = self._make_action_stack(
+            btn_text, square_right=False, is_remove=installed
         )
-        self._actions.addWidget(self._main_btn)
+        self._action_stack.clicked.connect(self._on_action_clicked)
+        self._bl.addWidget(self._action_stack)
 
     def _render_actions(self, native: dict | None, fp: dict | None):
-        self._clear_layout(self._actions)
+        self._clear_action_widgets()
 
         if native and fp:
-            # Both sources — main button + ▾ dropdown (Discover style)
+            # Build ordered source list — installed source first, else native first
+            sources: list[dict] = []
             if native.get("installed"):
-                primary, secondary = native, fp
-                primary_label, secondary_label = "RPM", "Flatpak"
+                sources = [native, fp]
             elif fp.get("installed"):
-                primary, secondary = fp, native
-                primary_label, secondary_label = "Flatpak", "RPM"
+                sources = [fp, native]
             else:
-                primary, secondary = native, fp
-                primary_label, secondary_label = "RPM", "Flatpak"
+                sources = [native, fp]
 
-            installed = primary.get("installed")
-            self._action_app = primary
-            self._main_btn = self._make_progress_btn(
-                "Remove" if installed else f"Install from {primary_label}",
-                installed,
-            )
-            self._main_btn.setStyleSheet(
-                "QPushButton { border-top-right-radius: 0px; border-bottom-right-radius: 0px; }"
-            )
-            self._main_btn.clicked.connect(
-                lambda chk=False, p=primary:
-                    self._do_remove(p) if p.get("installed") else self._do_install(p)
-            )
-            self._actions.addWidget(self._main_btn)
+            # Default selection = first in list
+            self._selected_app = sources[0]
 
-            arrow = QToolButton()
-            arrow.setText("▾")
-            arrow.setFixedSize(24, 36)
-            arrow.setStyleSheet(
-                "QToolButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px;"
-                " border-left: none; font-size: 13px; }"
+            # Main action button — added directly to _actions, no wrapper
+            self._action_stack = self._make_action_stack(
+                self._btn_text_for(self._selected_app),
+                square_right=False,
+                is_remove=self._selected_app.get("installed", False),
             )
-            arrow.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-            menu = QMenu(arrow)
-            sec_installed = secondary.get("installed")
-            act = menu.addAction(
-                f"{'Remove' if sec_installed else 'Install'} from {secondary_label}"
+            self._action_stack.clicked.connect(self._on_action_clicked)
+            self._bl.addWidget(self._action_stack)
+
+            # Source selector — directly adjacent, no wrapper
+            default_label = self._source_label(self._selected_app)
+            self._source_btn = QToolButton()
+            self._source_btn.setText(f"{default_label}  ▾")
+            self._source_btn.setFixedHeight(32)
+            self._source_btn.setMinimumWidth(90)
+            self._source_btn.setStyleSheet(
+                "QToolButton {"
+                "  border-radius: 4px;"
+                "  border: 1px solid rgba(255,255,255,0.2);"
+                "  padding: 0 10px; font-weight: 600; font-size: 12px;"
+                "  background: rgba(255,255,255,0.08);"
+                "}"
+                "QToolButton:hover { background: rgba(255,255,255,0.14); }"
+                "QToolButton::menu-indicator { image: none; }"
             )
-            act.triggered.connect(
-                lambda chk=False, s=secondary:
-                    self._do_remove(s) if s.get("installed") else self._do_install(s)
-            )
-            arrow.setMenu(menu)
-            self._actions.addWidget(arrow)
+            self._source_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+
+            menu = QMenu(self._source_btn)
+            for src in sources:
+                lbl = self._source_label(src)
+                installed_marker = "  ✓" if src.get("installed") else ""
+                act = menu.addAction(f"{lbl}{installed_marker}")
+                act.triggered.connect(
+                    lambda chk=False, s=src: self._select_source(s)
+                )
+            self._source_btn.setMenu(menu)
+            self._bl.addWidget(self._source_btn)
 
         elif native or fp:
             app = native or fp
-            installed = app.get("installed")
-            self._action_app = app
-            src_label = "Flatpak" if fp else "RPM"
-            text = "Remove" if installed else f"Install from {src_label}"
-            self._main_btn = self._make_progress_btn(text, installed)
-            self._main_btn.clicked.connect(
-                lambda chk=False, a=app:
-                    self._do_remove(a) if a.get("installed") else self._do_install(a)
-            )
-            self._actions.addWidget(self._main_btn)
+            self._render_basic_actions(app)
+            return
 
-    def _make_progress_btn(self, text: str, is_remove: bool = False) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setMinimumWidth(170)
-        btn.setFixedHeight(36)
-        if not is_remove:
-            btn.setDefault(True)
-        return btn
+    def _btn_text_for(self, app: dict) -> str:
+        """'Remove' if app is installed, 'Install' if multiple sources, else 'Install from X'."""
+        return "Remove" if app.get("installed") else "Install"
+
+    def _apply_btn_state(self, stack: "QWidget", app: dict):
+        """Update button text, colours and bar colour for current app state."""
+        is_remove = app.get("installed", False)
+        sq = getattr(stack, "_square_right", False)
+        stack._btn.setText("Remove" if is_remove else "Install")
+        stack._btn.setStyleSheet(self._btn_style(is_remove, sq))
+        stack._bar.setStyleSheet(self._bar_style(is_remove, sq))
+        stack._is_remove = is_remove  # type: ignore[attr-defined]
+
+    def _select_source(self, app: dict):
+        """Called when user picks a source from the dropdown — updates button, no install."""
+        self._selected_app = app
+        if hasattr(self, "_action_stack") and self._action_stack:
+            self._apply_btn_state(self._action_stack, app)
+        if hasattr(self, "_source_btn") and self._source_btn:
+            self._source_btn.setText(f"{self._source_label(app)}  ▾")
+
+    def _on_action_clicked(self):
+        """Called when the main Install/Remove button is clicked."""
+        app = getattr(self, "_selected_app", None)
+        if app is None:
+            return
+        if app.get("installed"):
+            self._do_remove(app)
+        else:
+            self._do_install(app)
+
+    # ── Colour helpers ────────────────────────────────────────────────────────
+    _GREEN      = "#2ecc71"
+    _GREEN_DARK = "#27ae60"
+    _GREEN_TXT  = "#ffffff"
+    _RED        = "#e74c3c"
+    _RED_DARK   = "#c0392b"
+    _RED_TXT    = "#ffffff"
+
+    def _btn_style(self, is_remove: bool, square_right: bool = False) -> str:
+        bg     = self._RED        if is_remove else self._GREEN
+        hover  = self._RED_DARK   if is_remove else self._GREEN_DARK
+        fg     = self._RED_TXT    if is_remove else self._GREEN_TXT
+        r      = "border-top-right-radius:0;border-bottom-right-radius:0;" if square_right else ""
+        return (
+            f"QPushButton {{ background:{bg}; color:{fg}; border:none; {r}"
+            f"  border-radius:4px; padding:0 14px; font-weight:600; font-size:12px; }}"
+            f"QPushButton:hover {{ background:{hover}; }}"
+            f"QPushButton:pressed {{ background:{hover}; }}"
+        )
+
+    def _bar_style(self, is_remove: bool, square_right: bool = False) -> str:
+        bg    = self._RED        if is_remove else self._GREEN
+        chunk = self._RED_DARK   if is_remove else self._GREEN_DARK
+        r     = "border-top-right-radius:0;border-bottom-right-radius:0;" if square_right else ""
+        return (
+            f"QProgressBar {{ border-radius:4px; {r} border:none;"
+            f"  text-align:center; font-size:10px; font-weight:600;"
+            f"  color:#ffffff; background:rgba(0,0,0,0.15); }}"
+            f"QProgressBar::chunk {{ border-radius:3px; {r} background:{chunk}; }}"
+        )
+
+    def _make_action_stack(self, btn_text: str,
+                           square_right: bool = False,
+                           is_remove: bool = False) -> "QWidget":
+        """
+        Plain QWidget with QStackedLayout — zero margin, no frame.
+        Page 0: solid colour button. Page 1: matching progress bar.
+        Green for install, red for remove. Progress driven by _on_stream_line().
+        """
+        container = QWidget()
+        container.setFixedHeight(32)
+        container.setFixedWidth(110)
+        container.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
+        layout = QStackedLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.setStackingMode(QStackedLayout.StackingMode.StackOne)
+
+        # ── Page 0: action button ─────────────────────────────────────────────
+        btn = QPushButton(btn_text)
+        btn.setFixedHeight(32)
+        btn.setFixedWidth(110)
+        btn.setDefault(True)
+        btn.setStyleSheet(self._btn_style(is_remove, square_right))
+        layout.addWidget(btn)
+
+        # ── Page 1: progress bar ──────────────────────────────────────────────
+        bar = QProgressBar()
+        bar.setFixedHeight(32)
+        bar.setFixedWidth(110)
+        bar.setRange(0, 100)
+        bar.setValue(0)
+        bar.setTextVisible(True)
+        bar.setFormat("Starting…")
+        bar.setStyleSheet(self._bar_style(is_remove, square_right))
+        layout.addWidget(bar)
+
+        layout.setCurrentIndex(0)
+
+        container.clicked       = btn.clicked       # type: ignore[attr-defined]
+        container._btn          = btn               # type: ignore[attr-defined]
+        container._bar          = bar               # type: ignore[attr-defined]
+        container._layout       = layout            # type: ignore[attr-defined]
+        container._is_remove    = is_remove         # type: ignore[attr-defined]
+        container._square_right = square_right      # type: ignore[attr-defined]
+        return container
+
+    # ── Progress parsing ──────────────────────────────────────────────────────
+
+    _PROGRESS_PHASES = [
+        # (regex, pct_estimate, short_label)
+        (r'updating.*repositor|loading repositor',   5,  "Loading repos…"),
+        (r'repositories loaded',                     10, "Repos loaded"),
+        (r'resolv',                                  15, "Resolving…"),
+        (r'looking for match|found.*ref',             8, "Searching…"),
+        (r'\[rakuos\].*install',                     10, "Installing…"),
+        (r'downloading',                             20, "Downloading…"),
+        (r'running transaction|applying.*change',    75, "Applying…"),
+        (r'verif',                                   82, "Verifying…"),
+        (r'scriptlet',                               88, "Running scripts…"),
+        (r'cleanup',                                 92, "Cleaning up…"),
+        (r'install.*complet|changes complet|^installed:', 95, "Finishing…"),
+        (r'remov.*complet|^removed:',                95, "Finishing…"),
+    ]
+
+    def _parse_progress(self, line: str) -> "tuple[int|None, str|None]":
+        import re
+        # Explicit % — flatpak progress bar or dnf download
+        m = re.search(r'(\d{1,3})\s*%', line)
+        if m:
+            pct = min(int(m.group(1)), 99)
+            label = f"Downloading… {pct}%" if re.search(r'[Dd]ownload', line) else f"{pct}%"
+            return pct, label
+        # DNF fraction  e.g. "Verifying   : pkg  3/10"
+        m = re.search(r'\b(\d+)/(\d+)\b', line)
+        if m:
+            num, den = int(m.group(1)), int(m.group(2))
+            if 0 < num <= den:
+                pct = min(int(num / den * 100), 99)
+                return pct, f"{num}/{den}"
+        # Named phases
+        lower = line.lower()
+        for pattern, pct, label in self._PROGRESS_PHASES:
+            if re.search(pattern, lower):
+                return pct, label
+        return None, None
+
+    def _on_stream_line(self, line: str):
+        """Route each output line → terminal + progress bar."""
+        self._terminal.append_line(line)
+        if not hasattr(self, "_action_stack") or self._action_stack is None:
+            return
+        if self._action_stack._layout.currentIndex() != 1:
+            return
+        pct, label = self._parse_progress(line)
+        if pct is not None:
+            bar = self._action_stack._bar
+            if pct > bar.value():
+                bar.setValue(pct)
+            if label:
+                bar.setFormat(label)
+
+    # ── Progress bar show/hide ────────────────────────────────────────────────
 
     def _set_action_progress(self, active: bool, text: str = ""):
-        if hasattr(self, "_main_btn") and self._main_btn:
+        if not hasattr(self, "_action_stack") or self._action_stack is None:
+            return
+        stack = self._action_stack
+        if active:
+            stack._bar.setValue(0)
+            stack._bar.setFormat(text or "Starting…")
+            is_remove = getattr(stack, "_is_remove", False)
+            sq = getattr(stack, "_square_right", False)
+            stack._bar.setStyleSheet(self._bar_style(is_remove, sq))
+            stack._layout.setCurrentIndex(1)
+        else:
             if text:
-                self._main_btn.setText(text)
-            self._main_btn.setEnabled(not active)
+                stack._btn.setText(text)
+            stack._bar.setValue(0)
+            stack._layout.setCurrentIndex(0)
 
     def _set_action_busy(self, busy: bool, text: str = ""):
         self._set_action_progress(busy, text)
@@ -633,14 +845,20 @@ class AppDetailPage(QWidget):
     def _run_stream(self, gen_fn, arg, app: dict, op: str,
                     done_cb=None, ext_btn: "QPushButton | None" = None):
         self._terminal.reset()
-        label = "Installing…" if op == "install" else "Removing…"
+        is_remove = (op == "remove")
+        label = "Removing…" if is_remove else "Installing…"
         if ext_btn:
             ext_btn.setText(label)
             ext_btn.setEnabled(False)
         else:
+            # Stamp the operation colour onto the stack before showing bar
+            if hasattr(self, "_action_stack") and self._action_stack:
+                sq = getattr(self._action_stack, "_square_right", False)
+                self._action_stack._is_remove = is_remove
+                self._action_stack._bar.setStyleSheet(self._bar_style(is_remove, sq))
             self._set_action_progress(True, label)
         w = StreamWorker(gen_fn, arg)
-        w.line.connect(self._terminal.append_line)
+        w.line.connect(self._on_stream_line)
         w.done.connect(lambda code: self._op_done(
             code, app, op, done_cb=done_cb, ext_btn=ext_btn))
         w.start()
@@ -728,6 +946,15 @@ class AppDetailPage(QWidget):
             self._workers.append(w)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _clear_action_widgets(self):
+        """Remove install button and source dropdown from the top bar layout."""
+        for attr in ("_action_stack", "_source_btn"):
+            w = getattr(self, attr, None)
+            if w is not None:
+                self._bl.removeWidget(w)
+                w.deleteLater()
+                setattr(self, attr, None)
 
     def _clear_layout(self, layout):
         while layout.count():

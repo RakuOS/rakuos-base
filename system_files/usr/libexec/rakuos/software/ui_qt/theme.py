@@ -86,7 +86,28 @@ QScrollBar::handle:vertical, QScrollBar::handle:horizontal { border-radius: 3px;
 QScrollBar::add-line:vertical,   QScrollBar::sub-line:vertical   { height: 0; }
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width:  0; }
 QLineEdit   { border-radius: 8px; padding: 8px 12px; }
-QPushButton { border-radius: 8px; padding: 7px 16px; font-weight: 600; }
+QPushButton {
+    border-radius: 8px; padding: 7px 16px; font-weight: 600;
+    border: 1px solid rgba(128,128,128,0.35);
+}
+QPushButton:hover  { border-color: rgba(128,128,128,0.6); }
+QPushButton:pressed { border-color: rgba(128,128,128,0.8); }
+QPushButton:default {
+    border-color: palette(highlight);
+    color: palette(highlight);
+}
+QPushButton:default:hover   { background: rgba(128,128,128,0.08); }
+QPushButton:default:pressed { background: rgba(128,128,128,0.15); }
+QPushButton[danger="true"] {
+    border-color: #c0392b; color: #c0392b;
+}
+QPushButton[danger="true"]:hover   { background: rgba(192,57,43,0.08); }
+QToolButton {
+    border-radius: 8px; padding: 7px 10px; font-weight: 600;
+    border: 1px solid rgba(128,128,128,0.35);
+}
+QToolButton:hover  { border-color: rgba(128,128,128,0.6); }
+QToolButton:pressed { border-color: rgba(128,128,128,0.8); }
 QTextEdit   { border-radius: 8px; padding: 10px;
               font-family: 'Hack', 'Source Code Pro', 'Monospace', monospace;
               font-size: 11px; }

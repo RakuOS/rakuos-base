@@ -182,7 +182,6 @@ class TerminalWidget(QTextEdit):
         self.hide()
 
     def append_line(self, line: str):
-        self.show()
         self.append(line)
         self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
 
@@ -532,6 +531,9 @@ class AddonRow(QFrame):
     def _update_btn(self):
         installed = self._addon.get("installed", False)
         self._btn.setText("Remove" if installed else "Install")
+        self._btn.setProperty("danger", installed)
+        self._btn.style().unpolish(self._btn)
+        self._btn.style().polish(self._btn)
         self._btn.setEnabled(True)
 
     def _on_click(self):

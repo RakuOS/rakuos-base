@@ -1,0 +1,3 @@
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/rakuos install
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/rakuos remove
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/rakuos update
