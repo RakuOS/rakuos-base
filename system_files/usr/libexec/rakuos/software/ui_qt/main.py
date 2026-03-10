@@ -25,6 +25,7 @@ from .pages.search    import SearchPage
 from .pages.installed import InstalledPage
 from .pages.updates   import UpdatesPage
 from .pages.system    import SystemPage
+from .pages.settings  import SettingsPage
 from .pages.detail    import AppDetailPage
 
 from backend import packages
@@ -257,6 +258,7 @@ class MainWindow(QMainWindow):
             ("installed", "📦", "Installed"),
             ("updates",   "🔄", "Updates"),
             ("system",    "⚙️",  "System"),
+            ("settings",  "🛠",  "Settings"),
         ]:
             btn = NavButton(icon, text)
             btn.clicked.connect(lambda checked=False, p=page_id: self.navigate(p))
@@ -328,6 +330,7 @@ class MainWindow(QMainWindow):
         self._installed = InstalledPage()
         self._updates   = UpdatesPage()
         self._system    = SystemPage()
+        self._settings  = SettingsPage()
         self._detail    = AppDetailPage()
 
         self._pages: dict[str, QWidget] = {
@@ -337,6 +340,7 @@ class MainWindow(QMainWindow):
             "installed": self._installed,
             "updates":   self._updates,
             "system":    self._system,
+            "settings":  self._settings,
             "detail":    self._detail,
         }
         for widget in self._pages.values():
