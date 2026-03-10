@@ -2,6 +2,7 @@
 packages.py — Native package management via rakuos install/remove and AppStream metadata
 """
 
+import logging
 import os
 import re
 import gzip
@@ -80,7 +81,20 @@ def _get_pkg_manager() -> list[str]:
         return ["dnf5"]
     if shutil.which("dnf"):
         return ["dnf"]
-    return ["dnf"]  # last resort — let it fail naturally with a useful error
+    return ["dnf"]
+
+
+def _get_dnf() -> list[str]:
+    """
+    Return dnf5 or dnf directly — never rakuos.
+    Used for read-only queries (repoquery, info) that rakuos doesn't support.
+    """
+    import shutil
+    if shutil.which("dnf5"):
+        return ["dnf5"]
+    if shutil.which("dnf"):
+        return ["dnf"]
+    return ["dnf"]
 
 
 def _get_pkexec_install_cmd(pkg_name: str) -> list[str]:
@@ -140,7 +154,7 @@ def get_installed_packages() -> list[str]:
     # (userinstalled excludes base OS packages, giving a manageable list)
     mgr = _get_pkg_manager()
     for args in [
-        mgr + ["repoquery", "--userinstalled", "--queryformat", "%{name}"],
+        _get_dnf() + ["repoquery", "--userinstalled", "--queryformat", "%{name}"],
         mgr + ["history", "userinstalled"],          # dnf4 fallback
     ]:
         try:
@@ -358,12 +372,156 @@ def _enrich_installed(app: dict) -> dict:
     return app
 
 
+def _enrich_detail(app: dict) -> dict:
+    """
+    Fetch version, installed-size, and license for the detail page.
+    For native packages: rpm -q (installed) or repoquery (not installed)
+    For flatpak: flatpak info (installed) or flatpak remote-info (not installed)
+    """
+    if not app:
+        return app
+    app = dict(app)
+    if app.get("local_rpm"):
+        return app
+    logging.debug("_enrich_detail called: pkg_name=%r source=%r installed=%r",
+                  app.get("pkg_name"), app.get("source"), app.get("installed"))
+
+    if app.get("source") == "flatpak":
+        def _parse_flatpak_lines(text):
+            for line in text.splitlines():
+                if ":" not in line:
+                    continue
+                k, _, v = line.partition(":")
+                k, v = k.strip().lower(), v.strip()
+                if k == "version" and not app.get("version"):
+                    app["version"] = v
+                elif k in ("installed size", "download size") and not app.get("size"):
+                    try:
+                        parts = v.split()
+                        num = float(parts[0].replace(",", "."))
+                        unit = parts[1].upper() if len(parts) > 1 else "B"
+                        mult = {"B": 1, "KB": 1024, "MB": 1024**2,
+                                "MIB": 1024**2, "GB": 1024**3, "GIB": 1024**3}
+                        app["size"] = int(num * mult.get(unit, 1))
+                    except Exception:
+                        pass
+
+        if app.get("installed"):
+            try:
+                r = subprocess.run(
+                    ["flatpak", "info", app["pkg_name"]],
+                    capture_output=True, text=True, timeout=8
+                )
+                logging.debug("flatpak info: %r", r.stdout[:300])
+                _parse_flatpak_lines(r.stdout)
+            except Exception as e:
+                logging.debug("flatpak info error: %s", e)
+        else:
+            remote = app.get("origin") or app.get("remote") or "flathub"
+            try:
+                r = subprocess.run(
+                    ["flatpak", "remote-info", remote, app["pkg_name"]],
+                    capture_output=True, text=True, timeout=10
+                )
+                logging.debug("flatpak remote-info: %r", r.stdout[:300])
+                _parse_flatpak_lines(r.stdout)
+            except Exception as e:
+                logging.debug("flatpak remote-info error: %s", e)
+    else:
+        fmt = "%{VERSION}-%{RELEASE}\t%{SIZE}\t%{LICENSE}"
+
+        def _parse_rpm_output(stdout):
+            parts = stdout.strip().split("\t")
+            if len(parts) >= 1 and parts[0] and "not installed" not in parts[0]:
+                app["version"] = parts[0]
+            if len(parts) >= 2:
+                try:
+                    app["size"] = int(parts[1])
+                except Exception:
+                    pass
+            if len(parts) >= 3 and parts[2] not in ("", "(none)"):
+                app["license"] = parts[2]
+
+        def _try_rpm_q(name):
+            """Try rpm -q with a name, return True if it worked."""
+            try:
+                r = subprocess.run(
+                    ["rpm", "-q", "--queryformat", fmt, name],
+                    capture_output=True, text=True, timeout=8
+                )
+                logging.debug("rpm -q %s: rc=%d out=%r", name, r.returncode, r.stdout[:200])
+                if r.returncode == 0 and r.stdout.strip():
+                    _parse_rpm_output(r.stdout)
+                    return True
+            except Exception as e:
+                logging.debug("rpm -q error: %s", e)
+            return False
+
+        if app.get("installed"):
+            # Try pkg_name first, then app name, then search rpm -qa for app id fragment
+            if not _try_rpm_q(app["pkg_name"]):
+                name_guess = app.get("name", "").lower().replace(" ", "-")
+                if not _try_rpm_q(name_guess):
+                    # Last resort: search installed rpms for anything matching the id fragment
+                    try:
+                        frag = app["pkg_name"].lower()
+                        r = subprocess.run(
+                            ["rpm", "-qa", "--queryformat", f"%{{NAME}}\t{fmt}\n"],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        for line in r.stdout.splitlines():
+                            parts = line.split("\t")
+                            if len(parts) >= 1 and frag in parts[0].lower():
+                                logging.debug("rpm -qa match: %s", parts[0])
+                                app["pkg_name"] = parts[0]
+                                _parse_rpm_output("\t".join(parts[1:]))
+                                break
+                    except Exception as e:
+                        logging.debug("rpm -qa error: %s", e)
+        else:
+            def _try_repoquery(name):
+                try:
+                    mgr = _get_dnf()
+                    # DNF5 uses --qf, DNF4 uses --queryformat — try both
+                    for qf_flag in ("--queryformat", "--qf"):
+                        r = subprocess.run(
+                            mgr + ["repoquery", qf_flag, fmt, name],
+                            capture_output=True, text=True, timeout=20
+                        )
+                        logging.debug("repoquery %s %s: rc=%d out=%r err=%r",
+                                      qf_flag, name, r.returncode,
+                                      r.stdout[:200], r.stderr[:100])
+                        if r.returncode == 0 and r.stdout.strip():
+                            parts = r.stdout.strip().splitlines()[-1].split("\t")
+                            if len(parts) >= 1 and parts[0]:
+                                app["version"] = parts[0]
+                            if len(parts) >= 2:
+                                try:
+                                    app["size"] = int(parts[1])
+                                except Exception:
+                                    pass
+                            if len(parts) >= 3 and parts[2] not in ("", "(none)"):
+                                app["license"] = parts[2]
+                            return True
+                except Exception as e:
+                    logging.debug("repoquery exception: %s", e)
+                return False
+
+            if not _try_repoquery(app["pkg_name"]):
+                name_guess = app.get("name", "").lower().replace(" ", "-")
+                _try_repoquery(name_guess)
+
+    logging.debug("_enrich_detail %s: version=%r size=%r license=%r",
+                  app.get("pkg_name"), app.get("version"), app.get("size"), app.get("license"))
+    return app
+
+
 def search_dnf(query: str, limit: int = 20) -> list[dict]:
     """Search DNF metadata for packages not in AppStream."""
     try:
         # Use separate queries to avoid multiline description breaking parsing
         name_result = subprocess.run(
-            _get_pkg_manager() + ["repoquery", "--queryformat", "%{name}", f"*{query}*"],
+            _get_dnf() + ["repoquery", "--queryformat", "%{name}", f"*{query}*"],
             capture_output=True, text=True, timeout=15
         )
         names = [n.strip() for n in name_result.stdout.splitlines() if n.strip()]
@@ -416,7 +574,7 @@ def search_dnf(query: str, limit: int = 20) -> list[dict]:
 
             # No Flatpak match — fetch details from DNF
             info = subprocess.run(
-                _get_pkg_manager() + ["repoquery", "--queryformat",
+                _get_dnf() + ["repoquery", "--queryformat",
                  "%{summary}||END||%{url}", name],
                 capture_output=True, text=True, timeout=10
             )
@@ -425,7 +583,7 @@ def search_dnf(query: str, limit: int = 20) -> list[dict]:
             url = parts[1].strip() if len(parts) > 1 else ""
 
             desc = subprocess.run(
-                _get_pkg_manager() + ["repoquery", "--queryformat", "%{description}", name],
+                _get_dnf() + ["repoquery", "--queryformat", "%{description}", name],
                 capture_output=True, text=True, timeout=10
             )
             description = desc.stdout.strip()

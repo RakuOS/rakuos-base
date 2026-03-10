@@ -18,9 +18,18 @@ sys.pycache_prefix = os.path.join(_cache_base, "pycache")
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
 
+# ── Debug logging (set RAKUOS_DEBUG=1 to enable) ─────────────────────────────
+if os.environ.get("RAKUOS_DEBUG"):
+    import logging
+    logging.basicConfig(level=logging.DEBUG,
+                        format="%(levelname)s %(name)s: %(message)s")
+
 # ── Check for a local .rpm file argument (e.g. opened from file manager) ─────
+# Strip any unexpanded %f placeholder that some launchers pass literally
 _rpm_file = None
 for _arg in sys.argv[1:]:
+    if _arg == "%f":
+        continue
     if _arg.endswith(".rpm") and os.path.isfile(_arg):
         _rpm_file = _arg
         break

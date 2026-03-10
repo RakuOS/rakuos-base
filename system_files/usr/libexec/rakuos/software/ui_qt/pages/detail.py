@@ -391,7 +391,7 @@ class AppDetailPage(QWidget):
     def _fetch_detail(self, app: dict) -> dict:
         # Local .rpm — no AppStream lookup needed, use metadata as-is
         if app.get("local_rpm"):
-            return {"native": app, "fp": None, "urls": {
+            return {"native": app, "flatpak": None, "urls": {
                 "homepage": app.get("url", ""), "donation": "",
                 "bugtracker": "", "help": "",
             }}
@@ -464,12 +464,36 @@ class AppDetailPage(QWidget):
         return {"native": native, "flatpak": fp, "urls": urls}
 
     def _on_detail(self, data: dict):
-        self._native = data["native"]
-        self._flatpak_app = data["flatpak"]
+        self._native = data.get("native")
+        self._flatpak_app = data.get("flatpak")
         self._render_actions(self._native, self._flatpak_app)
         self._render_meta(data["urls"])
         self._render_info_block(self._native, self._flatpak_app)
         self._render_cards(self._native, self._flatpak_app)
+
+        # Fire a second worker to fetch version/size/license (may need repoquery)
+        app_for_detail = self._native or self._flatpak_app
+        if app_for_detail and not app_for_detail.get("local_rpm"):
+            w = Worker(self._fetch_detail_info, app_for_detail)
+            w.result.connect(self._on_detail_info)
+            self._workers.append(w)
+            w.start()
+
+    def _fetch_detail_info(self, app: dict) -> dict:
+        """Background: enrich a single app dict with version/size/license."""
+        native = packages._enrich_detail(app) if app.get("source") == "native" else None
+        fp     = packages._enrich_detail(app) if app.get("source") == "flatpak" else None
+        return {"native": native, "fp": fp}
+
+    def _on_detail_info(self, data: dict):
+        """Update info block once version/size/license have been fetched."""
+        native = data.get("native")
+        fp     = data.get("fp")
+        if native:
+            self._native = native
+        if fp:
+            self._flatpak_app = fp
+        self._render_info_block(self._native, self._flatpak_app)
 
     # ── Screenshots ───────────────────────────────────────────────────────────
 
