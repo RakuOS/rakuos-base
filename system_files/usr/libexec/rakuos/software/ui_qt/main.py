@@ -418,8 +418,11 @@ class MainWindow(QMainWindow):
 
 def run():
     de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-    if "gnome" not in de:
+    if "kde" in de or "plasma" in de:
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
+    else:
+        # GNOME, COSMIC, XFCE, etc. — use qt6ct for consistent styling
+        os.environ.setdefault("QT_QPA_PLATFORMTHEME", "qt6ct")
 
     app = QApplication(sys.argv)
     app.setApplicationName("RakuOS Software")
