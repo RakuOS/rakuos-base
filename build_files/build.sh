@@ -12,6 +12,9 @@ dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
     https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
     https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+
+# Enable Chrome repo
+sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/google-chrome.repo
     
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
