@@ -10,8 +10,7 @@ case "$COMMAND" in
     ;;
     update)
         shift
-        echo "Updating overlay packages..."
-        dnf5.real upgrade -y $(cat /var/lib/rakuos/packages.list | tr '\n' ' ')
+        /usr/libexec/rakuos/rakuos-update "$@"
     ;;
     remove)
         shift

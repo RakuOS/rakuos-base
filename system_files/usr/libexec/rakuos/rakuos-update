@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Updating overlay packages..."
+dnf5.real upgrade -y $(cat /var/lib/rakuos/packages.list | tr '\n' ' ')
