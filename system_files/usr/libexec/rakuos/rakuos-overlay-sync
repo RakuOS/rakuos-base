@@ -94,6 +94,8 @@ while IFS= read -r -d '' service_file; do
        [[ -L "/etc/systemd/system/graphical.target.wants/$service" ]]; then
         if ! systemctl is-active "$service" &>/dev/null; then
             echo "RakuOS overlay sync: starting $service..."
+            systemctl disable --now "$service" || true
+            systemctl enable "$service" || true
             systemctl start "$service" || true
         fi
     fi
