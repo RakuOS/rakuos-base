@@ -16,6 +16,10 @@ case "$COMMAND" in
         shift
         /usr/libexec/rakuos/rakuos-remove "$@"
     ;;
+    system-upgrade)
+        shift
+        /usr/libexec/rakuos/rakuos-updater "$@"
+    ;;
     list)
         /usr/libexec/rakuos/rakuos-list
     ;;
@@ -45,6 +49,7 @@ case "$COMMAND" in
         echo "  rakuos update                        Update packages via overlay"
         echo "  rakuos remove <package> [pkg2...]    Remove packages from overlay"
         echo "  rakuos list                          List overlay installed packages"
+        echo "  rakuos system-upgrade                Check for and Apply system image upgrades"
         echo "  rakuos reset-overlay --confirm       Wipe overlay and all installed packages"
         echo "  rakuos setup-gaming                  Set up native gaming packages along with some apps from flathub"
         echo "  rakuos setup-virtualization          Set up KVM/QEMU virtualization"
