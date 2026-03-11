@@ -311,3 +311,160 @@ def set_remote_enabled(name: str, enabled: bool, system: bool = True) -> tuple[b
         return False, r.stderr.strip() or f"Failed to {action} remote."
     except Exception as e:
         return False, str(e)
+
+
+# ── Local file install ────────────────────────────────────────────────────────
+
+def get_local_flatpak_info(path: str) -> dict:
+    """
+    Extract metadata from a local .flatpak bundle using flatpak info.
+    Returns an app dict compatible with the detail page.
+    """
+    import configparser
+    try:
+        r = subprocess.run(
+            ["flatpak", "build-export", "--runtime", "/dev/null", path],
+            capture_output=True, text=True, timeout=5
+        )
+    except Exception:
+        pass
+
+    # flatpak show-info on bundle
+    try:
+        r = subprocess.run(
+            ["ostree", "show", "--repo=/dev/null", path],
+            capture_output=True, text=True, timeout=5
+        )
+    except Exception:
+        pass
+
+    # Best approach: flatpak install --print-first-match
+    # Actually use: flatpak info on the bundle file directly
+    try:
+        r = subprocess.run(
+            ["flatpak", "info", "--bundle", path],
+            capture_output=True, text=True, timeout=10
+        )
+        data = {}
+        for line in r.stdout.splitlines():
+            if ":" in line:
+                k, _, v = line.partition(":")
+                data[k.strip().lower()] = v.strip()
+
+        app_id   = data.get("id", os.path.basename(path))
+        name     = data.get("name", app_id.split(".")[-1])
+        version  = data.get("version", "")
+        summary  = data.get("subject", "")
+        branch   = data.get("branch", "stable")
+
+        return {
+            "id":           app_id,
+            "name":         name,
+            "summary":      summary,
+            "description":  "",
+            "categories":   [],
+            "icon":         "",
+            "screenshots":  [],
+            "pkg_name":     app_id,
+            "url":          "",
+            "source":       "flatpak",
+            "installed":    False,
+            "is_addon":     False,
+            "local_flatpak": path,
+            "version":      version,
+            "branch":       branch,
+        }
+    except Exception as e:
+        # Minimal fallback
+        app_id = os.path.basename(path).replace(".flatpak", "")
+        return {
+            "id":           app_id,
+            "name":         app_id,
+            "summary":      f"Local Flatpak bundle",
+            "description":  "",
+            "categories":   [],
+            "icon":         "",
+            "screenshots":  [],
+            "pkg_name":     app_id,
+            "url":          "",
+            "source":       "flatpak",
+            "installed":    False,
+            "is_addon":     False,
+            "local_flatpak": path,
+        }
+
+
+def get_flatpakref_info(path: str) -> dict:
+    """
+    Parse a .flatpakref file and return an app dict for the detail page.
+    .flatpakref is an INI file with [Flatpak Ref] section.
+    """
+    import configparser
+    cfg = configparser.ConfigParser()
+    cfg.read(path)
+    section = "Flatpak Ref"
+    if not cfg.has_section(section):
+        # Try case-insensitive fallback
+        for s in cfg.sections():
+            if s.lower() == "flatpak ref":
+                section = s
+                break
+
+    app_id  = cfg.get(section, "Name",  fallback=os.path.basename(path).replace(".flatpakref", ""))
+    title   = cfg.get(section, "Title", fallback=app_id.split(".")[-1])
+    comment = cfg.get(section, "Comment", fallback="")
+    url     = cfg.get(section, "Url",   fallback="")
+    branch  = cfg.get(section, "Branch", fallback="stable")
+
+    return {
+        "id":            app_id,
+        "name":          title,
+        "summary":       comment,
+        "description":   "",
+        "categories":    [],
+        "icon":          "",
+        "screenshots":   [],
+        "pkg_name":      app_id,
+        "url":           url,
+        "source":        "flatpak",
+        "installed":     False,
+        "is_addon":      False,
+        "local_flatpakref": path,
+        "branch":        branch,
+    }
+
+
+def install_local_flatpak_stream(path: str):
+    """Generator that installs a local .flatpak bundle file."""
+    try:
+        proc = subprocess.Popen(
+            ["flatpak", "install", "--bundle", "-y", path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        for line in proc.stdout:
+            yield line.rstrip()
+        proc.wait()
+        yield f"__done__{proc.returncode}"
+    except Exception as e:
+        yield f"Error: {e}"
+        yield "__done__1"
+
+
+def install_flatpakref_stream(path: str):
+    """Generator that installs from a .flatpakref file."""
+    try:
+        proc = subprocess.Popen(
+            ["flatpak", "install", "--from", "-y", path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        for line in proc.stdout:
+            yield line.rstrip()
+        proc.wait()
+        yield f"__done__{proc.returncode}"
+    except Exception as e:
+        yield f"Error: {e}"
+        yield "__done__1"

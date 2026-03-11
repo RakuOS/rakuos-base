@@ -428,6 +428,12 @@ class AppDetailPage(QWidget):
                 "bugtracker": "", "help": "",
             }}
 
+        if app.get("local_flatpak") or app.get("local_flatpakref"):
+            return {"native": None, "flatpak": app, "urls": {
+                "homepage": app.get("url", ""), "donation": "",
+                "bugtracker": "", "help": "",
+            }}
+
         appstream = packages._load_appstream()
         name_lower = app.get("name", "").lower()
         app_id = app.get("id", "")
@@ -552,7 +558,9 @@ class AppDetailPage(QWidget):
 
         # Fire a second worker to fetch version/size/license (may need repoquery)
         app_for_detail = self._native or self._flatpak_app
-        if app_for_detail and not app_for_detail.get("local_rpm"):
+        if app_for_detail and not app_for_detail.get("local_rpm") \
+                and not app_for_detail.get("local_flatpak") \
+                and not app_for_detail.get("local_flatpakref"):
             w = Worker(self._fetch_detail_info, app_for_detail)
             w.result.connect(self._on_detail_info)
             self._workers.append(w)
@@ -951,10 +959,21 @@ class AppDetailPage(QWidget):
 
     def _do_install(self, app: dict):
         if app.get("local_rpm"):
-            # Local .rpm file — install via dnf to resolve deps
             self._run_stream(
                 packages.install_local_rpm_stream,
                 app["local_rpm"],
+                app, "install",
+            )
+        elif app.get("local_flatpak"):
+            self._run_stream(
+                flatpak.install_local_flatpak_stream,
+                app["local_flatpak"],
+                app, "install",
+            )
+        elif app.get("local_flatpakref"):
+            self._run_stream(
+                flatpak.install_flatpakref_stream,
+                app["local_flatpakref"],
                 app, "install",
             )
         else:

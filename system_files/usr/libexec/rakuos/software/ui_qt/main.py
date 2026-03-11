@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def run(rpm_file: str = None):
+def run(rpm_file: str = None, flatpak_file: str = None, flatpakref: str = None):
     de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if "kde" in de or "plasma" in de:
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
@@ -443,7 +443,7 @@ def run(rpm_file: str = None):
     win = MainWindow()
     win.show()
 
-    # If a local .rpm was passed, open it directly on the detail page
+    # Open local file directly on the detail page
     if rpm_file:
         from PyQt6.QtCore import QTimer
         from backend import packages as _pkg
@@ -451,6 +451,22 @@ def run(rpm_file: str = None):
             info = _pkg.get_local_rpm_info(rpm_file)
             win._open_detail(info)
         QTimer.singleShot(200, _open_rpm)
+
+    elif flatpak_file:
+        from PyQt6.QtCore import QTimer
+        from backend import flatpak as _fp
+        def _open_flatpak():
+            info = _fp.get_local_flatpak_info(flatpak_file)
+            win._open_detail(info)
+        QTimer.singleShot(200, _open_flatpak)
+
+    elif flatpakref:
+        from PyQt6.QtCore import QTimer
+        from backend import flatpak as _fp
+        def _open_ref():
+            info = _fp.get_flatpakref_info(flatpakref)
+            win._open_detail(info)
+        QTimer.singleShot(200, _open_ref)
 
     sys.exit(app.exec())
 

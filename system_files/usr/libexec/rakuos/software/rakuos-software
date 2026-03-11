@@ -18,21 +18,22 @@ sys.pycache_prefix = os.path.join(_cache_base, "pycache")
 _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
 
-# ── Debug logging (set RAKUOS_DEBUG=1 to enable) ─────────────────────────────
-if os.environ.get("RAKUOS_DEBUG"):
-    import logging
-    logging.basicConfig(level=logging.DEBUG,
-                        format="%(levelname)s %(name)s: %(message)s")
+# ── Check for a local package file argument (rpm/flatpak/flatpakref) ─────────
+_rpm_file      = None
+_flatpak_file  = None
+_flatpakref    = None
 
-# ── Check for a local .rpm file argument (e.g. opened from file manager) ─────
-# Strip any unexpanded %f placeholder that some launchers pass literally
-_rpm_file = None
 for _arg in sys.argv[1:]:
-    if _arg == "%f":
+    if _arg.startswith("-") or _arg == "%f":
         continue
-    if _arg.endswith(".rpm") and os.path.isfile(_arg):
+    if not os.path.isfile(_arg):
+        continue
+    if _arg.endswith(".rpm"):
         _rpm_file = _arg
-        break
+    elif _arg.endswith(".flatpak"):
+        _flatpak_file = _arg
+    elif _arg.endswith(".flatpakref"):
+        _flatpakref = _arg
 
 # ── Pick frontend based on DE ─────────────────────────────────────────────────
 _de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
@@ -42,4 +43,4 @@ if "gnome" in _de:
 else:
     from ui_qt.main import run
 
-run(rpm_file=_rpm_file)
+run(rpm_file=_rpm_file, flatpak_file=_flatpak_file, flatpakref=_flatpakref)
