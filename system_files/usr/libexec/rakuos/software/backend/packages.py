@@ -180,6 +180,33 @@ def is_installed_native(pkg_name: str) -> bool:
         return pkg_name in get_installed_packages()
 
 
+# Simple in-process cache so repeated calls during one AppStream load don't hammer dnf
+_repo_exists_cache: dict[str, bool] = {}
+
+def pkg_exists_in_repos(pkg_name: str) -> bool:
+    """Return True if pkg_name exists in the configured dnf repos (or is already installed)."""
+    if not pkg_name or "." in pkg_name.lstrip("."):
+        # Looks like a Flatpak ID, not an RPM name
+        return False
+    if pkg_name in _repo_exists_cache:
+        return _repo_exists_cache[pkg_name]
+    # Installed packages always count
+    if is_installed_native(pkg_name):
+        _repo_exists_cache[pkg_name] = True
+        return True
+    try:
+        r = subprocess.run(
+            _get_dnf() + ["repoquery", "--queryformat", "%{name}", pkg_name],
+            capture_output=True, text=True, timeout=10
+        )
+        found = any(l.strip() == pkg_name for l in r.stdout.splitlines())
+        _repo_exists_cache[pkg_name] = found
+        return found
+    except Exception:
+        _repo_exists_cache[pkg_name] = False
+        return False
+
+
 def is_installed_flatpak(app_id: str) -> bool:
     try:
         result = subprocess.run(
@@ -283,21 +310,17 @@ def _load_appstream() -> dict:
         # Inject native stubs for known Flatpak→RPM mappings that have no native AppStream entry.
         # This ensures apps like Firefox appear with both sources without a slow repoquery scan.
         for fp_id_lower, rpm_name in _FLATPAK_TO_RPM.items():
-            # Find the matching flatpak entry — try bare ID and .desktop suffix
+            # Find the matching flatpak entry (case-insensitive id match)
             fp_entry = None
             for key, a in apps.items():
-                if a.get("source") != "flatpak":
-                    continue
-                aid = a.get("id", "").lower().removesuffix(".desktop")
-                if aid == fp_id_lower.removesuffix(".desktop"):
+                if a.get("source") == "flatpak" and a.get("id", "").lower() == fp_id_lower:
                     fp_entry = a
                     break
             if fp_entry is None:
                 continue
-            # Skip if a non-addon native entry already exists with this pkg_name
+            # Skip if a native entry already exists with this pkg_name
             native_key = f"native:{rpm_name}"
             if any(a.get("source") == "native" and a.get("pkg_name") == rpm_name
-                   and not a.get("is_addon")
                    for a in apps.values()):
                 continue
             # Inject a native stub using the Flatpak's rich metadata
@@ -305,8 +328,6 @@ def _load_appstream() -> dict:
             stub["source"] = "native"
             stub["pkg_name"] = rpm_name
             stub["id"] = rpm_name
-            # Preserve the original Flatpak ID for icon resolution
-            stub["flatpak_id"] = fp_entry.get("id", "").removesuffix(".desktop")
             stub["installed"] = False  # enriched later
             stub.pop("origin", None)
             stub.pop("remote", None)
@@ -365,7 +386,12 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
         if not raw_pkg:
             clean_id = app_id.replace(".desktop", "")
             raw_pkg = clean_id.split(".")[-1].lower()
-        pkg_name = raw_pkg
+            pkg_name = raw_pkg
+            # Flag that this pkg_name was guessed, not from XML — needs repo verification
+            result_extra = {"pkg_name_guessed": True}
+        else:
+            pkg_name = raw_pkg
+            result_extra = {}
 
     # Project URL
     url = ""
@@ -375,6 +401,10 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
             break
 
     extends_id = (comp.findtext("extends") or "").strip()
+
+    # result_extra only set for native with guessed pkg_name; flatpak path skips it
+    if source == "flatpak":
+        result_extra = {}
 
     result = {
         "id": app_id,
@@ -390,6 +420,7 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
         "installed": False,
         "is_addon": is_addon,
     }
+    result.update(result_extra)
     if extends_id:
         result["extends"] = extends_id
     return result
@@ -703,11 +734,17 @@ def get_installed_with_metadata() -> list[dict]:
     installed = get_installed_packages()
     apps = _load_appstream()
 
-    # Build pkg_name map — prefer non-addon entries when pkg_name collides
+    # Build pkg_name map — prefer non-addon, non-guessed entries on collision
     pkg_map: dict[str, dict] = {}
     for a in apps.values():
+        if a.get("is_addon"):
+            continue
         pn = a["pkg_name"]
-        if pn not in pkg_map or (pkg_map[pn].get("is_addon") and not a.get("is_addon")):
+        existing = pkg_map.get(pn)
+        if existing is None:
+            pkg_map[pn] = a
+        elif existing.get("pkg_name_guessed") and not a.get("pkg_name_guessed"):
+            # Prefer the entry with a verified pkg_name
             pkg_map[pn] = a
 
     # Build Flatpak lookup by name and last ID segment for fallback matching
@@ -792,6 +829,8 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.mozilla.thunderbird":        "thunderbird",
     "org.chromium.chromium":          "chromium",
     "com.google.chrome":              "google-chrome-stable",
+    "com.google.chromedev":           "google-chrome-unstable",
+    "com.google.chromebeta":          "google-chrome-beta",
     "org.gnome.evolution":            "evolution",
     "org.kde.dolphin":                "dolphin",
     "org.kde.konsole":                "konsole",
@@ -981,14 +1020,7 @@ def get_flathub_icon_url(app_id: str) -> Optional[str]:
     if not app_id:
         return None
 
-    # Strip .desktop suffix — Flathub API uses bare app IDs
-    clean_id = app_id.removesuffix(".desktop")
-
-    # Only reverse-domain IDs exist on Flathub — skip plain pkg names like qemu-kvm
-    if "." not in clean_id:
-        return None
-
-    cache_file = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.url")
+    cache_file = os.path.join(_ICON_CACHE_DIR, f"{app_id}.url")
 
     # Return cached URL if we have it (even empty string = known miss)
     if os.path.exists(cache_file):
@@ -996,7 +1028,7 @@ def get_flathub_icon_url(app_id: str) -> Optional[str]:
         return cached if cached else None
 
     try:
-        url = f"https://flathub.org/api/v2/appstream/{clean_id}"
+        url = f"https://flathub.org/api/v2/appstream/{app_id}"
         req = urllib.request.Request(url, headers={"User-Agent": "RakuOS-Software/1.0"})
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read())
@@ -1018,7 +1050,7 @@ def get_flathub_icon_url(app_id: str) -> Optional[str]:
         return icon_url if icon_url else None
 
     except Exception as e:
-        logging.debug("flathub icon API error for %s: %s", clean_id, e)
+        logging.debug("flathub icon API error for %s: %s", app_id, e)
         # Cache the miss so we don't hammer the API
         with open(cache_file, "w") as f:
             f.write("")
@@ -1027,15 +1059,13 @@ def get_flathub_icon_url(app_id: str) -> Optional[str]:
 
 def get_cached_icon_path(app_id: str) -> Optional[str]:
     """Return path to a locally cached icon PNG, or None if not cached."""
-    clean_id = app_id.removesuffix(".desktop")
-    path = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.png")
+    path = os.path.join(_ICON_CACHE_DIR, f"{app_id}.png")
     return path if os.path.exists(path) else None
 
 
 def save_icon_to_cache(app_id: str, data: bytes) -> str:
     """Save raw image bytes to the icon cache and return the path."""
-    clean_id = app_id.removesuffix(".desktop")
-    path = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.png")
+    path = os.path.join(_ICON_CACHE_DIR, f"{app_id}.png")
     with open(path, "wb") as f:
         f.write(data)
     return path

@@ -444,11 +444,14 @@ class AppDetailPage(QWidget):
                 fp = packages._enrich_installed(a)
 
         # Pass 2: pkg_name / name match — only if pass 1 found nothing
-        # Exclude addons and prefer entries whose pkg_name exactly matches
+        # Exclude addons; skip entries with guessed pkg_name that aren't repo-verified
         if not native:
             candidates = []
             for a in appstream.values():
                 if a["source"] != "native" or a.get("is_addon"):
+                    continue
+                # Skip guessed pkg_names — they may not exist in repos
+                if a.get("pkg_name_guessed") and not packages.pkg_exists_in_repos(a["pkg_name"]):
                     continue
                 score = 0
                 if a["pkg_name"] == pkg_name:
@@ -491,7 +494,7 @@ class AppDetailPage(QWidget):
         # If we have a pkg_name but no native AppStream entry at all,
         # borrow the Flatpak's rich metadata (name, icon, description) for display
         # while keeping native install mechanics
-        if not native and pkg_name and fp:
+        if not native and pkg_name and fp and packages.pkg_exists_in_repos(pkg_name):
             native = dict(fp)
             native["source"] = "native"
             native["pkg_name"] = pkg_name

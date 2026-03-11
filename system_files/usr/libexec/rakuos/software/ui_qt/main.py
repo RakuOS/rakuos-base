@@ -327,6 +327,7 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
         self._home      = HomePage()
         self._explore   = ExplorePage()
+        self._explore.subcat_clicked.connect(self._on_subcat)
         self._search_p  = SearchPage()
         self._installed = InstalledPage()
         self._updates   = UpdatesPage()
@@ -385,12 +386,22 @@ class MainWindow(QMainWindow):
             loaders[page_id]()
 
     def _on_category(self, cat: str, label: str):
-        """Called when a category tree item is clicked."""
+        """Called when a sidebar category is clicked."""
         for btn in self._nav_btns.values():
             btn.set_active(False)
         self._prev_page = "explore"
         self._stack.setCurrentWidget(self._explore)
-        self._explore.load_category(cat, label)
+        # Look up subcategories for this top-level cat
+        subcats = None
+        for top_label, top_cat, subs in CATEGORY_TREE:
+            if top_cat == cat and subs:
+                subcats = subs
+                break
+        self._explore.load_category(cat, label, subcats=subcats)
+
+    def _on_subcat(self, cat: str, label: str):
+        """Called when user clicks a subcategory tile inside explore."""
+        self._explore.load_category(cat, label, subcats=None)
 
     def _open_detail(self, app: dict):
         self._detail.load_app(app)

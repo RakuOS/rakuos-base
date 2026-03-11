@@ -21,22 +21,47 @@ fi
 # Ensure dirs exist
 mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
 
-# Filter out already installed packages
-TO_INSTALL=()
-for pkg in "${PACKAGES[@]}"; do
-    if grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
-        echo "$pkg is already installed via RakuOS overlay — skipping."
+# ── Normalise arguments ───────────────────────────────────────────────────────
+# Pass all args to dnf as-is, but for packages.list:
+#   - strip flags (e.g. -y, --assumeyes)
+#   - for .rpm file paths, extract the actual package Name
+
+CLEAN_ARGS=("${PACKAGES[@]}")  # dnf gets everything as passed
+PKG_NAMES=()                   # packages.list gets only clean names
+
+for arg in "${PACKAGES[@]}"; do
+    # Skip flags
+    [[ "$arg" == -* ]] && continue
+    # Local .rpm file — extract Name field
+    if [[ "$arg" == *.rpm ]]; then
+        pkg_name=$(rpm -qp --queryformat '%{NAME}' "$arg" 2>/dev/null)
+        if [[ -z "$pkg_name" ]]; then
+            echo "WARNING: could not read package name from $arg — skipping list entry"
+            continue
+        fi
+        PKG_NAMES+=("$pkg_name")
     else
-        TO_INSTALL+=("$pkg")
+        PKG_NAMES+=("$arg")
     fi
 done
 
-if [[ "${#TO_INSTALL[@]}" -eq 0 ]]; then
+# Filter out already installed packages (by clean name only)
+TO_INSTALL_ARGS=("${CLEAN_ARGS[@]}")  # dnf args unchanged
+TO_INSTALL_NAMES=()
+for pkg in "${PKG_NAMES[@]}"; do
+    if grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
+        echo "$pkg is already installed via RakuOS overlay — skipping."
+    else
+        TO_INSTALL_NAMES+=("$pkg")
+    fi
+done
+
+if [[ "${#TO_INSTALL_NAMES[@]}" -eq 0 ]]; then
     echo "All requested packages already installed."
     exit 0
 fi
 
-echo "Installing ${TO_INSTALL[*]} via RakuOS overlay..."
+echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS overlay..."
 
 # Mount our persistent overlay if not already active
 if ! findmnt /usr | grep -q overlay; then
@@ -46,16 +71,16 @@ if ! findmnt /usr | grep -q overlay; then
         /usr
 fi
 
-# Install into overlay
-dnf5.real install -y "${TO_INSTALL[@]}"
+# Install into overlay — pass original args (including any flags) to dnf
+dnf5.real install "${TO_INSTALL_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
-for pkg in "${TO_INSTALL[@]}"; do
+for pkg in "${TO_INSTALL_NAMES[@]}"; do
     dnf5.real mark user "$pkg" || true
 done
 
-# Add to packages list
-for pkg in "${TO_INSTALL[@]}"; do
+# Add canonical package names to packages.list (no flags, no .rpm paths)
+for pkg in "${TO_INSTALL_NAMES[@]}"; do
     echo "$pkg" >> "$PACKAGES_LIST"
 done
 
@@ -65,6 +90,6 @@ if [[ ! -f "/var/lib/rakuos/overlay.state" ]]; then
 fi
 
 # Set dirty flag so boot service syncs on next boot
-touch "$DIRTY_FILE" 
+touch "$DIRTY_FILE"
 
-echo "${TO_INSTALL[*]} installed successfully and added to RakuOS package list."
+echo "${TO_INSTALL_NAMES[*]} installed successfully and added to RakuOS package list."
