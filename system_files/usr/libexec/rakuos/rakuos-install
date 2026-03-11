@@ -71,8 +71,8 @@ if ! findmnt /usr | grep -q overlay; then
         /usr
 fi
 
-# Install into overlay — pass original args (including any flags) to dnf
-dnf5.real install "${TO_INSTALL_ARGS[@]}"
+# Install into overlay — always non-interactive, pass original flags through
+dnf5.real install -y "${TO_INSTALL_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
