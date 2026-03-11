@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy, QSpacerItem, QScrollArea, QToolButton,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPalette
+from PyQt6.QtGui import QPalette, QPixmap, QIcon
 
 from .theme import STYLE, bold_font, _c, _mix, col_active_nav
 from .widgets import NavButton, spacer_v
@@ -215,6 +215,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("RakuOS Software")
+        self.setWindowIcon(QIcon.fromTheme("system-software-install"))
         self.setMinimumSize(1100, 700)
         self.resize(1280, 800)
 
@@ -242,8 +243,18 @@ class MainWindow(QMainWindow):
 
         # Logo
         logo_row = QHBoxLayout()
-        logo_icon = QLabel("🐉")
-        f = logo_icon.font(); f.setPointSize(f.pointSize() + 6); logo_icon.setFont(f)
+        _logo_pix = QPixmap("/usr/share/pixmaps/rakuos-logo.svg")
+        if _logo_pix.isNull():
+            # fallback: try without extension
+            _logo_pix = QPixmap("/usr/share/pixmaps/rakuos-logo")
+        logo_icon = QLabel()
+        if not _logo_pix.isNull():
+            logo_icon.setPixmap(_logo_pix.scaled(28, 28,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+        else:
+            logo_icon.setText("🐉")
+            f = logo_icon.font(); f.setPointSize(f.pointSize() + 6); logo_icon.setFont(f)
         logo_row.addWidget(logo_icon)
         logo_text = bold_font(QLabel("RakuOS Software"))
         logo_row.addWidget(logo_text)
