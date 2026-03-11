@@ -279,6 +279,39 @@ def _load_appstream() -> dict:
                     continue
 
         print(f"AppStream loaded {len(apps)} apps")
+
+        # Inject native stubs for known Flatpak→RPM mappings that have no native AppStream entry.
+        # This ensures apps like Firefox appear with both sources without a slow repoquery scan.
+        for fp_id_lower, rpm_name in _FLATPAK_TO_RPM.items():
+            # Find the matching flatpak entry — try bare ID and .desktop suffix
+            fp_entry = None
+            for key, a in apps.items():
+                if a.get("source") != "flatpak":
+                    continue
+                aid = a.get("id", "").lower().removesuffix(".desktop")
+                if aid == fp_id_lower.removesuffix(".desktop"):
+                    fp_entry = a
+                    break
+            if fp_entry is None:
+                continue
+            # Skip if a non-addon native entry already exists with this pkg_name
+            native_key = f"native:{rpm_name}"
+            if any(a.get("source") == "native" and a.get("pkg_name") == rpm_name
+                   and not a.get("is_addon")
+                   for a in apps.values()):
+                continue
+            # Inject a native stub using the Flatpak's rich metadata
+            stub = dict(fp_entry)
+            stub["source"] = "native"
+            stub["pkg_name"] = rpm_name
+            stub["id"] = rpm_name
+            # Preserve the original Flatpak ID for icon resolution
+            stub["flatpak_id"] = fp_entry.get("id", "").removesuffix(".desktop")
+            stub["installed"] = False  # enriched later
+            stub.pop("origin", None)
+            stub.pop("remote", None)
+            apps[native_key] = stub
+
         _appstream_cache = apps
         _cache_ready.set()
         return apps
@@ -428,7 +461,10 @@ def _enrich_detail(app: dict) -> dict:
             except Exception as e:
                 logging.debug("flatpak remote-info error: %s", e)
     else:
-        fmt = "%{VERSION}-%{RELEASE}\t%{SIZE}\t%{LICENSE}"
+        # DNF5 uses --qf with %{field} but different field names than rpm/dnf4
+        # version/release work the same; size is 'downloadsize'/'installsize'; license is 'license'
+        fmt_rpm   = "%{VERSION}-%{RELEASE}\t%{SIZE}\t%{LICENSE}"
+        fmt_dnf5  = "%{version}-%{release}\t%{installsize}\t%{license}"
 
         def _parse_rpm_output(stdout):
             parts = stdout.strip().split("\t")
@@ -446,7 +482,7 @@ def _enrich_detail(app: dict) -> dict:
             """Try rpm -q with a name, return True if it worked."""
             try:
                 r = subprocess.run(
-                    ["rpm", "-q", "--queryformat", fmt, name],
+                    ["rpm", "-q", "--queryformat", fmt_rpm, name],
                     capture_output=True, text=True, timeout=8
                 )
                 logging.debug("rpm -q %s: rc=%d out=%r", name, r.returncode, r.stdout[:200])
@@ -458,15 +494,13 @@ def _enrich_detail(app: dict) -> dict:
             return False
 
         if app.get("installed"):
-            # Try pkg_name first, then app name, then search rpm -qa for app id fragment
             if not _try_rpm_q(app["pkg_name"]):
                 name_guess = app.get("name", "").lower().replace(" ", "-")
                 if not _try_rpm_q(name_guess):
-                    # Last resort: search installed rpms for anything matching the id fragment
                     try:
                         frag = app["pkg_name"].lower()
                         r = subprocess.run(
-                            ["rpm", "-qa", "--queryformat", f"%{{NAME}}\t{fmt}\n"],
+                            ["rpm", "-qa", "--queryformat", f"%{{NAME}}\t{fmt_rpm}\n"],
                             capture_output=True, text=True, timeout=10
                         )
                         for line in r.stdout.splitlines():
@@ -482,17 +516,32 @@ def _enrich_detail(app: dict) -> dict:
             def _try_repoquery(name):
                 try:
                     mgr = _get_dnf()
-                    # DNF5 uses --qf, DNF4 uses --queryformat — try both
-                    for qf_flag in ("--queryformat", "--qf"):
+                    is_dnf5 = (mgr == ["dnf5"])
+                    if is_dnf5:
+                        attempts = [("--qf", fmt_dnf5)]
+                    else:
+                        attempts = [("--queryformat", fmt_rpm)]
+                    for qf_flag, qf_fmt in attempts:
                         r = subprocess.run(
-                            mgr + ["repoquery", qf_flag, fmt, name],
+                            mgr + ["repoquery", qf_flag, qf_fmt, name],
                             capture_output=True, text=True, timeout=20
                         )
                         logging.debug("repoquery %s %s: rc=%d out=%r err=%r",
                                       qf_flag, name, r.returncode,
                                       r.stdout[:200], r.stderr[:100])
                         if r.returncode == 0 and r.stdout.strip():
-                            parts = r.stdout.strip().splitlines()[-1].split("\t")
+                            data_lines = [l for l in r.stdout.strip().splitlines()
+                                          if "\t" in l]
+                            if not data_lines:
+                                # No tab-separated lines — try to grab version from any non-noise line
+                                plain = [l.strip() for l in r.stdout.strip().splitlines()
+                                         if l.strip() and not l.startswith("Updating")
+                                         and not l.startswith("Repositories")]
+                                if plain:
+                                    app["version"] = plain[-1]
+                                    return True
+                                continue
+                            parts = data_lines[0].split("\t")
                             if len(parts) >= 1 and parts[0]:
                                 app["version"] = parts[0]
                             if len(parts) >= 2:
@@ -653,7 +702,13 @@ def get_installed_with_metadata() -> list[dict]:
     """Return installed overlay packages enriched with AppStream metadata where available."""
     installed = get_installed_packages()
     apps = _load_appstream()
-    pkg_map = {a["pkg_name"]: a for a in apps.values()}
+
+    # Build pkg_name map — prefer non-addon entries when pkg_name collides
+    pkg_map: dict[str, dict] = {}
+    for a in apps.values():
+        pn = a["pkg_name"]
+        if pn not in pkg_map or (pkg_map[pn].get("is_addon") and not a.get("is_addon")):
+            pkg_map[pn] = a
 
     # Build Flatpak lookup by name and last ID segment for fallback matching
     flatpak_by_name = {}
@@ -696,11 +751,29 @@ def get_installed_with_metadata() -> list[dict]:
 
 
 def find_icon(filename: str) -> Optional[str]:
-    """Find an icon file across all known icon directories."""
+    """
+    Find an icon in AppStream cached icon dirs and /usr/share/pixmaps.
+    XDG icon theme lookup is handled in the widget via QIcon.fromTheme.
+    """
+    stem = filename
+    for ext in (".png", ".svg", ".xpm"):
+        if stem.endswith(ext):
+            stem = stem[:-len(ext)]
+            break
+
+    # AppStream swcatalog cached icons
     for icon_dir in ICON_DIRS:
-        fpath = os.path.join(icon_dir, filename)
+        for fname in (filename, stem + ".png", stem + ".svg"):
+            fpath = os.path.join(icon_dir, fname)
+            if os.path.exists(fpath):
+                return fpath
+
+    # /usr/share/pixmaps fallback
+    for ext in (".png", ".svg", ".xpm", ""):
+        fpath = os.path.join("/usr/share/pixmaps", stem + ext)
         if os.path.exists(fpath):
             return fpath
+
     return None
 
 def get_addons_for(app_id: str) -> list[dict]:
@@ -711,6 +784,104 @@ def get_addons_for(app_id: str) -> list[dict]:
     """
     cache = _load_appstream()
     return [item for item in cache.values() if item.get("extends") == app_id]
+
+
+# Known awkward Flatpak ID → RPM name mappings
+_FLATPAK_TO_RPM: dict[str, str] = {
+    "org.mozilla.firefox":            "firefox",
+    "org.mozilla.thunderbird":        "thunderbird",
+    "org.chromium.chromium":          "chromium",
+    "com.google.chrome":              "google-chrome-stable",
+    "org.gnome.evolution":            "evolution",
+    "org.kde.dolphin":                "dolphin",
+    "org.kde.konsole":                "konsole",
+    "org.kde.kate":                   "kate",
+    "org.kde.kwrite":                 "kwrite",
+    "org.kde.okular":                 "okular",
+    "org.kde.gwenview":               "gwenview",
+    "org.kde.spectacle":              "spectacle",
+    "org.kde.ark":                    "ark",
+    "org.kde.kcalc":                  "kcalc",
+    "org.kde.krita":                  "krita",
+    "org.kde.kdenlive":               "kdenlive",
+    "org.gimp.gimp":                  "gimp",
+    "org.inkscape.inkscape":          "inkscape",
+    "org.blender.blender":            "blender",
+    "org.libreoffice.libreoffice":    "libreoffice",
+    "org.videolan.vlc":               "vlc",
+    "org.audacityteam.audacity":      "audacity",
+    "com.obsproject.studio":          "obs-studio",
+    "com.valvesoftware.steam":        "steam",
+    "net.lutris.lutris":              "lutris",
+    "org.signal.signal":              "signal-desktop",
+    "com.discordapp.discord":         "discord",
+    "org.telegram.desktop":           "telegram-desktop",
+    "com.spotify.client":             "spotify-client",
+    "org.kde.elisa":                  "elisa",
+    "org.gnome.nautilus":             "nautilus",
+    "org.gnome.gedit":                "gedit",
+    "org.gnome.eog":                  "eog",
+    "org.gnome.totem":                "totem",
+    "org.gnome.rhythmbox":            "rhythmbox",
+    "org.gnome.cheese":               "cheese",
+    "org.gnome.shotwell":             "shotwell",
+}
+
+
+def find_native_counterpart(fp_app: dict) -> dict | None:
+    """
+    Given a Flatpak app dict, try to find a matching native RPM package.
+    Returns a native-source app dict if found, None otherwise.
+    Strategy:
+      1. Known mapping table (_FLATPAK_TO_RPM)
+      2. Last segment of app ID lowercased (org.mozilla.Firefox → firefox)
+      3. Display name lowercased with spaces→hyphens (Firefox → firefox)
+      4. Display name lowercased no spaces (VLC media player → vlcmediaplayer — skip)
+    Only returns a result if repoquery confirms the package actually exists.
+    """
+    app_id = fp_app.get("id", "").lower()
+    name = fp_app.get("name", "")
+
+    candidates = []
+
+    # 1. Known mapping
+    if app_id in _FLATPAK_TO_RPM:
+        candidates.append(_FLATPAK_TO_RPM[app_id])
+
+    # 2. Last segment of reverse-domain ID
+    last_seg = app_id.split(".")[-1].lower()
+    if last_seg and last_seg not in candidates:
+        candidates.append(last_seg)
+
+    # 3. Display name → rpm name guesses
+    name_lower = name.lower()
+    name_hyphen = name_lower.replace(" ", "-")
+    name_nospace = name_lower.replace(" ", "")
+    for guess in (name_lower, name_hyphen):
+        if guess and guess not in candidates:
+            candidates.append(guess)
+
+    # Check each candidate against repoquery
+    for pkg in candidates:
+        try:
+            r = subprocess.run(
+                _get_dnf() + ["repoquery", "--queryformat", "%{name}", pkg],
+                capture_output=True, text=True, timeout=10
+            )
+            matched = [l.strip() for l in r.stdout.splitlines()
+                       if l.strip() and l.strip() == pkg]
+            if matched:
+                # Build a native app dict using the Flatpak's rich metadata
+                native = dict(fp_app)
+                native["source"] = "native"
+                native["pkg_name"] = pkg
+                native["installed"] = is_installed_native(pkg)
+                native.pop("origin", None)
+                native.pop("remote", None)
+                return native
+        except Exception:
+            continue
+    return None
 
 
 def get_local_rpm_info(rpm_path: str) -> dict:
@@ -792,3 +963,79 @@ def install_local_rpm_stream(rpm_path: str):
     except Exception as e:
         yield f"Error: {e}"
         yield "__done__1"
+
+
+# ── Flathub icon cache ────────────────────────────────────────────────────────
+_ICON_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "rakuos", "icons")
+os.makedirs(_ICON_CACHE_DIR, exist_ok=True)
+
+
+def get_flathub_icon_url(app_id: str) -> Optional[str]:
+    """
+    Fetch the icon URL for an app from the Flathub API.
+    Returns a direct PNG URL or None.
+    Caches the URL on disk so subsequent calls are instant.
+    """
+    import json, urllib.request, urllib.error
+
+    if not app_id:
+        return None
+
+    # Strip .desktop suffix — Flathub API uses bare app IDs
+    clean_id = app_id.removesuffix(".desktop")
+
+    # Only reverse-domain IDs exist on Flathub — skip plain pkg names like qemu-kvm
+    if "." not in clean_id:
+        return None
+
+    cache_file = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.url")
+
+    # Return cached URL if we have it (even empty string = known miss)
+    if os.path.exists(cache_file):
+        cached = open(cache_file).read().strip()
+        return cached if cached else None
+
+    try:
+        url = f"https://flathub.org/api/v2/appstream/{clean_id}"
+        req = urllib.request.Request(url, headers={"User-Agent": "RakuOS-Software/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+
+        # API returns icon URLs under data["icon"] or data["icons"]
+        icon_url = ""
+        if data.get("icon"):
+            icon_url = data["icon"]
+        elif data.get("icons"):
+            icons = data["icons"]
+            # Prefer 128x128, fall back to any available
+            icon_url = (icons.get("128") or icons.get("64") or
+                        next(iter(icons.values()), ""))
+
+        # Write to cache (empty string = confirmed miss)
+        with open(cache_file, "w") as f:
+            f.write(icon_url)
+
+        return icon_url if icon_url else None
+
+    except Exception as e:
+        logging.debug("flathub icon API error for %s: %s", clean_id, e)
+        # Cache the miss so we don't hammer the API
+        with open(cache_file, "w") as f:
+            f.write("")
+        return None
+
+
+def get_cached_icon_path(app_id: str) -> Optional[str]:
+    """Return path to a locally cached icon PNG, or None if not cached."""
+    clean_id = app_id.removesuffix(".desktop")
+    path = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.png")
+    return path if os.path.exists(path) else None
+
+
+def save_icon_to_cache(app_id: str, data: bytes) -> str:
+    """Save raw image bytes to the icon cache and return the path."""
+    clean_id = app_id.removesuffix(".desktop")
+    path = os.path.join(_ICON_CACHE_DIR, f"{clean_id}.png")
+    with open(path, "wb") as f:
+        f.write(data)
+    return path

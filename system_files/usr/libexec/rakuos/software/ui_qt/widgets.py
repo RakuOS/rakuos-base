@@ -3,6 +3,7 @@ widgets.py — Reusable UI widgets used across all pages.
 """
 
 import os
+import urllib.request
 
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QFrame, QVBoxLayout, QHBoxLayout,
@@ -10,8 +11,8 @@ from PyQt6.QtWidgets import (
     QSpacerItem, QDialog, QApplication, QGridLayout,
     QLineEdit, QSlider, QDialogButtonBox,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPalette, QCursor, QColor
+from PyQt6.QtCore import Qt, pyqtSignal, QThread
+from PyQt6.QtGui import QPixmap, QPalette, QCursor, QColor, QIcon, QImage
 
 from .theme import (
     dimmed, bold_font, colored_text,
@@ -49,18 +50,121 @@ class IconWidget(QLabel):
         self.setFont(f)
         self._size = size
 
-    def set_icon_name(self, name: str):
-        if not name:
+    def set_icon_name(self, name: str, app_id: str = "", pkg_name: str = "", flatpak_id: str = ""):
+        if not name and not app_id and not pkg_name and not flatpak_id:
             return
-        path = packages.find_icon(name)
-        if path and os.path.exists(path):
+
+        # Normalise — strip .desktop suffix everywhere
+        app_id = app_id.removesuffix(".desktop")
+        flatpak_id = flatpak_id.removesuffix(".desktop")
+
+        # For icon resolution use flatpak_id if available (native stubs carry it)
+        icon_id = flatpak_id or app_id
+
+        stem = name
+        for ext in (".png", ".svg", ".xpm"):
+            if stem.endswith(ext):
+                stem = stem[:-len(ext)]
+                break
+
+        short = icon_id.split(".")[-1].lower() if icon_id else ""
+
+        def _load(path: str) -> bool:
             pix = QPixmap(path).scaled(
                 self._size, self._size,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            self.setPixmap(pix)
-            self.setText("")
+            if not pix.isNull():
+                self.setPixmap(pix)
+                self.setText("")
+                return True
+            return False
+
+        def _from_theme(candidate: str) -> bool:
+            if not candidate:
+                return False
+            icon = QIcon.fromTheme(candidate)
+            if not icon.isNull():
+                pix = icon.pixmap(self._size, self._size)
+                if not pix.isNull():
+                    self.setPixmap(pix)
+                    self.setText("")
+                    return True
+            return False
+
+        # 1. Previously downloaded Flathub icon (instant, cached on disk)
+        if icon_id:
+            cached = packages.get_cached_icon_path(icon_id)
+            if cached and _load(cached):
+                return
+
+        # 2. AppStream swcatalog cache (native repo icons)
+        for candidate in ([stem] if stem else []) + ([short] if short else []):
+            for suffix in ("", ".png", ".svg"):
+                path = packages.find_icon(candidate + suffix)
+                if path and os.path.exists(path) and _load(path):
+                    return
+
+        # 3. Flatpak local icon cache
+        flatpak_icon_dirs = [
+            "/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64",
+            "/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128",
+            "/var/lib/flatpak/appstream/fedora-flatpaks/x86_64/active/icons/64x64",
+        ]
+        for candidate in ([icon_id] if icon_id else []) + ([stem] if stem else []):
+            for d in flatpak_icon_dirs:
+                for ext in (".png", ".svg"):
+                    p = os.path.join(d, candidate + ext)
+                    if os.path.exists(p) and _load(p):
+                        return
+
+        # 4. Fetch from Flathub API async — icon pops in when downloaded
+        if icon_id:
+            self._start_remote_fetch(icon_id)
+            return
+
+        # 5. QIcon.fromTheme — last resort, tries full id, short name, pkg_name
+        for c in ([app_id] if app_id else []) + ([short] if short else []) + ([stem] if stem else []) + ([pkg_name] if pkg_name else []):
+            if _from_theme(c):
+                return
+
+    def _start_remote_fetch(self, app_id: str):
+        """Fetch icon URL from Flathub API then download the image, both in background."""
+        widget_ref = self
+
+        class _FetchThread(QThread):
+            def run(self):
+                try:
+                    icon_url = packages.get_flathub_icon_url(app_id)
+                    if not icon_url:
+                        return
+                    req = urllib.request.Request(
+                        icon_url, headers={"User-Agent": "RakuOS-Software/1.0"}
+                    )
+                    with urllib.request.urlopen(req, timeout=8) as r:
+                        data = r.read()
+                    path = packages.save_icon_to_cache(app_id, data)
+                    # Update widget on main thread
+                    img = QImage()
+                    img.loadFromData(data)
+                    pix = QPixmap.fromImage(img).scaled(
+                        widget_ref._size, widget_ref._size,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    if not pix.isNull():
+                        widget_ref.setPixmap(pix)
+                        widget_ref.setText("")
+                except Exception:
+                    pass
+
+        t = _FetchThread(self)
+        t.start()
+        # Keep reference so thread isn't GC'd
+        if not hasattr(self, "_icon_threads"):
+            self._icon_threads = []
+        self._icon_threads.append(t)
 
 
 class StatusBadge(QLabel):
@@ -95,7 +199,7 @@ class AppCard(QFrame):
         layout.setSpacing(6)
 
         self.icon_w = IconWidget(56)
-        self.icon_w.set_icon_name(app.get("icon", ""))
+        self.icon_w.set_icon_name(app.get("icon", ""), app_id=app.get("id", ""), pkg_name=app.get("pkg_name", ""), flatpak_id=app.get("flatpak_id", ""))
         layout.addWidget(self.icon_w, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         name_lbl = bold_font(QLabel(app.get("name", "")))
@@ -507,7 +611,7 @@ class AddonRow(QFrame):
         rl.setSpacing(10)
 
         icon_w = IconWidget(40)
-        icon_w.set_icon_name(addon.get("icon", ""))
+        icon_w.set_icon_name(addon.get("icon", ""), app_id=addon.get("id", ""), pkg_name=addon.get("pkg_name", ""))
         rl.addWidget(icon_w)
 
         text_col = QVBoxLayout()

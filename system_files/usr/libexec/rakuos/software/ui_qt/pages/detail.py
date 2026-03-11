@@ -4,6 +4,7 @@ Screenshot carousel with prev/next arrows, hero header, description below.
 """
 
 import os
+import re
 import subprocess
 
 from PyQt6.QtWidgets import (
@@ -333,12 +334,38 @@ class AppDetailPage(QWidget):
         self._reviews_container = QVBoxLayout()
         self._reviews_container.setSpacing(10)
         self._vl.addLayout(self._reviews_container)
+
+        # ── Pagination bar ─────────────────────────────────────────────────
+        self._review_page = 0
+        self._review_page_size = 5
+        self._review_data: list = []
+
+        pag_row = QHBoxLayout()
+        self._rev_prev_btn = QPushButton("← Previous")
+        self._rev_next_btn = QPushButton("Next →")
+        self._rev_page_label = QLabel()
+        for b in (self._rev_prev_btn, self._rev_next_btn):
+            b.setFlat(True)
+            b.hide()
+        self._rev_page_label.hide()
+        self._rev_prev_btn.clicked.connect(self._reviews_prev)
+        self._rev_next_btn.clicked.connect(self._reviews_next)
+        pag_row.addStretch()
+        pag_row.addWidget(self._rev_prev_btn)
+        pag_row.addWidget(self._rev_page_label)
+        pag_row.addWidget(self._rev_next_btn)
+        pag_row.addStretch()
+        self._vl.addLayout(pag_row)
+
         self._vl.addStretch()
 
     # ── Public ────────────────────────────────────────────────────────────────
 
     def load_app(self, app: dict):
         self._app = app
+        import logging
+        logging.debug("load_app: id=%r pkg_name=%r name=%r source=%r",
+                      app.get("id"), app.get("pkg_name"), app.get("name"), app.get("source"))
         self._native = self._flatpak_app = None
         self._terminal.reset()
         self._carousel.clear()
@@ -351,10 +378,15 @@ class AppDetailPage(QWidget):
         self._write_review_btn.hide()
         self._addons_btn.hide()
         self._addons = []  # reset stored addons
+        self._review_page = 0
+        self._review_data = []
+        self._rev_prev_btn.hide()
+        self._rev_next_btn.hide()
+        self._rev_page_label.hide()
 
         self._name_lbl.setText(app.get("name", ""))
         self._summary_lbl.setText(app.get("summary", ""))
-        self._icon.set_icon_name(app.get("icon", ""))
+        self._icon.set_icon_name(app.get("icon", ""), app_id=app.get("id", ""), pkg_name=app.get("pkg_name", ""), flatpak_id=app.get("flatpak_id", ""))
 
         desc = app.get("description", "")
         self._desc.setText(desc)
@@ -399,21 +431,44 @@ class AppDetailPage(QWidget):
         appstream = packages._load_appstream()
         name_lower = app.get("name", "").lower()
         app_id = app.get("id", "")
+        pkg_name = app.get("pkg_name", "")
         native = fp = None
 
+        # Pass 1: exact ID match (most reliable, avoids addon collisions)
         for a in appstream.values():
-            if a["source"] == "native" and (
-                a["id"] == app_id
-                or a["pkg_name"] == app.get("pkg_name")
-                or a["name"].lower() == name_lower
-            ):
+            if a.get("is_addon"):
+                continue
+            if a["source"] == "native" and a["id"] == app_id:
                 native = packages._enrich_installed(a)
-            if a["source"] == "flatpak" and (
-                a["id"] == app_id
-                or a["name"].lower() == name_lower
-                or a["id"].split(".")[-1].lower() == app.get("pkg_name", "").lower()
-            ):
+            if a["source"] == "flatpak" and a["id"] == app_id:
                 fp = packages._enrich_installed(a)
+
+        # Pass 2: pkg_name / name match — only if pass 1 found nothing
+        # Exclude addons and prefer entries whose pkg_name exactly matches
+        if not native:
+            candidates = []
+            for a in appstream.values():
+                if a["source"] != "native" or a.get("is_addon"):
+                    continue
+                score = 0
+                if a["pkg_name"] == pkg_name:
+                    score += 2
+                if a["name"].lower() == name_lower:
+                    score += 1
+                if score:
+                    candidates.append((score, a))
+            if candidates:
+                candidates.sort(key=lambda x: -x[0])
+                native = packages._enrich_installed(candidates[0][1])
+
+        if not fp:
+            for a in appstream.values():
+                if a["source"] != "flatpak" or a.get("is_addon"):
+                    continue
+                if (a["name"].lower() == name_lower
+                        or a["id"].split(".")[-1].lower() == pkg_name.lower()):
+                    fp = packages._enrich_installed(a)
+                    break
 
         # Inject origin from installed flatpak list — AppStream doesn't carry it
         if fp and not fp.get("origin"):
@@ -428,6 +483,27 @@ class AppDetailPage(QWidget):
                 remotes = [r for r in flatpak.get_remotes() if r.get("enabled", True)]
                 if remotes:
                     fp["origin"] = remotes[0]["name"]
+
+        # If we only have a Flatpak, check whether a native RPM also exists
+        if fp and not native:
+            native = packages.find_native_counterpart(fp)
+
+        # If we have a pkg_name but no native AppStream entry at all,
+        # borrow the Flatpak's rich metadata (name, icon, description) for display
+        # while keeping native install mechanics
+        if not native and pkg_name and fp:
+            native = dict(fp)
+            native["source"] = "native"
+            native["pkg_name"] = pkg_name
+            native["id"] = pkg_name
+            native["installed"] = packages.is_installed_native(pkg_name)
+            native.pop("origin", None)
+            native.pop("remote", None)
+
+        import logging
+        logging.debug("_fetch_detail result: native=%r fp=%r",
+                      native.get("id") if native else None,
+                      fp.get("id") if fp else None)
 
         urls = {k: "" for k in ("homepage", "donation", "bugtracker", "help")}
         import gzip, xml.etree.ElementTree as ET
@@ -503,6 +579,17 @@ class AppDetailPage(QWidget):
 
     # ── Top-right info block (version, size, license — like Discover) ─────────
 
+    @staticmethod
+    def _clean_license(raw: str) -> str:
+        """Simplify Fedora SPDX license expressions for display."""
+        # Strip Fedora-specific LicenseRef-Callaway- prefix
+        cleaned = re.sub(r"LicenseRef-Callaway-", "", raw)
+        # Strip version suffixes appended after + e.g. "GPL-2.0-or-later+143.0.4-1.fc43"
+        cleaned = re.sub(r"\+[\d][\w.\-]*", "", cleaned)
+        # Collapse multiple spaces
+        cleaned = re.sub(r"  +", " ", cleaned).strip()
+        return cleaned
+
     def _render_info_block(self, native: dict | None, fp: dict | None):
         self._clear_layout(self._info_block)
         base = native or fp or {}
@@ -513,14 +600,16 @@ class AppDetailPage(QWidget):
             mb = base["size"] / (1024 * 1024)
             rows.append(("Size", f"{mb:.1f} MiB"))
         if base.get("license"):
-            rows.append(("License", base["license"]))
+            rows.append(("License", self._clean_license(base["license"])))
         for label, value in rows:
             row = QHBoxLayout()
             row.setSpacing(8)
             lbl = dimmed(QLabel(f"{label}:"))
-            lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
             lbl.setFixedWidth(60)
             val = bold_font(QLabel(value))
+            val.setWordWrap(True)
+            val.setMaximumWidth(260)
             row.addWidget(lbl)
             row.addWidget(val)
             self._info_block.addLayout(row)
@@ -958,21 +1047,51 @@ class AppDetailPage(QWidget):
 
     def _on_reviews(self, data: dict):
         self._star_widget.set_rating(data["avg"], data["total"])
-        reviews = data["reviews"]
+        self._review_data = data["reviews"]
+        self._review_page = 0
+        self._current_review_app_id = data["app_id"]
+        self._reviews_head.show()
+        self._write_review_btn.show()
+        self._render_review_page()
+
+    def _render_review_page(self):
         self._clear_layout(self._reviews_container)
+        reviews = self._review_data
+        ps = self._review_page_size
+        page = self._review_page
+        total_pages = max(1, (len(reviews) + ps - 1) // ps)
+
         if reviews:
-            self._reviews_head.show()
-            self._write_review_btn.show()
-            for r in reviews[:10]:
+            for r in reviews[page * ps:(page + 1) * ps]:
                 card = ReviewCard(r)
                 self._reviews_container.addWidget(card)
         else:
-            self._reviews_head.show()
-            self._write_review_btn.show()
             from ..theme import dimmed
             no_reviews = dimmed(QLabel("No reviews yet — be the first!"))
             self._reviews_container.addWidget(no_reviews)
-        self._current_review_app_id = data["app_id"]
+
+        # Show/hide pagination controls
+        if total_pages > 1:
+            self._rev_page_label.setText(f"Page {page + 1} of {total_pages}")
+            self._rev_page_label.show()
+            self._rev_prev_btn.setVisible(page > 0)
+            self._rev_next_btn.setVisible(page < total_pages - 1)
+        else:
+            self._rev_page_label.hide()
+            self._rev_prev_btn.hide()
+            self._rev_next_btn.hide()
+
+    def _reviews_prev(self):
+        if self._review_page > 0:
+            self._review_page -= 1
+            self._render_review_page()
+
+    def _reviews_next(self):
+        ps = self._review_page_size
+        total_pages = max(1, (len(self._review_data) + ps - 1) // ps)
+        if self._review_page < total_pages - 1:
+            self._review_page += 1
+            self._render_review_page()
 
     def _on_write_review(self):
         app_id = getattr(self, "_current_review_app_id", self._app.get("id", ""))
@@ -1065,7 +1184,7 @@ class AddonsDialog(QDialog):
 
             # Icon
             icon_w = IconWidget(36)  # IconWidget already imported at top
-            icon_w.set_icon_name(addon.get("icon", ""))
+            icon_w.set_icon_name(addon.get("icon", ""), app_id=addon.get("id", ""), pkg_name=addon.get("pkg_name", ""))
             rl.addWidget(icon_w)
 
             # Text
