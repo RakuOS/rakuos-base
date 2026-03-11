@@ -2,6 +2,7 @@
 flatpak.py — Flatpak package management
 """
 
+import os
 import subprocess
 import json
 from typing import Optional
