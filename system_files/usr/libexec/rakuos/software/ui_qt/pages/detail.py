@@ -1029,6 +1029,7 @@ class AppDetailPage(QWidget):
                 self._workers.append(w)
         else:
             self._terminal.append_line(f"\n✗ Failed (exit {code}).")
+            self._terminal.show()   # surface the error output
             if ext_btn:
                 ext_btn.setText("Retry")
                 ext_btn.setEnabled(True)

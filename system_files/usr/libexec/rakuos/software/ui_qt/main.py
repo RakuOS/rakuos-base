@@ -354,6 +354,7 @@ class MainWindow(QMainWindow):
         # Wire signals
         for pg in (self._home, self._explore, self._search_p, self._installed):
             pg.app_clicked.connect(self._open_detail)
+        self._home.see_all_clicked.connect(self._on_category)
         self._detail.back_requested.connect(self._on_back)
         self._prev_page = "home"
 

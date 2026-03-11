@@ -436,10 +436,10 @@ def get_flatpakref_info(path: str) -> dict:
 
 
 def install_local_flatpak_stream(path: str):
-    """Generator that installs a local .flatpak bundle file."""
+    """Generator that installs a local .flatpak bundle file (system-wide via pkexec)."""
     try:
         proc = subprocess.Popen(
-            ["flatpak", "install", "--bundle", "-y", path],
+            ["pkexec", "flatpak", "install", "--bundle", "--noninteractive", "-y", path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -454,10 +454,10 @@ def install_local_flatpak_stream(path: str):
 
 
 def install_flatpakref_stream(path: str):
-    """Generator that installs from a .flatpakref file."""
+    """Generator that installs from a .flatpakref file (system-wide via pkexec)."""
     try:
         proc = subprocess.Popen(
-            ["flatpak", "install", "--from", "-y", path],
+            ["pkexec", "flatpak", "install", "--from", "--noninteractive", "-y", path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
