@@ -856,7 +856,6 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.signal.signal":              "signal-desktop",
     "com.discordapp.discord":         "discord",
     "org.telegram.desktop":           "telegram-desktop",
-    "com.spotify.client":             "spotify-client",
     "org.kde.elisa":                  "elisa",
     "com.visualstudio.code":          "code",
     "org.gnome.nautilus":             "nautilus",
