@@ -15,3 +15,7 @@ find /usr \( -type f -o -type l \) | sort > "$MANIFEST_FILE"
 
 TOTAL=$(wc -l < "$MANIFEST_FILE")
 echo "Manifest generated: $TOTAL files → $MANIFEST_FILE"
+
+# Generate base package list at build time
+rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}\n' | sort -u \
+    > "$MANIFEST_DIR/base-packages.txt"

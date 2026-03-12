@@ -52,8 +52,14 @@ done
 
 # Filter out already installed packages (by clean name only)
 # Also block packages owned by the base image (marked as dependency by rakuos)
-BASE_PKGS=$(sqlite3 /usr/lib/sysimage/rpm/rpmdb.sqlite \
-    "SELECT key FROM Name;" 2>/dev/null | sort -u || true)
+BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
+
+# Filter out already installed packages (by clean name only)
+# Also block packages owned by the base image
+BASE_PKGS=""
+if [[ -f "$BASE_PACKAGES_FILE" ]]; then
+    BASE_PKGS=$(cat "$BASE_PACKAGES_FILE")
+fi
 
 TO_INSTALL_ARGS=("${CLEAN_ARGS[@]}")  # dnf args unchanged
 TO_INSTALL_NAMES=()
@@ -78,6 +84,20 @@ fi
 
 echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS overlay..."
 
+# Build exclude args from base packages so dnf doesn't try to reinstall
+# base image dependencies into the overlay
+EXCLUDE_ARGS=()
+if [[ -f "$BASE_PACKAGES_FILE" ]]; then
+    while IFS= read -r base_pkg; do
+        # Don't exclude packages the user is explicitly installing
+        local_skip=0
+        for req in "${TO_INSTALL_NAMES[@]}"; do
+            [[ "$req" == "$base_pkg" ]] && local_skip=1 && break
+        done
+        [[ $local_skip -eq 0 ]] && EXCLUDE_ARGS+=("--exclude=$base_pkg")
+    done < "$BASE_PACKAGES_FILE"
+fi
+
 # Mount our persistent overlay if not already active
 if ! findmnt /usr | grep -q overlay; then
     echo "Mounting RakuOS overlay..."
@@ -86,8 +106,8 @@ if ! findmnt /usr | grep -q overlay; then
         /usr
 fi
 
-# Install into overlay — always non-interactive, pass original flags through
-dnf5.real install -y "${TO_INSTALL_ARGS[@]}"
+# Install into overlay — exclude base packages from dep resolution
+dnf5.real install -y "${EXCLUDE_ARGS[@]}" "${TO_INSTALL_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
