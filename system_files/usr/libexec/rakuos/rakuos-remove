@@ -25,11 +25,11 @@ trap 'rm -f "$LOCK_FILE"' EXIT
 
 # Filter out packages not in the overlay list
 # Also block base image packages — bootc owns these, removing them is not allowed
-BASE_PKGS=$(dnf5.real mark list dependency 2>/dev/null | awk 'NR>1 && $1 != "" {print $1}' | sort -u)
+BASE_PKGS=$(dnf5.real mark list dependency 2>/dev/null | awk 'NR>1 && $1 != "" {print $1}' | sort -u || true)
 
 TO_REMOVE=()
 for pkg in "${PACKAGES[@]}"; do
-    if echo "$BASE_PKGS" | grep -qx "$pkg"; then
+    if [[ -n "$BASE_PKGS" ]] && echo "$BASE_PKGS" | grep -qx "$pkg"; then
         echo "INFO: $pkg is part of the base system image and cannot be removed via the overlay."
         echo "      Base image packages are managed by bootc."
         continue
