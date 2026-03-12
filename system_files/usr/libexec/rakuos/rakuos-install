@@ -18,6 +18,11 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
+# Acquire lock so rakuos-base-protect allows our overlay writes
+LOCK_FILE="/run/rakuos-overlay.lock"
+touch "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
 # Ensure dirs exist
 mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
 

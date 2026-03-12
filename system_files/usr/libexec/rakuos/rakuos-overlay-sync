@@ -6,6 +6,11 @@ UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+LOCK_FILE="/run/rakuos-overlay.lock"
+
+# Acquire lock so rakuos-base-protect allows our overlay writes
+touch "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 # Read packages into array, skip empty lines and comments
 mapfile -t PACKAGES < <(
@@ -38,8 +43,8 @@ SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
 if ! findmnt /usr | grep -q overlay; then
     echo "RakuOS overlay sync: mounting overlay..."
     mount -t overlay overlay \
-    -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
-    /usr
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
 fi
 
 # ── Determine what needs doing ────────────────────────────────────────────────
@@ -64,25 +69,39 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: full install complete."
-    
-    elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
+
+elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — upgrading overlay packages..."
     dnf5.real upgrade -y "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: upgrade complete."
-    
-    elif [[ -f "$DIRTY_FILE" ]]; then
+
+elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
     dnf5.real install -y "${PACKAGES[@]}"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."
-    
+
 else
     echo "RakuOS overlay sync: nothing to do."
 fi
 
 # Save digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
+
+# ── Restart services enabled from overlay packages ────────────────────────────
+echo "RakuOS overlay sync: restarting overlay services..."
+while IFS= read -r -d '' service_file; do
+    service=$(basename "$service_file")
+    if [[ -L "/etc/systemd/system/$service" ]] || \
+       [[ -L "/etc/systemd/system/multi-user.target.wants/$service" ]] || \
+       [[ -L "/etc/systemd/system/graphical.target.wants/$service" ]]; then
+        if ! systemctl is-active "$service" &>/dev/null; then
+            echo "RakuOS overlay sync: starting $service..."
+            systemctl start "$service" || true
+        fi
+    fi
+done < <(find "$UPPER_DIR/lib/systemd/system" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
 
 echo "RakuOS overlay sync: done."

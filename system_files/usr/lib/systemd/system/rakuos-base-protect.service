@@ -1,0 +1,16 @@
+[Unit]
+Description=RakuOS Base System Protection
+Documentation=https://rakuos.org
+After=rakuos-overlay-mount.service
+Wants=rakuos-overlay-mount.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/rakuos/rakuos-base-protect
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

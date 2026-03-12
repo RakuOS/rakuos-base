@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# rakuos-base-protect — Monitor overlay UPPER_DIR for shadowing of base /usr files.
+# Runs as a daemon, blocks in inotifywait, removes shadowed files immediately
+# and notifies the active user session.
+set -euo pipefail
+
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+UPPER_USR="$UPPER_DIR/usr"
+LOCK_FILE="/run/rakuos-overlay.lock"
+LOG_TAG="rakuos-base-protect"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+log() { echo "$LOG_TAG: $*"; }
+
+notify_user() {
+    local title="$1"
+    local body="$2"
+    local urgency="${3:-normal}"
+
+    # Find active graphical user session
+    local active_user user_uid user_runtime
+    active_user=$(loginctl list-sessions --no-legend 2>/dev/null \
+        | awk '{print $3}' | head -n1)
+    [[ -z "$active_user" ]] && return
+
+    user_uid=$(id -u "$active_user" 2>/dev/null) || return
+    user_runtime="/run/user/$user_uid"
+
+    sudo -u "$active_user" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=$user_runtime/bus" \
+        notify-send \
+        --app-name="RakuOS Base Protection" \
+        --icon=security-high \
+        --urgency="$urgency" \
+        "$title" "$body" 2>/dev/null || true
+}
+
+is_overlay_operation() {
+    # Returns 0 (true) if rakuos-install/sync is actively running (lockfile present)
+    [[ -f "$LOCK_FILE" ]]
+}
+
+handle_event() {
+    local event_dir="$1"
+    local event_file="$2"
+
+    local full_overlay_path="${event_dir}${event_file}"
+
+    # Get the corresponding base /usr path
+    local base_path="/usr${event_dir#$UPPER_USR}${event_file}"
+
+    # Only care if this path exists in the base image
+    [[ -e "$base_path" ]] || return 0
+
+    # If a legitimate overlay operation is running, allow it
+    if is_overlay_operation; then
+        log "overlay operation in progress — allowing write to $base_path"
+        return 0
+    fi
+
+    # Shadow detected — remove from overlay immediately
+    log "BLOCKED: shadow of base file detected: $full_overlay_path"
+    log "  Base path: $base_path"
+
+    rm -f "$full_overlay_path" 2>/dev/null \
+        && log "  Removed shadow successfully." \
+        || log "  WARNING: could not remove shadow at $full_overlay_path"
+
+    # Notify user
+    notify_user \
+        "Base System Protection" \
+        "A modification to a base system file was blocked and removed.\n\nFile: $base_path\n\nBase system files are managed by bootc update." \
+        "normal"
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+# Ensure inotifywait is available
+if ! command -v inotifywait &>/dev/null; then
+    log "ERROR: inotifywait not found. Install inotify-tools package."
+    exit 1
+fi
+
+# Wait for overlay to be mounted
+until [[ -d "$UPPER_USR" ]]; do
+    log "Waiting for overlay upper/usr to be available..."
+    sleep 2
+done
+
+log "Starting base protection watcher on $UPPER_USR"
+
+# Watch recursively for file creation and moves into the upper/usr dir
+inotifywait \
+    --monitor \
+    --recursive \
+    --quiet \
+    --format '%w %f' \
+    --event create \
+    --event moved_to \
+    --event close_write \
+    "$UPPER_USR" \
+| while IFS=' ' read -r event_dir event_file; do
+    handle_event "$event_dir" "$event_file"
+done
