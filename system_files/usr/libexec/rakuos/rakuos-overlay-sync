@@ -57,15 +57,12 @@ fi
 # A missing STATE_FILE means either:
 #   - fresh first boot (packages.list just seeded by mount script), or
 #   - post-reset (mount script wiped state and re-seeded packages.list)
-# Write exclude config so dnf skips base image packages during dep resolution
+# Build --setopt=excludepkgs to stop dnf pulling base packages into overlay
 BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
-EXCLUDE_CONF=$(mktemp /tmp/rakuos-exclude.XXXXXX.conf)
-trap 'rm -f "$LOCK_FILE" "$EXCLUDE_CONF"' EXIT
+EXCLUDE_SETOPT=""
 if [[ -f "$BASE_PACKAGES_FILE" ]]; then
     EXCLUDE_LIST=$(tr '\n' ',' < "$BASE_PACKAGES_FILE" | sed 's/,$//')
-    printf '[main]\nexcludepkgs=%s\n' "$EXCLUDE_LIST" > "$EXCLUDE_CONF"
-else
-    printf '[main]\n' > "$EXCLUDE_CONF"
+    EXCLUDE_SETOPT="--exclude=$EXCLUDE_LIST"
 fi
 
 # Either way: full install needed.
@@ -76,21 +73,21 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
-    dnf5.real install -y --config="$EXCLUDE_CONF" "${PACKAGES[@]}"
+    dnf5.real install -y $EXCLUDE_SETOPT "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — upgrading overlay packages..."
-    dnf5.real upgrade -y --config="$EXCLUDE_CONF" "${PACKAGES[@]}"
+    dnf5.real upgrade -y $EXCLUDE_SETOPT "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: upgrade complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
-    dnf5.real install -y --config="$EXCLUDE_CONF" "${PACKAGES[@]}"
+    dnf5.real install -y $EXCLUDE_SETOPT "${PACKAGES[@]}"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."
 
