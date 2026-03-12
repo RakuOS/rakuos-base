@@ -14,6 +14,10 @@ NOTIFY_PID_FILE="/run/rakuos-base-protect-notify.pid"
 # Path prefixes that are legitimately writable at runtime — never block these
 EXCLUSION_PREFIXES=(
     "/usr/share/rpm"
+    "/usr/share/doc"
+    "/usr/share/licenses"
+    "/usr/lib/.build-id"
+    "/usr/lib64/.build-id"
 )
 
 # Files in the base image that are intentionally writable at runtime
@@ -124,7 +128,7 @@ handle_event() {
     log "BLOCKED: shadow of base image file detected: $full_overlay_path"
     log "  Base path: $base_path"
 
-    rm -f "$full_overlay_path" 2>/dev/null \
+    rm -rf "$full_overlay_path" 2>/dev/null \
         && log "  Removed shadow successfully." \
         || log "  WARNING: could not remove shadow at $full_overlay_path"
 

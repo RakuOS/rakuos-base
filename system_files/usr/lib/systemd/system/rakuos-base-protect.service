@@ -7,8 +7,10 @@ Wants=rakuos-overlay-mount.service
 [Service]
 Type=simple
 ExecStart=/usr/libexec/rakuos/rakuos-base-protect
-Restart=on-failure
+Restart=always
 RestartSec=5
+TimeoutSec=infinity
+KillMode=process
 StandardOutput=journal
 StandardError=journal
 
