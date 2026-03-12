@@ -13,6 +13,7 @@ NOTIFY_PID_FILE="/run/rakuos-base-protect-notify.pid"
 
 # Path prefixes that are legitimately writable at runtime — never block these
 EXCLUSION_PREFIXES=(
+    "/usr/lib/sysimage/libdnf5"
     "/usr/share/rpm"
     "/usr/share/doc"
     "/usr/share/licenses"
