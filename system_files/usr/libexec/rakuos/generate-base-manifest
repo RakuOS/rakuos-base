@@ -6,6 +6,7 @@ set -euo pipefail
 MANIFEST_DIR="/usr/share/rakuos"
 MANIFEST_FILE="$MANIFEST_DIR/base-manifest.txt"
 BASE_PACKAGES_FILE="$MANIFEST_DIR/base-packages.txt"
+RAKUOS_DNF_CONF="$MANIFEST_DIR/dnf.conf"
 
 mkdir -p "$MANIFEST_DIR"
 
@@ -19,19 +20,9 @@ rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}\n' | sort -u > "$BASE_PACKA
 PKG_TOTAL=$(wc -l < "$BASE_PACKAGES_FILE")
 echo "Base package list generated: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
 
-echo "Writing excludepkgs to $DNF_CONF..."
+echo "Writing RakuOS dnf config..."
 EXCLUDE_LIST=$(tr '\n' ',' < "$BASE_PACKAGES_FILE" | sed 's/,$//')
+printf '[main]\nexcludepkgs=%s\n' "$EXCLUDE_LIST" > "$RAKUOS_DNF_CONF"
+echo "RakuOS dnf config written → $RAKUOS_DNF_CONF ($PKG_TOTAL packages excluded)"
 
-# Update or create dnf.conf with excludepkgs under [main]
-if [[ -f "$DNF_CONF" ]]; then
-    # Remove any existing excludepkgs line
-    sed -i '/^excludepkgs=/d' "$DNF_CONF"
-    # Add excludepkgs under [main]
-    sed -i '/^\[main\]/a excludepkgs='"$EXCLUDE_LIST" "$DNF_CONF"
-else
-    mkdir -p /etc/dnf
-    printf '[main]\nexcludepkgs=%s\n' "$EXCLUDE_LIST" > "$DNF_CONF"
-fi
-
-echo "dnf.conf excludepkgs written: $PKG_TOTAL packages excluded"
 echo "RakuOS base manifest generation complete."
