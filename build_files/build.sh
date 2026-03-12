@@ -48,6 +48,7 @@ dnf5 -y install ananicy-cpp \
   distrobox \
   xpadneo \
   mokutil \
+  sqlite3 \
   openssl \
   freerdp \
   libnotify \

@@ -52,7 +52,8 @@ done
 
 # Filter out already installed packages (by clean name only)
 # Also block packages owned by the base image (marked as dependency by rakuos)
-BASE_PKGS=$(dnf5.real mark list dependency 2>/dev/null | awk 'NR>1 && $1 != "" {print $1}' | sort -u || true)
+BASE_PKGS=$(sqlite3 /usr/lib/sysimage/rpm-ostree-base-db/rpmdb.sqlite \
+    "SELECT key FROM Name;" 2>/dev/null | sort -u || true)
 
 TO_INSTALL_ARGS=("${CLEAN_ARGS[@]}")  # dnf args unchanged
 TO_INSTALL_NAMES=()
