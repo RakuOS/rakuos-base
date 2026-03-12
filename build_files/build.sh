@@ -89,6 +89,7 @@ systemctl mask systemd-remount-fs.service
 #enable enable services
 systemctl enable \
   rakuos-updater.timer \
+  rakuos-base-protect.service \
   rakuos-overlay-mount.service \
   rakuos-overlay-sync.service \
   rakuos-overlay-services.service \

@@ -24,7 +24,8 @@ EXCLUSION_PREFIXES=(
 
 # Files in the base image that are intentionally writable at runtime
 EXCLUSIONS=(
-    "/usr/share/rakuos/flatpaks.list"
+    "/usr/share/applications/mimeinfo.cache"
+    "/usr/share/icons/hicolor/icon-theme.cache"
     "/usr/share/rpm/rpmdb.sqlite"
     "/usr/share/rpm/rpmdb.sqlite-shm"
     "/usr/share/rpm/rpmdb.sqlite-wal"
@@ -39,22 +40,22 @@ notify_user() {
     local title="$1"
     local body="$2"
     local urgency="${3:-normal}"
-
+    
     local active_user user_uid user_runtime
     active_user=$(loginctl list-sessions --no-legend 2>/dev/null \
-        | awk '{print $3}' | head -n1)
+    | awk '{print $3}' | head -n1)
     [[ -z "$active_user" ]] && return
-
+    
     user_uid=$(id -u "$active_user" 2>/dev/null) || return
     user_runtime="/run/user/$user_uid"
-
+    
     sudo -u "$active_user" \
-        DBUS_SESSION_BUS_ADDRESS="unix:path=$user_runtime/bus" \
-        notify-send \
-        --app-name="RakuOS Base Protection" \
-        --icon=security-high \
-        --urgency="$urgency" \
-        "$title" "$body" 2>/dev/null || true
+    DBUS_SESSION_BUS_ADDRESS="unix:path=$user_runtime/bus" \
+    notify-send \
+    --app-name="RakuOS Base Protection" \
+    --icon=security-high \
+    --urgency="$urgency" \
+    "$title" "$body" 2>/dev/null || true
 }
 
 # Schedule a single batched notification after a short debounce window
@@ -62,7 +63,7 @@ notify_user() {
 schedule_notify() {
     # Append blocked path to pending list
     echo "$1" >> "$NOTIFY_PENDING"
-
+    
     # Kill existing debounce timer if running
     if [[ -f "$NOTIFY_PID_FILE" ]]; then
         local old_pid
@@ -70,7 +71,7 @@ schedule_notify() {
         kill "$old_pid" 2>/dev/null || true
         rm -f "$NOTIFY_PID_FILE"
     fi
-
+    
     # Start new debounce timer — fires after 3s of no new events
     (
         echo $$ > "$NOTIFY_PID_FILE"
@@ -80,17 +81,17 @@ schedule_notify() {
         local files
         files=$(sort -u "$NOTIFY_PENDING" 2>/dev/null | head -5 | tr '\n' '\n')
         rm -f "$NOTIFY_PENDING" "$NOTIFY_PID_FILE"
-
+        
         if [[ "$count" -eq 1 ]]; then
             notify_user \
-                "Base System Protection" \
-                "A modification to a base system file was blocked:\n\n$files\n\nBase files are managed by bootc update." \
-                "normal"
+            "Base System Protection" \
+            "A modification to a base system file was blocked:\n\n$files\n\nBase files are managed by bootc update." \
+            "normal"
         else
             notify_user \
-                "Base System Protection" \
-                "$count modifications to base system files were blocked:\n\n$files\n\nBase files are managed by bootc update." \
-                "normal"
+            "Base System Protection" \
+            "$count modifications to base system files were blocked:\n\n$files\n\nBase files are managed by bootc update." \
+            "normal"
         fi
     ) &
 }
@@ -102,38 +103,38 @@ is_overlay_operation() {
 handle_event() {
     local event_dir="$1"
     local event_file="$2"
-
+    
     local full_overlay_path="${event_dir}${event_file}"
-
+    
     # Map overlay path → base /usr path
     local base_path="/usr${full_overlay_path#$UPPER_DIR}"
-
+    
     # Only act if this path is exactly in the base image manifest
     grep -qxF "$base_path" "$MANIFEST" || return 0
-
+    
     # Allow paths under excluded prefixes (RPM db, runtime writable dirs)
     for prefix in "${EXCLUSION_PREFIXES[@]}"; do
         [[ "$base_path" == "$prefix"* ]] && return 0
     done
-
+    
     # Allow explicitly excluded files that are legitimately writable at runtime
     for exclusion in "${EXCLUSIONS[@]}"; do
         [[ "$base_path" == "$exclusion" ]] && return 0
     done
-
+    
     # Allow legitimate overlay operations
     if is_overlay_operation; then
         log "overlay operation in progress — allowing write to $base_path"
         return 0
     fi
-
+    
     log "BLOCKED: shadow of base image file detected: $full_overlay_path"
     log "  Base path: $base_path"
-
+    
     rm -rf "$full_overlay_path" 2>/dev/null \
-        && log "  Removed shadow successfully." \
-        || log "  WARNING: could not remove shadow at $full_overlay_path"
-
+    && log "  Removed shadow successfully." \
+    || log "  WARNING: could not remove shadow at $full_overlay_path"
+    
     schedule_notify "$base_path"
 }
 
@@ -161,14 +162,14 @@ done
 log "Starting base protection watcher on $UPPER_DIR"
 
 inotifywait \
-    --monitor \
-    --recursive \
-    --quiet \
-    --format '%w %f' \
-    --event create \
-    --event moved_to \
-    --event close_write \
-    "$UPPER_DIR" \
+--monitor \
+--recursive \
+--quiet \
+--format '%w %f' \
+--event create \
+--event moved_to \
+--event close_write \
+"$UPPER_DIR" \
 | while IFS=' ' read -r event_dir event_file; do
     handle_event "$event_dir" "$event_file"
 done

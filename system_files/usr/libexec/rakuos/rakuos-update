@@ -1,35 +1,31 @@
 #!/usr/bin/env bash
 # rakuos-update — RakuOS overlay package update manager.
 # Handles check and upgrade of user overlay packages and their dependencies,
-# excluding base image packages marked as dependencies by rakuos-install.
-# Used by the tray daemon, updates page UI, and directly by users.
+# excluding base image packages via /usr/share/rakuos/dnf.conf.
 #
 # Usage:
-#   rakuos-update check          — print available updates as JSON, exit 0=updates 1=none
-#   rakuos-update upgrade        — perform the upgrade
-#   rakuos-update check-flatpak  — print available flatpak updates as JSON
+#   rakuos-update check           — print available updates as JSON, exit 0=updates 1=none
+#   rakuos-update upgrade         — perform the upgrade
+#   rakuos-update check-flatpak   — print available flatpak updates as JSON
 #   rakuos-update upgrade-flatpak — upgrade all flatpak apps and runtimes
-#   rakuos-update check-image    — check bootc for a new system image (JSON)
-#   rakuos-update upgrade-image  — run bootc update
+#   rakuos-update check-image     — check bootc for a new system image (JSON)
+#   rakuos-update upgrade-image   — run bootc update
 
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+DNF_CONF="/usr/share/rakuos/dnf.conf"
 COMMAND="${1:-upgrade}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+dnf() { dnf5.real --config="$DNF_CONF" "$@"; }
+
 require_packages_list() {
     [[ -f "$PACKAGES_LIST" ]] || die "No packages.list found at $PACKAGES_LIST"
     [[ -s "$PACKAGES_LIST" ]] || { echo "No overlay packages installed."; exit 0; }
-}
-
-# Get all packages owned by the base image (marked dependency by rakuos)
-get_base_packages() {
-    sqlite3 /usr/lib/sysimage/rpm/rpmdb.sqlite \
-        "SELECT key FROM Name;" 2>/dev/null | sort -u || true
 }
 
 # Get user packages from packages.list
@@ -37,43 +33,31 @@ get_user_packages() {
     sort -u "$PACKAGES_LIST"
 }
 
-# Get full dependency tree of packages.list packages that are actually installed
+# Get full recursive dep tree of user packages that are installed,
+# minus anything already in the base image (handled by dnf.conf excludes)
 get_overlay_deps() {
     local user_pkgs
     user_pkgs=$(get_user_packages)
     [[ -z "$user_pkgs" ]] && return
 
-    dnf5.real repoquery --installed --dependents \
-        $user_pkgs 2>/dev/null \
-        | awk '{print $1}' \
-        | sed 's/-[0-9].*$//' \
-        | sort -u
+    dnf repoquery --installed \
+        --whatrequires "$user_pkgs" \
+        --recursive \
+        --queryformat '%{name}' 2>/dev/null \
+        | sort -u || true
 }
 
-# Full set to check/upgrade: user packages + their deps, minus base image
+# Full set to check/upgrade: user packages + their recursive deps
 get_overlay_packages() {
-    local base user deps combined
-
-    base=$(get_base_packages)
+    local user deps
     user=$(get_user_packages)
     deps=$(get_overlay_deps)
-
-    combined=$(echo -e "$user\n$deps" | sort -u)
-
-    # Remove base image packages
-    if [[ -n "$base" ]]; then
-        comm -23 \
-            <(echo "$combined") \
-            <(echo "$base")
-    else
-        echo "$combined"
-    fi
+    echo -e "$user\n$deps" | sort -u | grep -v '^$'
 }
 
 # Detect if a package owns a .desktop file (GUI app)
 is_gui_package() {
-    local pkg="$1"
-    rpm -ql "$pkg" 2>/dev/null | grep -q '\.desktop$'
+    rpm -ql "$1" 2>/dev/null | grep -q '\.desktop$'
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -81,7 +65,7 @@ is_gui_package() {
 cmd_check() {
     require_packages_list
 
-    echo "RakuOS: checking for overlay package updates..."
+    echo "RakuOS: checking for overlay package updates..." >&2
     local overlay_pkgs
     overlay_pkgs=$(get_overlay_packages)
 
@@ -90,22 +74,21 @@ cmd_check() {
         exit 1
     fi
 
-    # dnf5 check-update exits 100 if updates available, 0 if none, other = error
-    local check_output
-    check_output=$(dnf5.real check-update --quiet $overlay_pkgs 2>/dev/null) || true
-    local exit_code=$?
+    # dnf5 check-update exits 100 if updates available, 0 if none
+    local check_output exit_code
+    check_output=$(dnf check-update --quiet $overlay_pkgs 2>/dev/null) || exit_code=$?
+    exit_code=${exit_code:-0}
 
     if [[ $exit_code -eq 100 ]]; then
-        # Parse updates into JSON array
         local json='{"updates": ['
         local first=1
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
-            local name version repo
-            name=$(echo "$line" | awk '{print $1}' | sed 's/\.[^.]*$//')
+            local name version repo gui
+            name=$(echo "$line"    | awk '{print $1}' | sed 's/\.[^.]*$//')
             version=$(echo "$line" | awk '{print $2}')
-            repo=$(echo "$line" | awk '{print $3}')
-            local gui="false"
+            repo=$(echo "$line"    | awk '{print $3}')
+            gui="false"
             is_gui_package "$name" && gui="true"
             [[ $first -eq 0 ]] && json+=","
             json+="{\"name\":\"$name\",\"version\":\"$version\",\"repo\":\"$repo\",\"gui\":$gui}"
@@ -132,13 +115,12 @@ cmd_upgrade() {
         exit 0
     fi
 
-        dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" $overlay_pkgs
-    rm -f "$exclude_conf"
+    dnf upgrade -y $overlay_pkgs
     echo "RakuOS: overlay package upgrade complete."
 }
 
 cmd_check_flatpak() {
-    echo "RakuOS: checking for Flatpak updates..."
+    echo "RakuOS: checking for Flatpak updates..." >&2
     flatpak update --appstream -y &>/dev/null || true
 
     local updates
@@ -153,12 +135,13 @@ cmd_check_flatpak() {
     local first=1
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        local name app_id version
-        name=$(echo "$line" | awk '{print $1}')
-        app_id=$(echo "$line" | awk '{print $2}')
+        local name app_id version is_runtime
+        name=$(echo "$line"    | awk '{print $1}')
+        app_id=$(echo "$line"  | awk '{print $2}')
         version=$(echo "$line" | awk '{print $3}')
-        local is_runtime="false"
-        echo "$app_id" | grep -qi "runtime\|\.Sdk\|\.Platform\|\.Extension" && is_runtime="true"
+        is_runtime="false"
+        echo "$app_id" | grep -qi "runtime\|\.Sdk\|\.Platform\|\.Extension" \
+            && is_runtime="true"
         [[ $first -eq 0 ]] && json+=","
         json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":$is_runtime}"
         first=0
@@ -189,12 +172,14 @@ _ghcr_get_image_info() {
 
     [[ -n "$REPO_URL" ]]    || die "Could not detect booted image from bootc status."
     [[ -n "$CURRENT_TAG" ]] || die "Could not detect current tag from bootc status."
-    [[ "$REPO_PATH" != "$REPO_URL" ]] || die "Could not parse GHCR repo path from: $REPO_URL"
+    [[ "$REPO_PATH" != "$REPO_URL" ]] \
+        || die "Could not parse GHCR repo path from: $REPO_URL"
 
     TOKEN=$(curl -fsSL \
         "https://ghcr.io/token?scope=repository:${REPO_PATH}:pull&service=ghcr.io" \
         | jq -r .token)
-    [[ -n "$TOKEN" && "$TOKEN" != "null" ]] || die "Failed to get GHCR token for $REPO_PATH"
+    [[ -n "$TOKEN" && "$TOKEN" != "null" ]] \
+        || die "Failed to get GHCR token for $REPO_PATH"
 
     local latest_manifest version_annotation config_digest
     latest_manifest=$(curl -fsSL \
@@ -217,7 +202,8 @@ _ghcr_get_image_info() {
 
     NEWEST_TAG=$(echo "$version_annotation" \
         | sed 's/^latest\.//' | grep -oE '^[0-9]{8}$' || true)
-    [[ -n "$NEWEST_TAG" ]] || die "Could not extract date tag from GHCR manifest. Got: '$version_annotation'"
+    [[ -n "$NEWEST_TAG" ]] \
+        || die "Could not extract date tag from GHCR manifest. Got: '$version_annotation'"
 }
 
 cmd_check_image() {
@@ -236,7 +222,6 @@ cmd_check_image() {
         fi
     fi
 
-    # Update available (or current tag is non-date format)
     echo "{\"update\":true,\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\",\"repo\":\"$REPO_URL\"}"
     exit 0
 }
@@ -247,14 +232,15 @@ cmd_upgrade_image() {
     local IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
     _ghcr_get_image_info
 
-    if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$' && [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
+    if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$' \
+        && [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
         echo "RakuOS: system image is already up to date ($CURRENT_TAG)."
         exit 0
     fi
 
     echo "RakuOS: switching to image $REPO_URL:$NEWEST_TAG..."
     bootc switch "$REPO_URL:$NEWEST_TAG"
-    echo "RakuOS: system image update staged. Restart to apply."
+    echo "RakuOS: system image update staged. Reboot to apply."
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
