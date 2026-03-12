@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# generate-base-manifest — Generate list of all files in /usr at image build time.
+# Run at end of Containerfile via RUN command.
+# Output: /usr/share/rakuos/base-manifest.txt
+set -euo pipefail
+
+MANIFEST_DIR="/usr/share/rakuos"
+MANIFEST_FILE="$MANIFEST_DIR/base-manifest.txt"
+
+mkdir -p "$MANIFEST_DIR"
+
+echo "Generating RakuOS base file manifest..."
+
+find /usr \( -type f -o -type l \) | sort > "$MANIFEST_FILE"
+
+TOTAL=$(wc -l < "$MANIFEST_FILE")
+echo "Manifest generated: $TOTAL files → $MANIFEST_FILE"
