@@ -85,30 +85,4 @@ fi
 # Save digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
-# ── Restart services enabled from overlay packages ────────────────────────────
-echo "RakuOS overlay sync: deferring overlay service activation until graphical target..."
-systemd-run --no-block --unit=rakuos-overlay-service-activation \
-/bin/bash -c '
-        # Wait for graphical target before starting display-dependent services
-        systemctl is-active --quiet graphical.target || \
-            systemctl start --wait graphical.target 2>/dev/null || true
-
-        systemctl daemon-reload
-
-        while IFS= read -r -d "" service_file; do
-            service=$(basename "$service_file")
-            if [[ -L "/etc/systemd/system/$service" ]] || \
-               [[ -L "/etc/systemd/system/multi-user.target.wants/$service" ]] || \
-               [[ -L "/etc/systemd/system/graphical.target.wants/$service" ]]; then
-                if ! systemctl is-active --quiet "$service"; then
-                    echo "RakuOS overlay sync: starting $service..."
-                    systemctl disable --now "$service" 2>/dev/null || true
-                    systemctl enable "$service" 2>/dev/null || true
-                    systemctl start "$service" || true
-                fi
-            fi
-        done < <(find "'"$UPPER_DIR"'/lib/systemd/system" -maxdepth 1 \
-            -name "*.service" -type f -print0 2>/dev/null)
-'
-
 echo "RakuOS overlay sync: done."

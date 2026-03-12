@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# rakuos-overlay-services — Start systemd services installed via overlay packages.
+# Runs after display-manager.service (SDDM/GDM) so session-dependent services work.
+set -euo pipefail
+
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+SERVICE_DIR="$UPPER_DIR/lib/systemd/system"
+
+if [[ ! -d "$SERVICE_DIR" ]]; then
+    echo "RakuOS overlay services: no overlay service directory found, nothing to do."
+    exit 0
+fi
+
+echo "RakuOS overlay services: running daemon-reload..."
+systemctl daemon-reload
+
+echo "RakuOS overlay services: scanning for enabled overlay services..."
+while IFS= read -r -d '' service_file; do
+    service=$(basename "$service_file")
+
+    # Skip template units
+    [[ "$service" == *@* ]] && continue
+
+    # Only process if enabled via symlink in any wants dir
+    if [[ -L "/etc/systemd/system/$service" ]] || \
+       [[ -L "/etc/systemd/system/multi-user.target.wants/$service" ]] || \
+       [[ -L "/etc/systemd/system/graphical.target.wants/$service" ]]; then
+
+        if systemctl is-active --quiet "$service"; then
+            echo "RakuOS overlay services: $service already active, skipping."
+            continue
+        fi
+
+        echo "RakuOS overlay services: starting $service..."
+        systemctl disable --now "$service" \
+        systemctl enable --now "$service" \
+            && echo "RakuOS overlay services: $service started OK." \
+            || echo "RakuOS overlay services: WARNING — failed to start $service"
+    fi
+
+done < <(find "$SERVICE_DIR" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
+
+echo "RakuOS overlay services: done."
