@@ -8,6 +8,8 @@ UPPER_DIR="/var/lib/rakuos/overlay/upper"
 LOCK_FILE="/run/rakuos-overlay.lock"
 LOG_TAG="rakuos-base-protect"
 MANIFEST="/usr/share/rakuos/base-manifest.txt"
+NOTIFY_PENDING="/run/rakuos-base-protect-pending"
+NOTIFY_PID_FILE="/run/rakuos-base-protect-notify.pid"
 
 # Path prefixes that are legitimately writable at runtime — never block these
 EXCLUSION_PREFIXES=(
@@ -49,6 +51,44 @@ notify_user() {
         "$title" "$body" 2>/dev/null || true
 }
 
+# Schedule a single batched notification after a short debounce window
+# Kills any pending notification timer and restarts it — fires once activity stops
+schedule_notify() {
+    # Append blocked path to pending list
+    echo "$1" >> "$NOTIFY_PENDING"
+
+    # Kill existing debounce timer if running
+    if [[ -f "$NOTIFY_PID_FILE" ]]; then
+        local old_pid
+        old_pid=$(cat "$NOTIFY_PID_FILE" 2>/dev/null)
+        kill "$old_pid" 2>/dev/null || true
+        rm -f "$NOTIFY_PID_FILE"
+    fi
+
+    # Start new debounce timer — fires after 3s of no new events
+    (
+        echo $$ > "$NOTIFY_PID_FILE"
+        sleep 3
+        local count
+        count=$(wc -l < "$NOTIFY_PENDING" 2>/dev/null || echo 0)
+        local files
+        files=$(sort -u "$NOTIFY_PENDING" 2>/dev/null | head -5 | tr '\n' '\n')
+        rm -f "$NOTIFY_PENDING" "$NOTIFY_PID_FILE"
+
+        if [[ "$count" -eq 1 ]]; then
+            notify_user \
+                "Base System Protection" \
+                "A modification to a base system file was blocked:\n\n$files\n\nBase files are managed by bootc update." \
+                "normal"
+        else
+            notify_user \
+                "Base System Protection" \
+                "$count modifications to base system files were blocked:\n\n$files\n\nBase files are managed by bootc update." \
+                "normal"
+        fi
+    ) &
+}
+
 is_overlay_operation() {
     [[ -f "$LOCK_FILE" ]]
 }
@@ -88,10 +128,7 @@ handle_event() {
         && log "  Removed shadow successfully." \
         || log "  WARNING: could not remove shadow at $full_overlay_path"
 
-    notify_user \
-        "Base System Protection" \
-        "A modification to a base system file was blocked and removed.\n\nFile: $base_path\n\nBase system files are managed by bootc update." \
-        "normal"
+    schedule_notify "$base_path"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
