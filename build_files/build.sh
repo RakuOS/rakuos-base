@@ -78,7 +78,7 @@ dnf5 -y remove firefox
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-pip3 install pywebview --target=/usr/lib/python3.14/site-packages --break-system-packages
+pip3 install cefpython3 --target=/usr/lib/python3.14/site-packages --break-system-packages
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
