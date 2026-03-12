@@ -5,7 +5,6 @@
 set -euo pipefail
 
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
-UPPER_USR="$UPPER_DIR/usr"
 LOCK_FILE="/run/rakuos-overlay.lock"
 LOG_TAG="rakuos-base-protect"
 
@@ -18,7 +17,6 @@ notify_user() {
     local body="$2"
     local urgency="${3:-normal}"
 
-    # Find active graphical user session
     local active_user user_uid user_runtime
     active_user=$(loginctl list-sessions --no-legend 2>/dev/null \
         | awk '{print $3}' | head -n1)
@@ -37,7 +35,6 @@ notify_user() {
 }
 
 is_overlay_operation() {
-    # Returns 0 (true) if rakuos-install/sync is actively running (lockfile present)
     [[ -f "$LOCK_FILE" ]]
 }
 
@@ -47,19 +44,19 @@ handle_event() {
 
     local full_overlay_path="${event_dir}${event_file}"
 
-    # Get the corresponding base /usr path
-    local base_path="/usr${event_dir#$UPPER_USR}${event_file}"
+    # Map overlay path → base /usr path
+    # UPPER_DIR mirrors /usr, so strip UPPER_DIR prefix and prepend /usr
+    local base_path="/usr${full_overlay_path#$UPPER_DIR}"
 
-    # Only care if this path exists in the base image
+    # Only act if this path exists in the base image
     [[ -e "$base_path" ]] || return 0
 
-    # If a legitimate overlay operation is running, allow it
+    # Allow legitimate overlay operations
     if is_overlay_operation; then
         log "overlay operation in progress — allowing write to $base_path"
         return 0
     fi
 
-    # Shadow detected — remove from overlay immediately
     log "BLOCKED: shadow of base file detected: $full_overlay_path"
     log "  Base path: $base_path"
 
@@ -67,7 +64,6 @@ handle_event() {
         && log "  Removed shadow successfully." \
         || log "  WARNING: could not remove shadow at $full_overlay_path"
 
-    # Notify user
     notify_user \
         "Base System Protection" \
         "A modification to a base system file was blocked and removed.\n\nFile: $base_path\n\nBase system files are managed by bootc update." \
@@ -76,21 +72,19 @@ handle_event() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-# Ensure inotifywait is available
 if ! command -v inotifywait &>/dev/null; then
     log "ERROR: inotifywait not found. Install inotify-tools package."
     exit 1
 fi
 
-# Wait for overlay to be mounted
-until [[ -d "$UPPER_USR" ]]; do
-    log "Waiting for overlay upper/usr to be available..."
+# Wait for overlay upper dir to be available
+until [[ -d "$UPPER_DIR" ]]; do
+    log "Waiting for overlay upper dir to be available..."
     sleep 2
 done
 
-log "Starting base protection watcher on $UPPER_USR"
+log "Starting base protection watcher on $UPPER_DIR"
 
-# Watch recursively for file creation and moves into the upper/usr dir
 inotifywait \
     --monitor \
     --recursive \
@@ -99,7 +93,7 @@ inotifywait \
     --event create \
     --event moved_to \
     --event close_write \
-    "$UPPER_USR" \
+    "$UPPER_DIR" \
 | while IFS=' ' read -r event_dir event_file; do
     handle_event "$event_dir" "$event_file"
 done
