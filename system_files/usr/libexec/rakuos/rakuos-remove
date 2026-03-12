@@ -24,17 +24,9 @@ touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
 # Filter out packages not in the overlay list
-# Also block base image packages — bootc owns these, removing them is not allowed
-BASE_PKGS=$(sqlite3 /usr/lib/sysimage/rpm-ostree-base-db/rpmdb.sqlite \
-    "SELECT key FROM Name;" 2>/dev/null | sort -u || true)
-
+# packages.list is the source of truth — if it's there, it was installed via overlay
 TO_REMOVE=()
 for pkg in "${PACKAGES[@]}"; do
-    if [[ -n "$BASE_PKGS" ]] && echo "$BASE_PKGS" | grep -qx "$pkg"; then
-        echo "INFO: $pkg is part of the base system image and cannot be removed via the overlay."
-        echo "      Base image packages are managed by bootc."
-        continue
-    fi
     if ! grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
         echo "$pkg is not in the RakuOS package list — skipping."
     else

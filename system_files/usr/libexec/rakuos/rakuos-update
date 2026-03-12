@@ -28,7 +28,7 @@ require_packages_list() {
 
 # Get all packages owned by the base image (marked dependency by rakuos)
 get_base_packages() {
-    sqlite3 /usr/lib/sysimage/rpm-ostree-base-db/rpmdb.sqlite \
+    sqlite3 /usr/lib/sysimage/rpm/rpmdb.sqlite \
         "SELECT key FROM Name;" 2>/dev/null | sort -u || true
 }
 
