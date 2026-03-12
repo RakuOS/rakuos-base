@@ -30,6 +30,10 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
+dnf5 swap ffmpeg-free ffmpeg --allowerasing
+
+dnf5 update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+
 # install packages
 dnf5 -y install ananicy-cpp \
   cachyos-ananicy-rules \

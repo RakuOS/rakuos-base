@@ -153,7 +153,7 @@ def submit_review(
         "description": description.strip(),
         "rating": rating,
         "version": version,
-        "distro": "RakuOS",
+        "distro": "RakuOS Linux",
         "user_display": None,  # anonymous
     })
 
