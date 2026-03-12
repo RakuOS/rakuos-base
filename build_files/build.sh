@@ -34,6 +34,10 @@ dnf5 swap ffmpeg-free ffmpeg --allowerasing
 
 dnf5 update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
+dnf5 swap mesa-va-drivers mesa-va-drivers-freeworld
+
+dnf5 swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
+
 # install packages
 dnf5 -y install ananicy-cpp \
   cachyos-ananicy-rules \
