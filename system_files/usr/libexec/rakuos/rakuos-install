@@ -84,13 +84,6 @@ fi
 
 echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS overlay..."
 
-# Build --setopt=excludepkgs to stop dnf pulling base packages into overlay
-EXCLUDE_SETOPT=""
-if [[ -f "$BASE_PACKAGES_FILE" ]]; then
-    EXCLUDE_LIST=$(tr '\n' ',' < "$BASE_PACKAGES_FILE" | sed 's/,$//')
-    EXCLUDE_SETOPT="--exclude=$EXCLUDE_LIST"
-fi
-
 # Mount our persistent overlay if not already active
 if ! findmnt /usr | grep -q overlay; then
     echo "Mounting RakuOS overlay..."
@@ -100,7 +93,7 @@ if ! findmnt /usr | grep -q overlay; then
 fi
 
 # Install into overlay — excludes base packages from dep resolution
-dnf5.real install -y $EXCLUDE_SETOPT "${TO_INSTALL_ARGS[@]}"
+dnf5.real install -y "${TO_INSTALL_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do

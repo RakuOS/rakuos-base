@@ -132,15 +132,7 @@ cmd_upgrade() {
         exit 0
     fi
 
-    # Build --setopt=excludepkgs to stop dnf pulling base packages into overlay
-    local exclude_setopt=""
-    if [[ -f "/usr/share/rakuos/base-packages.txt" ]]; then
-        local exclude_list
-        exclude_list=$(tr '\n' ',' < "/usr/share/rakuos/base-packages.txt" | sed 's/,$//')
-        exclude_setopt="--exclude=$exclude_list"
-    fi
-
-    dnf5.real upgrade -y $exclude_setopt $overlay_pkgs
+        dnf5.real upgrade -y $overlay_pkgs
     rm -f "$exclude_conf"
     echo "RakuOS: overlay package upgrade complete."
 }
