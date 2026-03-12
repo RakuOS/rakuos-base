@@ -50,7 +50,7 @@ if ! findmnt /usr | grep -q overlay; then
 fi
 
 # Remove live from overlay
-dnf5.real remove -y "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
+dnf5.real remove -y --config="/usr/share/rakuos/dnf.conf" "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
 
 # Remove each from packages list
 for pkg in "${TO_REMOVE[@]}"; do
