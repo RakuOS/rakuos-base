@@ -65,21 +65,21 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
-    dnf5.real install -y "${PACKAGES[@]}"
+    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — upgrading overlay packages..."
-    dnf5.real upgrade -y "${PACKAGES[@]}"
+    dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: upgrade complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
-    dnf5.real install -y "${PACKAGES[@]}"
+    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."
 

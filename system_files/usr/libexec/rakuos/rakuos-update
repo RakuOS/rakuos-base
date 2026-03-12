@@ -132,7 +132,7 @@ cmd_upgrade() {
         exit 0
     fi
 
-        dnf5.real upgrade -y $overlay_pkgs
+        dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" $overlay_pkgs
     rm -f "$exclude_conf"
     echo "RakuOS: overlay package upgrade complete."
 }

@@ -6,7 +6,6 @@ set -euo pipefail
 MANIFEST_DIR="/usr/share/rakuos"
 MANIFEST_FILE="$MANIFEST_DIR/base-manifest.txt"
 BASE_PACKAGES_FILE="$MANIFEST_DIR/base-packages.txt"
-DNF_CONF="/etc/dnf/dnf.conf"
 
 mkdir -p "$MANIFEST_DIR"
 
