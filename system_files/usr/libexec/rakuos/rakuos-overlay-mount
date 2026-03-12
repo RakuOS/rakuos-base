@@ -41,9 +41,13 @@ if [[ ! -f "$PACKAGES_LIST" ]]; then
     if [[ -f "$DEFAULT_PACKAGES_LIST" ]]; then
         echo "RakuOS overlay: seeding packages.list from $DEFAULT_PACKAGES_LIST ..."
         cp "$DEFAULT_PACKAGES_LIST" "$PACKAGES_LIST"
+        # Ensure packages.list ends with newline
+        sed -i -e '$a\' /var/lib/rakuos/packages.list
     else
         echo "RakuOS overlay: no default packages.list found at $DEFAULT_PACKAGES_LIST — starting empty."
         touch "$PACKAGES_LIST"
+        # Ensure packages.list ends with newline
+        sed -i -e '$a\' /var/lib/rakuos/packages.list
     fi
 fi
 
