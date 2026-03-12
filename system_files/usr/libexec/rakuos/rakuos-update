@@ -132,15 +132,19 @@ cmd_upgrade() {
         exit 0
     fi
 
-    # Build exclude args so dnf doesn't touch base image packages
-    local exclude_args=()
+    # Write exclude config so dnf skips base image packages
+    local exclude_conf
+    exclude_conf=$(mktemp /tmp/rakuos-exclude.XXXXXX.conf)
     if [[ -f "/usr/share/rakuos/base-packages.txt" ]]; then
-        while IFS= read -r base_pkg; do
-            exclude_args+=("--exclude=$base_pkg")
-        done < "/usr/share/rakuos/base-packages.txt"
+        local exclude_list
+        exclude_list=$(tr '\n' ',' < "/usr/share/rakuos/base-packages.txt" | sed 's/,$//')
+        printf '[main]\nexcludepkgs=%s\n' "$exclude_list" > "$exclude_conf"
+    else
+        printf '[main]\n' > "$exclude_conf"
     fi
 
-    dnf5.real upgrade -y "${exclude_args[@]}" $overlay_pkgs
+    dnf5.real upgrade -y --config="$exclude_conf" $overlay_pkgs
+    rm -f "$exclude_conf"
     echo "RakuOS: overlay package upgrade complete."
 }
 
