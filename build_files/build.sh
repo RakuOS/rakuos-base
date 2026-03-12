@@ -30,13 +30,13 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
-dnf5 swap ffmpeg-free ffmpeg --allowerasing
+dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
 
-dnf5 update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+dnf5 -y update @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
-dnf5 swap mesa-va-drivers mesa-va-drivers-freeworld
+dnf5 -y swap mesa-va-drivers mesa-va-drivers-freeworld
 
-dnf5 swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
+dnf5 -y swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
 
 # install packages
 dnf5 -y install ananicy-cpp \
