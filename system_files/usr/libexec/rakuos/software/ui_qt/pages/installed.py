@@ -1,23 +1,256 @@
 """
-pages/installed.py — Installed apps page.
+pages/installed.py — Installed apps page with tabs.
 
-Sections:
-  - Native (Overlay RPMs)
-  - Flatpak
-  - AppImages
-  - Web Apps
+Tabs:
+  RPM (Overlay)  — packages from /var/lib/rakuos/packages.list only
+  Flatpak        — apps + runtimes/add-ons, shown as subsections
+  AppImages      — user-installed AppImages
+  Web Apps       — user-installed web apps
+
+Each tab is a scrollable list of rows with an Uninstall button on the right.
+Clicking a row name opens the detail page (existing behaviour).
 """
 
+import subprocess
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QScrollArea, QFrame, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame,
+    QLabel, QPushButton, QTabWidget, QSizePolicy,
+    QStackedWidget, QProgressBar,
 )
 from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QPixmap
 
 from ..workers import Worker
-from ..widgets import FlowGrid, SectionTitle, LoadingWidget, hline
-from ..theme import dimmed
+from ..widgets import SectionTitle, LoadingWidget, hline
+from ..theme import dimmed, bold_font
 from backend import packages, flatpak, appimages, webapps
 
+
+# ── Single list row ───────────────────────────────────────────────────────────
+
+class InstalledRow(QFrame):
+    """
+    One installed item — icon | name + summary | version | Uninstall btn.
+    Uninstall button turns into an inline red progress bar while running,
+    then shows ✓ or ✗ when done.
+    """
+    clicked    = pyqtSignal(dict)
+    uninstall  = pyqtSignal(dict)
+    done       = pyqtSignal(dict, int)   # (app, exit_code)
+
+    def __init__(self, app: dict, parent=None):
+        super().__init__(parent)
+        self._app = app
+        self.setObjectName("installedRow")
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        hl = QHBoxLayout(self)
+        hl.setContentsMargins(8, 6, 8, 6)
+        hl.setSpacing(12)
+
+        # Icon
+        icon_lbl = QLabel()
+        icon_lbl.setFixedSize(36, 36)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_path = app.get("icon_path", "")
+        loaded = False
+        if icon_path:
+            pix = QPixmap(icon_path)
+            if not pix.isNull():
+                icon_lbl.setPixmap(pix.scaled(
+                    36, 36,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+                loaded = True
+        if not loaded:
+            src = app.get("source", "")
+            icon_lbl.setText(
+                "🌐" if src == "webapp" else
+                "📦" if src == "appimage" else
+                "◈"     if src == "flatpak" else "⬡")
+            f = icon_lbl.font(); f.setPointSize(18); icon_lbl.setFont(f)
+        hl.addWidget(icon_lbl)
+
+        # Name + summary
+        text_col = QVBoxLayout()
+        text_col.setSpacing(1)
+        name = app.get("name") or app.get("id", "unknown")
+        self._name_lbl = bold_font(QLabel(name))
+        self._name_lbl.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        text_col.addWidget(self._name_lbl)
+        summary = app.get("summary") or app.get("description", "")
+        if summary:
+            s_lbl = dimmed(QLabel(summary[:80] + ("…" if len(summary) > 80 else "")))
+            s_lbl.setStyleSheet("font-size: 11px;")
+            text_col.addWidget(s_lbl)
+        hl.addLayout(text_col, stretch=1)
+
+        # Badge
+        badge_text = ""
+        src = app.get("source", "")
+        if app.get("runtime"):
+            badge_text = "Runtime"
+        elif src == "appimage":
+            badge_text = "AppImage"
+        elif src == "webapp":
+            badge_text = "Web App"
+        if badge_text:
+            badge = QLabel(badge_text)
+            badge.setStyleSheet(
+                "QLabel { background: rgba(128,128,128,0.15); color: palette(mid);"
+                " border-radius: 4px; padding: 1px 7px; font-size: 10px; }")
+            hl.addWidget(badge)
+
+        # Version
+        ver = app.get("version", "")
+        if ver:
+            ver_lbl = dimmed(QLabel(ver))
+            ver_lbl.setStyleSheet("font-size: 11px; min-width: 60px;")
+            ver_lbl.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            hl.addWidget(ver_lbl)
+
+        # Right side: stacked uninstall btn / progress / status
+        from PyQt6.QtWidgets import QStackedWidget, QProgressBar
+        self._right = QStackedWidget()
+        self._right.setFixedWidth(100)
+        self._right.setFixedHeight(28)
+
+        # Page 0 — Uninstall button
+        self._btn = QPushButton("Uninstall")
+        self._btn.setFixedHeight(26)
+        self._btn.setObjectName("dangerButton")
+        self._btn.clicked.connect(lambda: self.uninstall.emit(self._app))
+        self._right.addWidget(self._btn)
+
+        # Page 1 — Progress bar (indeterminate, red)
+        self._progress = QProgressBar()
+        self._progress.setRange(0, 0)
+        self._progress.setFixedHeight(8)
+        self._progress.setTextVisible(False)
+        self._progress.setStyleSheet(
+            "QProgressBar { border-radius: 4px; background: rgba(229,57,53,0.15); }"
+            "QProgressBar::chunk { background: #e53935; border-radius: 4px; }")
+        prog_wrap = QWidget()
+        pw = QVBoxLayout(prog_wrap)
+        pw.setContentsMargins(4, 0, 4, 0)
+        pw.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        pw.addWidget(self._progress)
+        self._right.addWidget(prog_wrap)
+
+        # Page 2 — Result icon
+        self._result_lbl = QLabel()
+        self._result_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._right.addWidget(self._result_lbl)
+
+        self._right.setCurrentIndex(0)
+        hl.addWidget(self._right)
+
+    def set_uninstalling(self):
+        self._right.setCurrentIndex(1)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def set_done(self, success: bool):
+        self._right.setCurrentIndex(2)
+        if success:
+            self._result_lbl.setText("✓")
+            self._result_lbl.setStyleSheet("color: #4caf50; font-size: 18px;")
+        else:
+            self._result_lbl.setText("✗")
+            self._result_lbl.setStyleSheet("color: #e53935; font-size: 18px;")
+
+    def mousePressEvent(self, event):
+        self.clicked.emit(self._app)
+        super().mousePressEvent(event)
+
+
+# ── Scrollable list tab ───────────────────────────────────────────────────────
+
+class ListTab(QWidget):
+    """A scrollable list of InstalledRow widgets, optionally with subsections."""
+    row_clicked   = pyqtSignal(dict)
+    row_uninstall = pyqtSignal(dict, object)   # (app, row)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAutoFillBackground(True)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._content = QWidget(scroll)
+        self._vl = QVBoxLayout(self._content)
+        self._vl.setContentsMargins(16, 12, 16, 12)
+        self._vl.setSpacing(0)
+        scroll.setWidget(self._content)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+    def set_items(self, items: list[dict], empty_text: str = "Nothing installed."):
+        self._clear()
+        if not items:
+            self._vl.addStretch()
+            self._vl.addWidget(
+                dimmed(QLabel(empty_text)),
+                alignment=Qt.AlignmentFlag.AlignCenter)
+            self._vl.addStretch()
+            return
+        for i, app in enumerate(items):
+            row = InstalledRow(app)
+            row.clicked.connect(self.row_clicked)
+            row.uninstall.connect(lambda a, r=row: self.row_uninstall.emit(a, r))
+            self._vl.addWidget(row)
+            if i < len(items) - 1:
+                sep = QFrame()
+                sep.setFrameShape(QFrame.Shape.HLine)
+                sep.setStyleSheet("color: rgba(128,128,128,0.12);")
+                self._vl.addWidget(sep)
+        self._vl.addStretch()
+
+    def set_sections(self, sections: list[tuple[str, list[dict]]],
+                     empty_text: str = "Nothing installed."):
+        """sections = [('Section Title', [app, ...]), ...]"""
+        self._clear()
+        has_any = any(items for _, items in sections)
+        if not has_any:
+            self._vl.addStretch()
+            self._vl.addWidget(
+                dimmed(QLabel(empty_text)),
+                alignment=Qt.AlignmentFlag.AlignCenter)
+            self._vl.addStretch()
+            return
+        first = True
+        for title, items in sections:
+            if not items:
+                continue
+            if not first:
+                self._vl.addWidget(hline())
+                self._vl.addSpacing(4)
+            self._vl.addWidget(SectionTitle(title))
+            self._vl.addSpacing(4)
+            for i, app in enumerate(items):
+                row = InstalledRow(app)
+                row.clicked.connect(self.row_clicked)
+                row.uninstall.connect(lambda a, r=row: self.row_uninstall.emit(a, r))
+                self._vl.addWidget(row)
+                if i < len(items) - 1:
+                    sep = QFrame()
+                    sep.setFrameShape(QFrame.Shape.HLine)
+                    sep.setStyleSheet("color: rgba(128,128,128,0.12);")
+                    self._vl.addWidget(sep)
+            first = False
+        self._vl.addStretch()
+
+    def _clear(self):
+        while self._vl.count():
+            item = self._vl.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+
+# ── Main installed page ───────────────────────────────────────────────────────
 
 class InstalledPage(QWidget):
     app_clicked      = pyqtSignal(dict)
@@ -26,94 +259,232 @@ class InstalledPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        self._workers: list[Worker] = []
-
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._content = QWidget()
-        self._vl = QVBoxLayout(self._content)
-        self._vl.setContentsMargins(24, 20, 24, 20)
-        self._vl.setSpacing(16)
-        scroll.setWidget(self._content)
+        self._workers: list = []
+        self.setAutoFillBackground(True)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
+        outer.setSpacing(0)
+
+        self._tabs = QTabWidget()
+        self._tabs.setDocumentMode(True)
+
+        # Create the four tab list widgets
+        self._rpm_tab  = ListTab()
+        self._fp_tab   = ListTab()
+        self._ai_tab   = ListTab()
+        self._wa_tab   = ListTab()
+
+        self._tabs.addTab(self._rpm_tab,  "⬡  RPM (Overlay)")
+        self._tabs.addTab(self._fp_tab,   "◈  Flatpak")
+        self._tabs.addTab(self._ai_tab,   "📦  AppImages")
+        self._tabs.addTab(self._wa_tab,   "🌐  Web Apps")
+
+        # Wire row signals
+        self._rpm_tab.row_clicked.connect(self.app_clicked)
+        self._fp_tab.row_clicked.connect(self.app_clicked)
+        self._ai_tab.row_clicked.connect(self.appimage_clicked)
+        self._wa_tab.row_clicked.connect(self.webapp_clicked)
+
+        self._rpm_tab.row_uninstall.connect(self._do_uninstall_rpm)
+        self._fp_tab.row_uninstall.connect(self._do_uninstall_flatpak)
+        self._ai_tab.row_uninstall.connect(self._do_uninstall_appimage)
+        self._wa_tab.row_uninstall.connect(self._do_uninstall_webapp)
+        # Note: all _do_uninstall_* take (app, row) args
+
+        outer.addWidget(self._tabs)
+
+    # ── Load ──────────────────────────────────────────────────────────────────
 
     def load(self):
-        self._clear()
-        self._vl.addWidget(LoadingWidget())
+        # Show loading state in active tab
+        for tab in (self._rpm_tab, self._fp_tab, self._ai_tab, self._wa_tab):
+            tab.set_items([], "Loading…")
+
         w = Worker(self._fetch)
         w.result.connect(self._on_data)
         w.start()
         self._workers.append(w)
 
     def _fetch(self) -> dict:
+        # RPM: only packages from packages.list
+        rpm_list = self._get_overlay_packages()
+
+        # Flatpak: apps + runtimes separately
+        fp_apps     = flatpak.get_installed_flatpaks()
+        fp_runtimes = self._get_flatpak_runtimes()
+
         return {
-            "native":    packages.get_installed_with_metadata(),
-            "flatpak":   flatpak.get_installed_flatpaks(),
-            "appimages": appimages.get_installed(),
-            "webapps":   webapps.get_installed(),
+            "rpm":         rpm_list,
+            "fp_apps":     fp_apps,
+            "fp_runtimes": fp_runtimes,
+            "appimages":   appimages.get_installed(),
+            "webapps":     webapps.get_installed(),
         }
 
+    def _get_overlay_packages(self) -> list[dict]:
+        """Read packages.list and return enriched metadata for each package."""
+        import re
+        from pathlib import Path
+        pkgs_file = Path("/var/lib/rakuos/packages.list")
+        if not pkgs_file.exists():
+            return []
+        pkg_names = [
+            l.strip() for l in pkgs_file.read_text().splitlines()
+            if l.strip() and not l.startswith("#")
+        ]
+        if not pkg_names:
+            return []
+        # Get version for each installed package
+        result = subprocess.run(
+            ["rpm", "-q", "--queryformat",
+             "%{NAME}\t%{VERSION}-%{RELEASE}\t%{SUMMARY}\n"] + pkg_names,
+            capture_output=True, text=True
+        )
+        items = []
+        for line in result.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 1 and "not installed" not in parts[0]:
+                name    = parts[0].strip()
+                version = parts[1].strip() if len(parts) > 1 else ""
+                summary = parts[2].strip() if len(parts) > 2 else ""
+                items.append({
+                    "id":       name,
+                    "pkg_name": name,
+                    "name":     name,
+                    "version":  version,
+                    "summary":  summary,
+                    "source":   "native",
+                    "installed": True,
+                })
+        return items
+
+    def _get_flatpak_runtimes(self) -> list[dict]:
+        """Return installed Flatpak runtimes and extensions."""
+        try:
+            result = subprocess.run(
+                ["flatpak", "list", "--runtime",
+                 "--columns=application,name,version,branch,origin"],
+                capture_output=True, text=True
+            )
+            items = []
+            for line in result.stdout.splitlines():
+                parts = line.split("\t")
+                if len(parts) >= 2:
+                    app_id = parts[0].strip()
+                    branch = parts[3].strip() if len(parts) > 3 else ""
+                    # Full ref needed for flatpak remove on runtimes
+                    full_ref = f"{app_id}//{branch}" if branch else app_id
+                    items.append({
+                        "id":        full_ref,   # used for removal
+                        "app_id":    app_id,      # display only
+                        "name":      parts[1].strip() if len(parts) > 1 else app_id,
+                        "version":   parts[2].strip() if len(parts) > 2 else "",
+                        "branch":    branch,
+                        "origin":    parts[4].strip() if len(parts) > 4 else "",
+                        "summary":   "",
+                        "source":    "flatpak",
+                        "runtime":   True,
+                        "installed": True,
+                    })
+            return items
+        except Exception as e:
+            print(f"[installed] get_flatpak_runtimes error: {e}")
+            return []
+
+    # ── Render ────────────────────────────────────────────────────────────────
+
     def _on_data(self, data: dict):
-        self._clear()
-        native    = data.get("native", [])
-        fps       = data.get("flatpak", [])
-        ais       = data.get("appimages", [])
-        was       = data.get("webapps", [])
-        any_installed = any([native, fps, ais, was])
+        rpm      = data.get("rpm", [])
+        fp_apps  = data.get("fp_apps", [])
+        fp_rt    = data.get("fp_runtimes", [])
+        ais      = data.get("appimages", [])
+        was      = data.get("webapps", [])
 
-        if native:
-            self._vl.addWidget(SectionTitle("Native (Overlay)"))
-            g = FlowGrid()
-            g.set_apps(native)
-            g.app_clicked.connect(self.app_clicked)
-            self._vl.addWidget(g)
+        # Sort all lists alphabetically by display name
+        key = lambda a: (a.get("name") or a.get("id") or "").lower()
+        rpm.sort(key=key)
+        fp_apps.sort(key=key)
+        fp_rt.sort(key=key)
+        ais.sort(key=key)
+        was.sort(key=key)
 
-        if fps:
-            if native:
-                self._vl.addWidget(hline())
-            self._vl.addWidget(SectionTitle("Flatpak"))
-            g = FlowGrid()
-            g.set_apps(fps)
-            g.app_clicked.connect(self.app_clicked)
-            self._vl.addWidget(g)
+        # Update tab labels with counts
+        self._tabs.setTabText(0, f"⬡  RPM ({len(rpm)})")
+        self._tabs.setTabText(1, f"◈  Flatpak ({len(fp_apps) + len(fp_rt)})")
+        self._tabs.setTabText(2, f"📦  AppImages ({len(ais)})")
+        self._tabs.setTabText(3, f"🌐  Web Apps ({len(was)})")
 
-        if ais:
-            if native or fps:
-                self._vl.addWidget(hline())
-            self._vl.addWidget(SectionTitle("AppImages"))
-            # Tag each with source + badge info
-            ai_apps = [dict(a, source="appimage") for a in ais]
-            g = FlowGrid()
-            g.set_apps(ai_apps)
-            g.app_clicked.connect(self.appimage_clicked)
-            self._vl.addWidget(g)
+        self._rpm_tab.set_items(rpm, "No overlay packages installed.")
+        self._fp_tab.set_sections([
+            ("Applications", fp_apps),
+            ("Runtimes & Add-ons", fp_rt),
+        ], "No Flatpaks installed.")
+        self._ai_tab.set_items(ais,  "No AppImages installed.")
+        self._wa_tab.set_items(was,  "No web apps installed.")
 
-        if was:
-            if native or fps or ais:
-                self._vl.addWidget(hline())
-            self._vl.addWidget(SectionTitle("Web Apps"))
-            wa_apps = [dict(a, source="webapp") for a in was]
-            g = FlowGrid()
-            g.set_apps(wa_apps)
-            g.app_clicked.connect(self.webapp_clicked)
-            self._vl.addWidget(g)
+    # ── Uninstall actions ─────────────────────────────────────────────────────
 
-        if not any_installed:
-            self._vl.addStretch()
-            self._vl.addWidget(
-                dimmed(QLabel("No apps installed yet.")),
-                alignment=Qt.AlignmentFlag.AlignCenter)
-            self._vl.addStretch()
+    def _do_uninstall_rpm(self, app: dict, row: "InstalledRow"):
+        from ..workers import StreamWorker
+        from backend.packages import remove_package_stream
+        pkg = app.get("pkg_name") or app.get("name", "")
+        if not pkg:
             return
+        self._run_uninstall_stream(row, lambda: remove_package_stream(pkg))
 
-        self._vl.addStretch()
+    def _do_uninstall_flatpak(self, app: dict, row: "InstalledRow"):
+        from ..workers import StreamWorker
+        from backend.flatpak import remove_flatpak_stream
+        app_id = app.get("id", "")
+        if not app_id:
+            return
+        is_runtime = app.get("runtime", False)
+        self._run_uninstall_stream(
+            row, lambda: remove_flatpak_stream(app_id, force=is_runtime))
 
-    def _clear(self):
-        while self._vl.count():
-            i = self._vl.takeAt(0)
-            if i.widget():
-                i.widget().deleteLater()
+    def _do_uninstall_appimage(self, app: dict, row: "InstalledRow"):
+        app_id = app.get("id", "")
+        if not app_id:
+            return
+        row.set_uninstalling()
+        w = Worker(lambda: appimages.uninstall_appimage(app_id))
+        w.result.connect(lambda r: self._on_simple_done(row, r[0]))
+        w.start()
+        self._workers.append(w)
+
+    def _do_uninstall_webapp(self, app: dict, row: "InstalledRow"):
+        app_id = app.get("id", "")
+        if not app_id:
+            return
+        row.set_uninstalling()
+        w = Worker(lambda: webapps.uninstall(app_id))
+        w.result.connect(lambda r: self._on_simple_done(row, r[0]))
+        w.start()
+        self._workers.append(w)
+
+    def _run_uninstall_stream(self, row: "InstalledRow", gen_fn):
+        """Run a streaming uninstall, showing inline progress on the row."""
+        from ..workers import StreamWorker
+        row.set_uninstalling()
+
+        def _on_done(code):
+            row.set_done(code == 0)
+            if code == 0:
+                # Small delay so user sees the ✓ before row disappears
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(800, self.load)
+
+        w = StreamWorker(gen_fn)
+        w.done.connect(_on_done)
+        w.start()
+        self._workers.append(w)
+
+    def _on_simple_done(self, row: "InstalledRow", success: bool):
+        row.set_done(success)
+        if success:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(800, self.load)
+
+
+        dlg.exec()

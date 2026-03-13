@@ -22,18 +22,32 @@ sys.path.insert(0, _here)
 _rpm_file      = None
 _flatpak_file  = None
 _flatpakref    = None
+_appimage_file = None
 
 for _arg in sys.argv[1:]:
     if _arg.startswith("-") or _arg == "%f":
         continue
+    # Resolve file:// URIs that some file managers pass
+    if _arg.startswith("file://"):
+        import urllib.parse
+        _arg = urllib.parse.unquote(_arg[7:])
     if not os.path.isfile(_arg):
         continue
-    if _arg.endswith(".rpm"):
+    _ext = os.path.splitext(_arg)[1].lower()
+    if _ext == ".rpm":
         _rpm_file = _arg
-    elif _arg.endswith(".flatpak"):
+    elif _ext == ".flatpak":
         _flatpak_file = _arg
-    elif _arg.endswith(".flatpakref"):
+    elif _ext == ".flatpakref":
         _flatpakref = _arg
+    elif _ext == ".appimage":
+        _appimage_file = _arg
+
+# Debug output so we can see what was detected
+if os.environ.get("RAKUOS_DEBUG"):
+    print(f"[entry] argv={sys.argv[1:]}")
+    print(f"[entry] rpm={_rpm_file} flatpak={_flatpak_file} "
+          f"ref={_flatpakref} appimage={_appimage_file}")
 
 # ── Pick frontend based on DE ─────────────────────────────────────────────────
 _de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
@@ -43,4 +57,5 @@ if "gnome" in _de:
 else:
     from ui_qt.main import run
 
-run(rpm_file=_rpm_file, flatpak_file=_flatpak_file, flatpakref=_flatpakref)
+run(rpm_file=_rpm_file, flatpak_file=_flatpak_file,
+    flatpakref=_flatpakref, appimage_file=_appimage_file)

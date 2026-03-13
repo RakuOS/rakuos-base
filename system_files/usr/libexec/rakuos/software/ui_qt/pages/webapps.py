@@ -176,33 +176,37 @@ class WebAppsPage(QWidget):
 
         if installed:
             self._vl.addWidget(SectionTitle("Installed"))
-            self._vl.addLayout(self._make_grid(installed))
+            self._vl.addWidget(self._make_grid(installed))
             self._vl.addWidget(hline())
 
         if available:
             self._vl.addWidget(SectionTitle("Available"))
-            self._vl.addLayout(self._make_grid(available))
+            self._vl.addWidget(self._make_grid(available))
 
         self._vl.addStretch()
 
-    def _make_grid(self, apps: list) -> QGridLayout:
-        grid = QGridLayout()
+    def _make_grid(self, apps: list) -> "QWidget":
+        """Return a QWidget containing a grid of WebAppCards."""
+        from PyQt6.QtWidgets import QGridLayout
+        container = QWidget()
+        grid = QGridLayout(container)
         grid.setSpacing(12)
+        grid.setContentsMargins(0, 0, 0, 0)
         col_count = 4
         for i, app in enumerate(apps):
-            card = WebAppCard(app)
+            card = WebAppCard(app, parent=container)
             card.clicked.connect(self.app_clicked)
             grid.addWidget(card, i // col_count, i % col_count)
-        # Fill remaining cells
+        # Fill remaining cells with invisible spacers
         remainder = len(apps) % col_count
         if remainder:
             for j in range(col_count - remainder):
-                spacer = QWidget()
+                spacer = QWidget(container)
                 spacer.setFixedWidth(200)
                 grid.addWidget(spacer,
                                len(apps) // col_count,
                                remainder + j)
-        return grid
+        return container
 
     def _clear(self):
         while self._vl.count():
@@ -217,3 +221,10 @@ class WebAppsPage(QWidget):
             item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
+        # Delete the layout itself to fully detach it
+        try:
+            layout.deleteLater()
+        except Exception:
+            pass

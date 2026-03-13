@@ -355,6 +355,7 @@ class MainWindow(QMainWindow):
             "appimage_detail": self._appimage_detail,
         }
         for widget in self._pages.values():
+            widget.setAutoFillBackground(True)
             self._stack.addWidget(widget)
 
         ml.addWidget(self._stack)
@@ -441,6 +442,11 @@ class MainWindow(QMainWindow):
         if page_id == "detail":
             return
         self._prev_page = page_id
+        # Explicitly hide all other pages — prevents Wayland compositor bleedthrough
+        for pid, widget in self._pages.items():
+            if pid != page_id:
+                widget.hide()
+        self._pages[page_id].show()
         self._stack.setCurrentWidget(self._pages[page_id])
 
         # Update static nav button active states
@@ -466,7 +472,7 @@ class MainWindow(QMainWindow):
         for btn in self._nav_btns.values():
             btn.set_active(False)
         self._prev_page = "explore"
-        self._stack.setCurrentWidget(self._explore)
+        self._show_page(self._explore)
         # Look up subcategories for this top-level cat
         subcats = None
         for top_label, top_cat, subs in CATEGORY_TREE:
@@ -479,26 +485,40 @@ class MainWindow(QMainWindow):
         """Called when user clicks a subcategory tile inside explore."""
         self._explore.load_category(cat, label, subcats=None)
 
+    def _show_page(self, widget):
+        """Switch to a page widget, hiding all others to prevent Wayland bleedthrough."""
+        for w in self._pages.values():
+            if w is not widget:
+                w.hide()
+        widget.show()
+        self._stack.setCurrentWidget(widget)
+
     def _open_detail(self, app: dict):
         self._detail.load_app(app)
-        self._stack.setCurrentWidget(self._detail)
+        self._show_page(self._detail)
 
     def _open_webapp_detail(self, app: dict):
         """Open webapp install/detail view — reuses AppDetailPage with webapp info."""
         self._detail.load_app(app)
-        self._stack.setCurrentWidget(self._detail)
+        self._show_page(self._detail)
 
     def _open_appimage_file(self, path: str):
         """Called when user double-clicks an .AppImage file."""
+        import os
+        if os.environ.get("RAKUOS_DEBUG"):
+            print(f"[main] _open_appimage_file: {path!r}")
+        if not path:
+            print("[main] _open_appimage_file called with empty path")
+            return
         self._appimage_detail.load_from_file(path)
-        self._stack.setCurrentWidget(self._appimage_detail)
+        self._show_page(self._appimage_detail)
         for btn in self._nav_btns.values():
             btn.set_active(False)
 
     def _open_appimage_installed(self, app: dict):
         """Called from Installed page for an already-installed AppImage."""
         self._appimage_detail.load_installed(app)
-        self._stack.setCurrentWidget(self._appimage_detail)
+        self._show_page(self._appimage_detail)
         for btn in self._nav_btns.values():
             btn.set_active(False)
 
@@ -638,6 +658,7 @@ def run(rpm_file: str = None, flatpak_file: str = None,
         QTimer.singleShot(300, _open_ref)
 
     elif appimage_file:
+        print(f"[run] Opening AppImage: {appimage_file!r}")
         win.show()
         win.raise_()
         win.activateWindow()

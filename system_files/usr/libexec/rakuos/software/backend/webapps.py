@@ -176,6 +176,7 @@ def get_installed() -> list[dict]:
         try:
             data = json.loads(path.read_text())
             data["installed"] = True
+            data["source"]    = "webapp"   # always set so InstalledRow renders correctly
             apps.append(data)
         except Exception as e:
             print(f"[webapps] Failed to read installed {path}: {e}")

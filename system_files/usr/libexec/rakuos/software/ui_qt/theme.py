@@ -98,6 +98,16 @@ QPushButton:default {
 }
 QPushButton:default:hover   { background: rgba(128,128,128,0.08); }
 QPushButton:default:pressed { background: rgba(128,128,128,0.15); }
+QPushButton#dangerButton {
+    color: #e53935;
+    border: 1px solid rgba(229,57,53,0.5);
+    border-radius: 4px;
+    padding: 4px 10px;
+    background: transparent;
+}
+QPushButton#dangerButton:hover { background: rgba(229,57,53,0.08); }
+QPushButton#dangerButton:pressed { background: rgba(229,57,53,0.15); }
+
 QPushButton[danger="true"] {
     border-color: #c0392b; color: #c0392b;
 }

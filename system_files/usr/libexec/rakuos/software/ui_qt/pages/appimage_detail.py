@@ -48,6 +48,8 @@ class AppImageDetailPage(QWidget):
 
     def load_from_file(self, path: str):
         """Called when user opens an .AppImage file."""
+        import os
+        print(f"[appimage_detail] load_from_file: {path!r}")
         self._src_path = path
         self._clear()
         self._vl.addWidget(LoadingWidget("Reading AppImage…"))

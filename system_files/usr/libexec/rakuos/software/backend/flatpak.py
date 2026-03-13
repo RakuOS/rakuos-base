@@ -112,11 +112,16 @@ def install_flatpak_stream(app_id: str):
         yield "__done__1"
 
 
-def remove_flatpak_stream(app_id: str):
-    """Generator that yields output lines from flatpak remove."""
+def remove_flatpak_stream(app_id: str, force: bool = False):
+    """Generator that yields output lines from flatpak remove.
+    Use force=True for runtimes/add-ons that may have dependents."""
     try:
+        cmd = ["flatpak", "remove", "-y"]
+        if force:
+            cmd.append("--force-remove")
+        cmd.append(app_id)
         proc = subprocess.Popen(
-            ["flatpak", "remove", "-y", app_id],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
