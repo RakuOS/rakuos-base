@@ -610,29 +610,32 @@ def run(rpm_file: str = None, flatpak_file: str = None,
         win.show()
 
     # Open local file directly on the detail page
+    # NOTE: QTimer is imported at module level — no local re-imports needed
+    from backend import flatpak as _fp
+
     if rpm_file:
         win.show()
+        win.raise_()
         def _open_rpm():
             info = packages.get_local_rpm_info(rpm_file)
             win._open_detail(info)
-        QTimer.singleShot(200, _open_rpm)
+        QTimer.singleShot(300, _open_rpm)
 
     elif flatpak_file:
         win.show()
-        from PyQt6.QtCore import QTimer
-        from backend import flatpak as _fp
+        win.raise_()
         def _open_flatpak():
             info = _fp.get_local_flatpak_info(flatpak_file)
             win._open_detail(info)
-        QTimer.singleShot(200, _open_flatpak)
+        QTimer.singleShot(300, _open_flatpak)
 
     elif flatpakref:
         win.show()
-        from backend import flatpak as _fp
+        win.raise_()
         def _open_ref():
             info = _fp.get_flatpakref_info(flatpakref)
             win._open_detail(info)
-        QTimer.singleShot(200, _open_ref)
+        QTimer.singleShot(300, _open_ref)
 
     elif appimage_file:
         win.show()

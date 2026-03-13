@@ -2,50 +2,30 @@
  * rakuos-webapp — Electron main process
  *
  * Usage: electron /usr/lib/rakuos-electron-webapp/ <url> <n> [custom_css]
- *
  * Uses castlabs Electron (ECS) with Widevine fully wired up.
  */
 
-const { app, BrowserWindow, components } = require('electron');
+const { app, BrowserWindow, components, nativeImage } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 
-// Debug: log all argv so we can see what Electron receives
 console.log('[rakuos-webapp] process.argv:', process.argv);
 
-// Electron argv layout:
-//   process.argv[0] = path to electron binary
-//   process.argv[1] = path to app dir (the script dir)
-//   process.argv[2] = <url>
-//   process.argv[3] = <name>
-//   process.argv[4] = [custom_css]
-//
-// BUT if extra flags like --widevine-cdm-path are passed before the app dir,
-// Electron strips them from argv. So we search for the first http arg.
-
+// Find the first http(s) URL in argv — immune to flag ordering
 function parseArgs() {
     const argv = process.argv;
-    let url  = null;
-    let name = 'Web App';
-    let css  = '';
-
     for (let i = 1; i < argv.length; i++) {
-        const a = argv[i];
-        if (a.startsWith('http://') || a.startsWith('https://')) {
-            url  = a;
-            name = argv[i + 1] || 'Web App';
-            css  = argv[i + 2] || '';
-            break;
+        if (argv[i].startsWith('http://') || argv[i].startsWith('https://')) {
+            return {
+                url:  argv[i],
+                name: argv[i + 1] || 'Web App',
+                css:  argv[i + 2] || '',
+            };
         }
     }
-
-    if (!url) {
-        console.error('[rakuos-webapp] No URL found in argv:', argv);
-        app.quit();
-        return null;
-    }
-
-    return { url, name, css };
+    console.error('[rakuos-webapp] No URL found in argv:', argv);
+    app.quit();
+    return null;
 }
 
 const parsed = parseArgs();
@@ -64,9 +44,38 @@ const dataDir = path.join(
 );
 fs.mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
-app.setName(`rakuos-webapp-${appId}`);
+app.setName(appName);  // use real app name so taskbar shows it correctly
 
-// Chromium flags — must be set before ready
+// Window size persistence — save/load from per-app state file
+const stateFile = path.join(dataDir, 'window-state.json');
+
+function loadWindowState() {
+    try {
+        const s = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        // Validate saved values are reasonable
+        if (s.width > 400 && s.height > 300) return s;
+    } catch (_) {}
+    // Default: 75% of primary display
+    const { screen } = require('electron');
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+    return {
+        width:  Math.round(width  * 0.75),
+        height: Math.round(height * 0.75),
+    };
+}
+
+function saveWindowState(win) {
+    if (win.isMaximized() || win.isMinimized()) return;
+    const b = win.getBounds();
+    fs.writeFileSync(stateFile, JSON.stringify({
+        width:  b.width,
+        height: b.height,
+        x:      b.x,
+        y:      b.y,
+    }));
+}
+
+// Chromium flags — must be before ready
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('enable-features',
     'WidevineDrm,PlatformEncryptedMediaExtensions,HardwareSecureDecryption');
@@ -75,7 +84,7 @@ app.commandLine.appendSwitch('disable-features', 'MediaSessionService');
 let win = null;
 
 async function createWindow() {
-    // Wait for Widevine CDM to initialise (castlabs ECS)
+    // Wait for Widevine CDM (castlabs ECS)
     if (components && typeof components.whenReady === 'function') {
         try {
             await components.whenReady();
@@ -85,12 +94,26 @@ async function createWindow() {
         }
     }
 
+    const state = loadWindowState();
+
+    // Load app icon from the cached webapps icon dir
+    const iconPath = path.join(
+        app.getPath('home'),
+        '.local', 'share', 'rakuos', 'webapps', 'icons', `${appId}.png`
+    );
+    const icon = fs.existsSync(iconPath)
+        ? nativeImage.createFromPath(iconPath)
+        : nativeImage.createEmpty();
+
     win = new BrowserWindow({
-        width:  1280,
-        height: 800,
-        title:  appName,
+        width:           state.width,
+        height:          state.height,
+        x:               state.x,
+        y:               state.y,
+        title:           appName,
+        icon:            icon,          // taskbar + title bar icon
         autoHideMenuBar: true,
-        show: false,          // don't show until ready-to-show
+        show:            false,         // show only on ready-to-show
         webPreferences: {
             plugins:          true,
             contextIsolation: false,
@@ -99,24 +122,36 @@ async function createWindow() {
         },
     });
 
-    // Show window only once page has started rendering — avoids white flash
+    // Wayland: set app_id so compositor uses the right icon
+    if (process.platform === 'linux') {
+        win.setTitle(appName);
+        // app.setName() above handles WM_CLASS for X11
+        // For Wayland, pass --ozone-platform-hint=auto and set the icon
+        app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+    }
+
+    // Show window once page starts rendering
     win.once('ready-to-show', () => win.show());
 
-    // Spoof UA to real Chrome so streaming sites don't block CEF/Electron
+    // Save window size/position on resize and move
+    win.on('resize', () => saveWindowState(win));
+    win.on('move',   () => saveWindowState(win));
+    win.on('close',  () => saveWindowState(win));
+
+    // Spoof UA to real Chrome
     const chromeVer = process.versions.chrome || '124.0.0.0';
     win.webContents.setUserAgent(
         `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 ` +
         `(KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`
     );
 
-    // Inject custom CSS after every navigation if provided
+    // Inject custom CSS after load
     if (customCss) {
         win.webContents.on('did-finish-load', () => {
             win.webContents.insertCSS(customCss).catch(console.error);
         });
     }
 
-    // Log load errors so we can diagnose blank windows
     win.webContents.on('did-fail-load', (event, code, desc, url) => {
         console.error(`[rakuos-webapp] Load failed: ${code} ${desc} — ${url}`);
     });
@@ -125,7 +160,7 @@ async function createWindow() {
         console.log('[rakuos-webapp] Page loaded:', win.webContents.getURL());
     });
 
-    // Keep title as app name
+    // Keep title bar as app name
     win.on('page-title-updated', (e) => e.preventDefault());
 
     console.log('[rakuos-webapp] Loading URL:', targetUrl);
