@@ -68,6 +68,12 @@ class PackageUpdateRow(QFrame):
                 "QLabel { background: rgba(100,180,255,0.18); color: #60aaff;"
                 " border-radius: 4px; padding: 1px 6px; font-size: 10px; }")
             ver_row.addWidget(badge)
+        if pkg.get("is_appimage"):
+            badge = QLabel("AppImage")
+            badge.setStyleSheet(
+                "QLabel { background: rgba(255,180,50,0.2); color: #ffb432;"
+                " border-radius: 4px; padding: 1px 6px; font-size: 10px; }")
+            ver_row.addWidget(badge)
         ver_row.addStretch()
         info_col.addLayout(ver_row)
         hl.addLayout(info_col, stretch=1)
@@ -263,6 +269,7 @@ class UpdatesPage(QWidget):
         self._image_card: ImageUpdateCard | None = None
         self._image_info: dict = {}
         self._all_sections: list[UpdateSection] = []
+        self._last_result: dict = {}
 
         # ── Top bar ──────────────────────────────────────────────────────────
         topbar = QHBoxLayout()
@@ -360,8 +367,10 @@ class UpdatesPage(QWidget):
         self._clear()
         self._all_sections = []
 
+        self._last_result = result
         pkgs      = result.get("packages", [])
         fps       = result.get("flatpak", [])
+        ais       = result.get("appimages", [])
         img_avail = result.get("image_available", False)
         img_info  = result.get("image_info", {})
         total     = result.get("total", 0)
@@ -385,10 +394,11 @@ class UpdatesPage(QWidget):
 
         self._update_all_btn.show()
 
-        # ── Group 1: Applications (GUI RPMs + Flatpak apps merged) ────────────
+        # ── Group 1: Applications (GUI RPMs + Flatpak apps + AppImages merged) ─
         gui_pkgs = [p for p in pkgs if p.get("gui")]
         fp_apps  = [dict(p, is_flatpak=True) for p in fps if not p.get("runtime")]
-        app_group = gui_pkgs + fp_apps
+        ai_apps  = [dict(a, is_appimage=True) for a in ais]
+        app_group = gui_pkgs + fp_apps + ai_apps
         if app_group:
             sec = UpdateSection("Applications", app_group, show_icons=True)
             sec.update_all_clicked.connect(self._on_app_update)
@@ -439,9 +449,11 @@ class UpdatesPage(QWidget):
             self._terminal.show()
 
     def _on_app_update(self, pkg_list: list):
-        """Mixed list of GUI RPMs + Flatpaks — split and run both."""
-        rpms = [p for p in pkg_list if not p.get("is_flatpak")]
+        """Mixed list of GUI RPMs + Flatpaks + AppImages — split and run each."""
+        rpms = [p for p in pkg_list
+                if not p.get("is_flatpak") and not p.get("is_appimage")]
         fps  = [p for p in pkg_list if p.get("is_flatpak")]
+        ais  = [p for p in pkg_list if p.get("is_appimage")]
         self._show_terminal()
         if rpms:
             w = StreamWorker(upd.upgrade_packages_stream)
@@ -455,6 +467,22 @@ class UpdatesPage(QWidget):
             w.line.connect(self._terminal.append_line)
             w.done.connect(lambda c: self._terminal.append_line(
                 "\n✓ Flatpaks updated." if c == 0 else f"\n✗ Failed (exit {c})."))
+            w.start()
+            self._workers.append(w)
+        from backend import appimages as _aim
+        for ai in ais:
+            app_id = ai.get("id", "")
+            dl_url = ai.get("download_url", "")
+            if not app_id or not dl_url:
+                continue
+            w = StreamWorker(
+                lambda _id=app_id, _url=dl_url:
+                    _aim.update_appimage_stream(_id, _url))
+            w.line.connect(self._terminal.append_line)
+            w.done.connect(lambda c, n=ai.get("name", app_id):
+                self._terminal.append_line(
+                    f"\n✓ {n} updated." if c == 0
+                    else f"\n✗ {n} update failed (exit {c})."))
             w.start()
             self._workers.append(w)
 
@@ -496,6 +524,16 @@ class UpdatesPage(QWidget):
     def _run_all_updates_stream(self):
         yield from upd.upgrade_packages_stream()
         yield from flatpak.update_all_flatpaks_stream()
+        # AppImage updates — userspace, no sudo
+        try:
+            from backend import appimages as _aim
+            for ai_upd in (self._last_result or {}).get("appimages", []):
+                app_id = ai_upd.get("id", "")
+                dl_url = ai_upd.get("download_url", "")
+                if app_id and dl_url:
+                    yield from _aim.update_appimage_stream(app_id, dl_url)
+        except Exception as e:
+            yield f"AppImage update error: {e}"
         yield "__done__0"
 
     def _do_image_update(self):

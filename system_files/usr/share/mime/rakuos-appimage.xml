@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/vnd.appimage">
+    <comment>AppImage application bundle</comment>
+    <glob pattern="*.AppImage"/>
+    <glob pattern="*.appimage"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="ELF"/>
+    </magic>
+    <icon name="application-x-executable"/>
+  </mime-type>
+</mime-info>

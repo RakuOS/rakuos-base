@@ -1,0 +1,11 @@
+{
+  "id": "netflix",
+  "name": "Netflix",
+  "url": "https://netflix.com",
+  "summary": "Movies and TV shows on demand",
+  "description": "Stream movies, TV shows, anime, documentaries and more.",
+  "icon": "netflix.png",
+  "icon_url": "https://cdn2.steamgriddb.com/logo_thumb/3228e45f6dfff8d084747d7a062e2c62.png",
+  "categories": ["AudioVideo", "Video"],
+  "keywords": ["netflix", "streaming", "movies", "tv", "shows"]
+}

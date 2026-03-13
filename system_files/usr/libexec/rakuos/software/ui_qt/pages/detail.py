@@ -384,6 +384,11 @@ class AppDetailPage(QWidget):
         self._rev_next_btn.hide()
         self._rev_page_label.hide()
 
+        # ── webapp / appimage short-circuit — use simple action rendering ──────
+        if app.get("source") == "webapp":
+            self._load_webapp(app)
+            return
+
         self._name_lbl.setText(app.get("name", ""))
         self._summary_lbl.setText(app.get("summary", ""))
         self._icon.set_icon_name(app.get("icon", ""), app_id=app.get("id", ""), pkg_name=app.get("pkg_name", ""), flatpak_id=app.get("flatpak_id", ""))
@@ -958,6 +963,9 @@ class AppDetailPage(QWidget):
     # ── Install / remove ──────────────────────────────────────────────────────
 
     def _do_install(self, app: dict):
+        if app.get("source") == "webapp":
+            self._do_webapp_install(app)
+            return
         if app.get("local_rpm"):
             self._run_stream(
                 packages.install_local_rpm_stream,
@@ -985,12 +993,110 @@ class AppDetailPage(QWidget):
             )
 
     def _do_remove(self, app: dict):
+        if app.get("source") == "webapp":
+            self._do_webapp_remove(app)
+            return
         self._run_stream(
             flatpak.remove_flatpak_stream if app.get("source") == "flatpak"
             else packages.remove_package_stream,
             app["id"] if app.get("source") == "flatpak" else app["pkg_name"],
             app, "remove",
         )
+
+    # ── Web app install / remove ───────────────────────────────────────────────
+
+    def _load_webapp(self, app: dict):
+        """Render detail view for a web app (catalog or installed)."""
+        from backend import webapps as _wa
+        from PyQt6.QtGui import QPixmap
+
+        self._app = app
+        self._name_lbl.setText(app.get("name", ""))
+        self._summary_lbl.setText(app.get("summary") or app.get("description", ""))
+
+        # Icon — load from icon_path directly
+        icon_path = app.get("icon_path", "")
+        if icon_path:
+            pix = QPixmap(icon_path)
+            if not pix.isNull():
+                self._icon.setPixmap(
+                    pix.scaled(64, 64,
+                               Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation))
+            else:
+                self._icon.setText("🌐")
+        else:
+            self._icon.setText("🌐")
+
+        desc = app.get("description", "")
+        self._desc.setText(desc)
+        self._desc.setVisible(bool(desc))
+        self._desc_head.setVisible(bool(desc))
+
+        # URL info card
+        from PyQt6.QtWidgets import QLabel
+        url = app.get("url", "")
+        if url:
+            from ..widgets import hline
+            url_lbl = QLabel(f"<a href='{url}'>{url}</a>")
+            url_lbl.setOpenExternalLinks(True)
+            url_lbl.setTextFormat(Qt.TextFormat.RichText)
+            self._info_block.addWidget(url_lbl)
+
+        # Web App badge
+        badge = QLabel("Web App")
+        badge.setStyleSheet(
+            "QLabel { background: rgba(100,200,130,0.18); color: #4caf50;"
+            " border-radius: 4px; padding: 2px 8px; font-size: 11px; }")
+        self._meta_row.addWidget(badge)
+
+        self._render_basic_actions(app)
+
+    def _do_webapp_install(self, app: dict):
+        from backend import webapps as _wa
+        from ..workers import Worker
+        self._terminal.reset()
+        self._terminal.show()
+        self._terminal.append_line(f"Installing {app.get('name', '')}…")
+        app_id = app.get("id", "")
+
+        def _run():
+            return _wa.install(app_id)
+
+        w = Worker(_run)
+        w.result.connect(self._on_webapp_install_done)
+        w.start()
+        self._workers.append(w)
+
+    def _on_webapp_install_done(self, result: tuple):
+        success, msg = result
+        self._terminal.append_line(f"✓ {msg}" if success else f"✗ {msg}")
+        if success and self._app:
+            self._app["installed"] = True
+            self._render_basic_actions(self._app)
+
+    def _do_webapp_remove(self, app: dict):
+        from backend import webapps as _wa
+        from ..workers import Worker
+        self._terminal.reset()
+        self._terminal.show()
+        self._terminal.append_line(f"Removing {app.get('name', '')}…")
+        app_id = app.get("id", "")
+
+        def _run():
+            return _wa.uninstall(app_id)
+
+        w = Worker(_run)
+        w.result.connect(self._on_webapp_remove_done)
+        w.start()
+        self._workers.append(w)
+
+    def _on_webapp_remove_done(self, result: tuple):
+        success, msg = result
+        self._terminal.append_line(f"✓ {msg}" if success else f"✗ {msg}")
+        if success and self._app:
+            self._app["installed"] = False
+            self._render_basic_actions(self._app)
 
     def _run_stream(self, gen_fn, arg, app: dict, op: str,
                     done_cb=None, ext_btn: "QPushButton | None" = None):

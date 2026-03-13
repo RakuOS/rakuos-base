@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""
+rakuos-webapp-launcher — Launch a web app in a CEF window.
+Usage: rakuos-webapp-launcher <url> <name>
+"""
+
+import sys
+import os
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: rakuos-webapp-launcher <url> <name>")
+        sys.exit(1)
+
+    url  = sys.argv[1]
+    name = sys.argv[2]
+
+    try:
+        from cefpython3 import cefpython as cef
+    except ImportError:
+        # Fallback to xdg-open if cefpython3 not available
+        import subprocess
+        subprocess.Popen(["xdg-open", url])
+        sys.exit(0)
+
+    sys.excepthook = cef.ExceptHook
+
+    settings = {
+        "app_user_model_id":     f"rakuos.webapp.{name.lower().replace(' ', '-')}",
+        "product_version":       f"RakuOS-WebApp/{name}",
+        "user_data_path":        os.path.join(
+            os.path.expanduser("~"), ".local", "share", "rakuos",
+            "webapps", "cef-data", name.lower().replace(" ", "-")),
+        "downloads_enabled":     True,
+        "remote_debugging_port": 0,
+    }
+
+    switches = {
+        "disable-gpu":                  "",
+        "disable-gpu-compositing":      "",
+        "enable-media-stream":          "",
+        "autoplay-policy":              "no-user-gesture-required",
+    }
+
+    cef.Initialize(settings=settings, switches=switches)
+
+    window_info = cef.WindowInfo()
+    window_info.SetAsChild(0)
+
+    browser_settings = {
+        "file_access_from_file_urls_allowed": False,
+        "web_security_disabled":              False,
+    }
+
+    # Get screen size for window dimensions
+    try:
+        import subprocess as _sp
+        out = _sp.check_output(
+            ["xdpyinfo"], capture_output=False, text=True, stderr=_sp.DEVNULL)
+        import re
+        m = re.search(r"dimensions:\s+(\d+)x(\d+)", out)
+        if m:
+            w, h = int(m.group(1)) * 85 // 100, int(m.group(2)) * 85 // 100
+        else:
+            w, h = 1280, 800
+    except Exception:
+        w, h = 1280, 800
+
+    cef.CreateBrowserSync(
+        window_info=window_info,
+        url=url,
+        window_title=name,
+        settings=browser_settings,
+    )
+
+    cef.MessageLoop()
+    cef.Shutdown()
+
+
+if __name__ == "__main__":
+    main()

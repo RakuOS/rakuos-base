@@ -29,6 +29,8 @@ from .pages.updates   import UpdatesPage
 from .pages.system    import SystemPage
 from .pages.settings  import SettingsPage
 from .pages.detail    import AppDetailPage
+from .pages.webapps   import WebAppsPage
+from .pages.appimage_detail import AppImageDetailPage
 
 from backend import packages
 
@@ -269,6 +271,7 @@ class MainWindow(QMainWindow):
         for page_id, icon, text in [
             ("home",      "🏠", "Home"),
             ("installed", "📦", "Installed"),
+            ("webapps",   "🌐", "Web Apps"),
             ("updates",   "🔄", "Updates"),
             ("system",    "⚙️",  "System"),
             ("settings",  "🛠",  "Settings"),
@@ -327,25 +330,29 @@ class MainWindow(QMainWindow):
 
         # Page stack
         self._stack = QStackedWidget()
-        self._home      = HomePage()
-        self._explore   = ExplorePage()
+        self._home           = HomePage()
+        self._explore        = ExplorePage()
         self._explore.subcat_clicked.connect(self._on_subcat)
-        self._search_p  = SearchPage()
-        self._installed = InstalledPage()
-        self._updates   = UpdatesPage()
-        self._system    = SystemPage()
-        self._settings  = SettingsPage()
-        self._detail    = AppDetailPage()
+        self._search_p       = SearchPage()
+        self._installed      = InstalledPage()
+        self._updates        = UpdatesPage()
+        self._system         = SystemPage()
+        self._settings       = SettingsPage()
+        self._detail         = AppDetailPage()
+        self._webapps        = WebAppsPage()
+        self._appimage_detail = AppImageDetailPage()
 
         self._pages: dict[str, QWidget] = {
-            "home":      self._home,
-            "explore":   self._explore,
-            "search":    self._search_p,
-            "installed": self._installed,
-            "updates":   self._updates,
-            "system":    self._system,
-            "settings":  self._settings,
-            "detail":    self._detail,
+            "home":            self._home,
+            "explore":         self._explore,
+            "search":          self._search_p,
+            "installed":       self._installed,
+            "updates":         self._updates,
+            "system":          self._system,
+            "settings":        self._settings,
+            "detail":          self._detail,
+            "webapps":         self._webapps,
+            "appimage_detail": self._appimage_detail,
         }
         for widget in self._pages.values():
             self._stack.addWidget(widget)
@@ -358,6 +365,11 @@ class MainWindow(QMainWindow):
             pg.app_clicked.connect(self._open_detail)
         self._home.see_all_clicked.connect(self._on_category)
         self._detail.back_requested.connect(self._on_back)
+        self._webapps.app_clicked.connect(self._open_webapp_detail)
+        self._installed.appimage_clicked.connect(self._open_appimage_installed)
+        self._installed.webapp_clicked.connect(self._open_webapp_detail)
+        self._appimage_detail.back_requested.connect(self._on_back)
+        self._appimage_detail.installed.connect(lambda _: self._installed.load())
         self._prev_page = "home"
 
         self.navigate("home")
@@ -444,6 +456,7 @@ class MainWindow(QMainWindow):
             "installed": self._installed.load,
             "updates":   lambda: self._updates.load(self._daemon.last_result() or None),
             "system":    self._system.load,
+            "webapps":   self._webapps.load,
         }
         if page_id in loaders:
             loaders[page_id]()
@@ -470,6 +483,25 @@ class MainWindow(QMainWindow):
         self._detail.load_app(app)
         self._stack.setCurrentWidget(self._detail)
 
+    def _open_webapp_detail(self, app: dict):
+        """Open webapp install/detail view — reuses AppDetailPage with webapp info."""
+        self._detail.load_app(app)
+        self._stack.setCurrentWidget(self._detail)
+
+    def _open_appimage_file(self, path: str):
+        """Called when user double-clicks an .AppImage file."""
+        self._appimage_detail.load_from_file(path)
+        self._stack.setCurrentWidget(self._appimage_detail)
+        for btn in self._nav_btns.values():
+            btn.set_active(False)
+
+    def _open_appimage_installed(self, app: dict):
+        """Called from Installed page for an already-installed AppImage."""
+        self._appimage_detail.load_installed(app)
+        self._stack.setCurrentWidget(self._appimage_detail)
+        for btn in self._nav_btns.values():
+            btn.set_active(False)
+
     def _on_back(self):
         self.navigate(self._prev_page)
 
@@ -491,7 +523,8 @@ class MainWindow(QMainWindow):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def run(rpm_file: str = None, flatpak_file: str = None, flatpakref: str = None):
+def run(rpm_file: str = None, flatpak_file: str = None,
+        flatpakref: str = None, appimage_file: str = None):
     de = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
     if "kde" in de or "plasma" in de:
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
@@ -566,6 +599,12 @@ def run(rpm_file: str = None, flatpak_file: str = None, flatpakref: str = None):
             info = _fp.get_flatpakref_info(flatpakref)
             win._open_detail(info)
         QTimer.singleShot(200, _open_ref)
+
+    elif appimage_file:
+        win.show()
+        def _open_ai():
+            win._open_appimage_file(appimage_file)
+        QTimer.singleShot(200, _open_ai)
 
     sys.exit(app.exec())
 
