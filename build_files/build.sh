@@ -85,8 +85,6 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-#!/usr/bin/env bash
-
 # Include CEF for RakuOS WebApps
 CEF_VERSION="145.0.28+g51162e8+chromium-145.0.7632.160"
 CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64_client.tar.bz2"
