@@ -1,81 +1,46 @@
-#!/usr/bin/env python3
-"""
-rakuos-webapp-launcher — Launch a web app in a CEF window.
-Usage: rakuos-webapp-launcher <url> <name>
-"""
+#!/bin/bash
+# rakuos-webapp-launcher — Launch a web app using the bundled CEF cefsimple.
+#
+# Usage: rakuos-webapp-launcher <url> <n> [custom_css]
+#
+# CEF binaries live at /usr/lib/rakuos-cef/
+# Per-app user data isolated at ~/.local/share/rakuos/webapps/cef-data/<id>
 
-import sys
-import os
+CEF_DIR="/usr/lib/rakuos-cef"
+CEFSIMPLE="${CEF_DIR}/cefsimple"
 
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: rakuos-webapp-launcher <url> <name>")
-        sys.exit(1)
+if [[ ! -x "$CEFSIMPLE" ]]; then
+    echo "ERROR: CEF not found at ${CEF_DIR}" >&2
+    notify-send "RakuOS Web Apps" "CEF runtime missing. Please reinstall RakuOS." 2>/dev/null || true
+    exit 1
+fi
 
-    url  = sys.argv[1]
-    name = sys.argv[2]
+URL="${1:?Usage: rakuos-webapp-launcher <url> <n> [custom_css]}"
+NAME="${2:?Usage: rakuos-webapp-launcher <url> <n> [custom_css]}"
+CUSTOM_CSS="${3:-}"
 
-    try:
-        from cefpython3 import cefpython as cef
-    except ImportError:
-        # Fallback to xdg-open if cefpython3 not available
-        import subprocess
-        subprocess.Popen(["xdg-open", url])
-        sys.exit(0)
+# Sanitise name to safe id for directory / WM_CLASS
+APP_ID="$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')"
 
-    sys.excepthook = cef.ExceptHook
+# Per-app isolated profile directory — each webapp gets its own cookies/storage
+DATA_DIR="${HOME}/.local/share/rakuos/webapps/cef-data/${APP_ID}"
+mkdir -p "$DATA_DIR"
 
-    settings = {
-        "app_user_model_id":     f"rakuos.webapp.{name.lower().replace(' ', '-')}",
-        "product_version":       f"RakuOS-WebApp/{name}",
-        "user_data_path":        os.path.join(
-            os.path.expanduser("~"), ".local", "share", "rakuos",
-            "webapps", "cef-data", name.lower().replace(" ", "-")),
-        "downloads_enabled":     True,
-        "remote_debugging_port": 0,
-    }
+# If custom CSS provided, write an injector script into the profile
+if [[ -n "$CUSTOM_CSS" ]]; then
+    INJECT_DIR="${DATA_DIR}/injections"
+    mkdir -p "$INJECT_DIR"
+    cat > "${INJECT_DIR}/custom.css" << CSSEOF
+${CUSTOM_CSS}
+CSSEOF
+fi
 
-    switches = {
-        "disable-gpu":                  "",
-        "disable-gpu-compositing":      "",
-        "enable-media-stream":          "",
-        "autoplay-policy":              "no-user-gesture-required",
-    }
+export LD_LIBRARY_PATH="${CEF_DIR}:${LD_LIBRARY_PATH:-}"
 
-    cef.Initialize(settings=settings, switches=switches)
-
-    window_info = cef.WindowInfo()
-    window_info.SetAsChild(0)
-
-    browser_settings = {
-        "file_access_from_file_urls_allowed": False,
-        "web_security_disabled":              False,
-    }
-
-    # Get screen size for window dimensions
-    try:
-        import subprocess as _sp
-        out = _sp.check_output(
-            ["xdpyinfo"], capture_output=False, text=True, stderr=_sp.DEVNULL)
-        import re
-        m = re.search(r"dimensions:\s+(\d+)x(\d+)", out)
-        if m:
-            w, h = int(m.group(1)) * 85 // 100, int(m.group(2)) * 85 // 100
-        else:
-            w, h = 1280, 800
-    except Exception:
-        w, h = 1280, 800
-
-    cef.CreateBrowserSync(
-        window_info=window_info,
-        url=url,
-        window_title=name,
-        settings=browser_settings,
-    )
-
-    cef.MessageLoop()
-    cef.Shutdown()
-
-
-if __name__ == "__main__":
-    main()
+exec "$CEFSIMPLE" \
+    --url="$URL" \
+    --user-data-dir="$DATA_DIR" \
+    --enable-media-stream \
+    --autoplay-policy=no-user-gesture-required \
+    --window-name="rakuos-webapp-${APP_ID}" \
+    2>/dev/null

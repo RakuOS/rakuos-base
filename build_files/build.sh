@@ -11,8 +11,8 @@ dnf5 -y copr enable atim/heroic-games-launcher fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable faugus/faugus-launcher fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
-    https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
-    https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
+https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
 # VS Code
 rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
@@ -23,7 +23,7 @@ echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yum
 
 # Enable Chrome repo
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/google-chrome.repo
-    
+
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 
@@ -38,46 +38,46 @@ dnf5 -y swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
 
 # install packages
 dnf5 -y install ananicy-cpp \
-  cachyos-ananicy-rules \
-  cachyos-settings \
-  bore-sysctl \
-  scx-scheds \
-  scx-tools \
-  gamemode \
-  gamemode.i686 \
-  pulseaudio-utils \
-  git \
-  flatpak \
-  libxcrypt-compat \
-  rsync \
-  podman \
-  distrobox \
-  xpadneo \
-  mokutil \
-  sqlite3 \
-  openssl \
-  freerdp \
-  libnotify \
-  inotify-tools \
-  podman-compose \
-  webkit2gtk4.1 \
-  python3-flask \
-  python3-pip \
-  appstream \
-  appstream-data \
-  fwupd \
-  python3-pyqt6 \
-  python3-dbus \
-  python3-gobject \
-  steam-devices \
-  openrgb-udev-rules \
-  nodejs \
-  nodejs-npm \
-  fuse \
-  squashfuse \
-  virtualbox-guest-additions \
-  v4l-utils \
-  glibc-langpack-en
+cachyos-ananicy-rules \
+cachyos-settings \
+bore-sysctl \
+scx-scheds \
+scx-tools \
+gamemode \
+gamemode.i686 \
+pulseaudio-utils \
+git \
+flatpak \
+libxcrypt-compat \
+rsync \
+podman \
+distrobox \
+xpadneo \
+mokutil \
+sqlite3 \
+openssl \
+freerdp \
+libnotify \
+inotify-tools \
+podman-compose \
+webkit2gtk4.1 \
+python3-flask \
+python3-pip \
+appstream \
+appstream-data \
+fwupd \
+python3-pyqt6 \
+python3-dbus \
+python3-gobject \
+steam-devices \
+openrgb-udev-rules \
+nodejs \
+nodejs-npm \
+fuse \
+squashfuse \
+virtualbox-guest-additions \
+v4l-utils \
+glibc-langpack-en
 
 ## Remove packages
 dnf5 -y remove firefox*
@@ -85,7 +85,23 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-pip3 install cefpython3 --target=/usr/lib/python3.14/site-packages --break-system-packages
+# include cef for rakuos-webapps
+CEF_VERSION="145.0.28+g51162e8+chromium-145.0.7632.160"
+CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64_client.tar.bz2"
+CEF_INSTALL_DIR="/usr/lib/rakuos-cef"
+
+echo "Downloading CEF ${CEF_VERSION}..." \
+&& curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
+&& mkdir -p /tmp/cef-extract \
+&& tar -xjf /tmp/cef.tar.bz2 -C /tmp/cef-extract --strip-components=1 \
+&& mkdir -p "${CEF_INSTALL_DIR}" \
+# Copy Release dir — cefsimple binary + libcef.so + all resources
+&& cp -r /tmp/cef-extract/Release/. "${CEF_INSTALL_DIR}/" \
+# Copy resource files (.pak, icudtl.dat, etc.)
+&& cp -r /tmp/cef-extract/Resources/. "${CEF_INSTALL_DIR}/" \
+&& chmod +x "${CEF_INSTALL_DIR}/cefsimple" \
+&& rm -rf /tmp/cef.tar.bz2 /tmp/cef-extract \
+&& echo "CEF installed at ${CEF_INSTALL_DIR}"
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
@@ -94,20 +110,20 @@ systemctl mask systemd-remount-fs.service
 
 #enable enable services
 systemctl enable \
-  rakuos-base-protect.service \
-  rakuos-overlay-mount.service \
-  rakuos-overlay-sync.service \
-  rakuos-overlay-services.service \
-  rakuos-flatpaks.service \
-  rakuos-flatpak-watcher.service \
-  flatpak-cleanup.timer \
-  flatpak-repair.timer \
-  rpm-ostree-clean-metadata.timer \
-  rpm-ostree-clean-deployments.timer \
-  podman-prune.timer
+rakuos-base-protect.service \
+rakuos-overlay-mount.service \
+rakuos-overlay-sync.service \
+rakuos-overlay-services.service \
+rakuos-flatpaks.service \
+rakuos-flatpak-watcher.service \
+flatpak-cleanup.timer \
+flatpak-repair.timer \
+rpm-ostree-clean-metadata.timer \
+rpm-ostree-clean-deployments.timer \
+podman-prune.timer
 
 systemctl enable --global \
-  rakuos-user.service
+rakuos-user.service
 
 mkdir -p /var/log//var/log/akmods
 touch /var/log//var/log/akmods/akmods.log
@@ -123,6 +139,6 @@ depmod "$QUALIFIED_KERNEL"
 
 # Generate initramfs for that kernel
 /usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
-    --add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+--add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
