@@ -85,19 +85,18 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# include cef for rakuos-webapps
+# include CEF for rakuos-webapps
 CEF_VERSION="145.0.28+g51162e8+chromium-145.0.7632.160"
 CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64_client.tar.bz2"
 CEF_INSTALL_DIR="/usr/lib/rakuos-cef"
 
-echo "Downloading CEF ${CEF_VERSION}..." \
-&& curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
+echo "Downloading CEF ${CEF_VERSION}..."
+
+curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
 && mkdir -p /tmp/cef-extract \
 && tar -xjf /tmp/cef.tar.bz2 -C /tmp/cef-extract --strip-components=1 \
 && mkdir -p "${CEF_INSTALL_DIR}" \
-# Copy Release dir — cefsimple binary + libcef.so + all resources
 && cp -r /tmp/cef-extract/Release/. "${CEF_INSTALL_DIR}/" \
-# Copy resource files (.pak, icudtl.dat, etc.)
 && cp -r /tmp/cef-extract/Resources/. "${CEF_INSTALL_DIR}/" \
 && chmod +x "${CEF_INSTALL_DIR}/cefsimple" \
 && rm -rf /tmp/cef.tar.bz2 /tmp/cef-extract \
