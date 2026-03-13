@@ -86,6 +86,25 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
+# ── Register RakuOS Software Center as default handler for package types ──────
+MIMEAPPS="/usr/share/applications/mimeapps.list"
+
+# Ensure sections exist then append entries if not already present
+for section in "Default Applications" "Added Associations"; do
+    if ! grep -q "^\[${section}\]" "$MIMEAPPS"; then
+        printf '\n[%s]\n' "$section" >> "$MIMEAPPS"
+    fi
+    for mime in \
+        "application/vnd.appimage=rakuos-software.desktop" \
+        "application/x-rpm=rakuos-software.desktop" \
+        "application/vnd.flatpak=rakuos-software.desktop" \
+        "application/vnd.flatpak.ref=rakuos-software.desktop"; do
+        if ! grep -q "^${mime}$" "$MIMEAPPS"; then
+            sed -i "/^\[${section}\]/a ${mime}" "$MIMEAPPS"
+        fi
+    done
+done
+
 # -----------------------------
 # castlabs Electron for RakuOS WebApps (includes Widevine hooks)
 # -----------------------------
