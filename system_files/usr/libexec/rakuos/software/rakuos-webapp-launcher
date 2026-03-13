@@ -43,4 +43,6 @@ exec "$CEFSIMPLE" \
     --enable-media-stream \
     --autoplay-policy=no-user-gesture-required \
     --window-name="rakuos-webapp-${APP_ID}" \
+    --widevine-cdm-path=/usr/lib/rakuos-cef/WidevineCdm \
+    --widevine-cdm-version=$WV_VERSION \
     2>/dev/null

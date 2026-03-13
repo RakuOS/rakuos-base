@@ -85,13 +85,17 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# include CEF for rakuos-webapps
+#!/usr/bin/env bash
+
+# Include CEF for RakuOS WebApps
 CEF_VERSION="145.0.28+g51162e8+chromium-145.0.7632.160"
 CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64_client.tar.bz2"
 CEF_INSTALL_DIR="/usr/lib/rakuos-cef"
+WIDEVINE_DIR="${CEF_INSTALL_DIR}/WidevineCdm"
 
 echo "Downloading CEF ${CEF_VERSION}..."
 
+# Download and extract CEF
 curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
 && mkdir -p /tmp/cef-extract \
 && tar -xjf /tmp/cef.tar.bz2 -C /tmp/cef-extract --strip-components=1 \
@@ -99,8 +103,37 @@ curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
 && cp -r /tmp/cef-extract/Release/. "${CEF_INSTALL_DIR}/" \
 && cp -r /tmp/cef-extract/Resources/. "${CEF_INSTALL_DIR}/" \
 && chmod +x "${CEF_INSTALL_DIR}/cefsimple" \
-&& rm -rf /tmp/cef.tar.bz2 /tmp/cef-extract \
-&& echo "CEF installed at ${CEF_INSTALL_DIR}"
+&& rm -rf /tmp/cef.tar.bz2 /tmp/cef-extract
+
+echo "CEF installed at ${CEF_INSTALL_DIR}"
+
+# -----------------------------
+# Install Chrome to get Widevine
+# -----------------------------
+echo "Installing Google Chrome to extract WidevineCDM..."
+dnf5 -y install google-chrome-stable
+
+# Widevine files are usually in /opt/google/chrome/WidevineCdm
+CHROME_WV_DIR="/opt/google/chrome/WidevineCdm"
+
+if [ -d "$CHROME_WV_DIR" ]; then
+    echo "Copying WidevineCDM to CEF directory..."
+    mkdir -p "$WIDEVINE_DIR"
+    cp -r "${CHROME_WV_DIR}/"* "$WIDEVINE_DIR/"
+    
+    # Optional: get Widevine version from manifest.json
+    WV_VERSION=$(grep '"version"' "$WIDEVINE_DIR/manifest.json" | head -n1 | awk -F '"' '{print $4}')
+    echo "WidevineCDM installed in ${WIDEVINE_DIR} (version ${WV_VERSION})"
+else
+    echo "Error: WidevineCdm directory not found in Chrome install."
+    exit 1
+fi
+
+# Remove Chrome
+echo "Removing Google Chrome package..."
+dnf5 -y remove google-chrome-stable
+
+echo "CEF + WidevineCDM installation complete!"
 
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
