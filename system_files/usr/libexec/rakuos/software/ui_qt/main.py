@@ -365,23 +365,27 @@ class MainWindow(QMainWindow):
 
         # ── Tray + background daemon ──────────────────────────────────────────
         self._tray = RakuOSTray(self, parent=self)
+        self._tray.show()  # always visible
         self._daemon = UpdateDaemon(self)
         self._daemon.updates_ready.connect(self._on_updates_ready)
+        self._daemon.updates_ready.connect(self._on_daemon_refresh_home)
         self._daemon.notify.connect(self._on_notify)
         self._daemon.start()
+
+        # Wire settings schedule changes to reschedule daemon
+        self._settings._update_tab.schedule_changed.connect(
+            self._daemon._reschedule)
 
     def closeEvent(self, event):
         """Hide to tray instead of quitting."""
         event.ignore()
         self.hide()
-        if self._tray.isSystemTrayAvailable():
-            self._tray.show()
-            self._tray.showMessage(
-                "RakuOS Software",
-                "Running in the background. Click the tray icon to reopen.",
-                self._tray.MessageIcon.Information,
-                2000,
-            )
+
+    def _on_daemon_refresh_home(self, result: dict):
+        """Silently reload home page sections when daemon check completes."""
+        if self._stack.currentWidget() is not self._home:
+            # Reload in background so next visit is fresh
+            self._home.load()
 
     def _on_updates_ready(self, result: dict):
         """Update tray badge and updates page when check completes."""
@@ -498,20 +502,56 @@ def run(rpm_file: str = None, flatpak_file: str = None, flatpakref: str = None):
     app.setApplicationName("RakuOS Software")
     app.setOrganizationName("RakuOS")
     app.setStyleSheet(STYLE)
+    app.setQuitOnLastWindowClosed(False)  # keep alive in tray
+
+    # ── Single instance via QLocalServer ─────────────────────────────────────
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+    _SOCKET_NAME = f"rakuos-software-{os.environ.get('USER', 'user')}"
+
+    # Try connecting to an existing instance first
+    _probe = QLocalSocket()
+    _probe.connectToServer(_SOCKET_NAME)
+    if _probe.waitForConnected(300):
+        # Already running — send "raise" command and exit
+        _probe.write(b"raise\n")
+        _probe.flush()
+        _probe.waitForBytesWritten(300)
+        _probe.disconnectFromServer()
+        sys.exit(0)
 
     win = MainWindow()
-    win.show()
+
+    # Start the local server to accept "raise" from future invocations
+    _server = QLocalServer(win)
+    QLocalServer.removeServer(_SOCKET_NAME)  # clean up stale socket
+    _server.listen(_SOCKET_NAME)
+
+    def _on_new_connection():
+        conn = _server.nextPendingConnection()
+        if conn:
+            conn.waitForReadyRead(200)
+            win.show()
+            win.raise_()
+            win.activateWindow()
+            conn.disconnectFromServer()
+
+    _server.newConnection.connect(_on_new_connection)
+
+    # ── --tray flag: start hidden ─────────────────────────────────────────────
+    tray_mode = "--tray" in sys.argv
+    if not tray_mode:
+        win.show()
 
     # Open local file directly on the detail page
     if rpm_file:
-        from PyQt6.QtCore import QTimer
-        from backend import packages as _pkg
+        win.show()
         def _open_rpm():
-            info = _pkg.get_local_rpm_info(rpm_file)
+            info = packages.get_local_rpm_info(rpm_file)
             win._open_detail(info)
         QTimer.singleShot(200, _open_rpm)
 
     elif flatpak_file:
+        win.show()
         from PyQt6.QtCore import QTimer
         from backend import flatpak as _fp
         def _open_flatpak():
@@ -520,7 +560,7 @@ def run(rpm_file: str = None, flatpak_file: str = None, flatpakref: str = None):
         QTimer.singleShot(200, _open_flatpak)
 
     elif flatpakref:
-        from PyQt6.QtCore import QTimer
+        win.show()
         from backend import flatpak as _fp
         def _open_ref():
             info = _fp.get_flatpakref_info(flatpakref)

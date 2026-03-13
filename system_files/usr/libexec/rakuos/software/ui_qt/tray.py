@@ -77,16 +77,11 @@ class RakuOSTray(QSystemTrayIcon):
         quit_action.triggered.connect(QApplication.quit)
         self.setContextMenu(menu)
 
+        # Always visible — main.py calls show() after construction
         # Single click shows window
         self.activated.connect(self._on_activated)
-
-        # On KDE hide tray when no updates — show when needed
         self._kde = "kde" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower() or \
                     "plasma" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-        if self._kde:
-            self.hide()  # Hidden until updates available
-        else:
-            self.show()  # Always visible on other DEs
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
@@ -110,11 +105,8 @@ class RakuOSTray(QSystemTrayIcon):
             self.setToolTip(f"RakuOS Software — {count} update{'s' if count != 1 else ''} available")
             self._updates_action.setText(summary or f"{count} update{'s' if count != 1 else ''} available")
             self._updates_action.setEnabled(True)
-            self.show()  # Always show when updates available
         else:
             self.setIcon(_plain_icon())
             self.setToolTip("RakuOS Software — Up to date")
             self._updates_action.setText("No updates available")
             self._updates_action.setEnabled(False)
-            if self._kde:
-                self.hide()  # Hide on KDE when nothing to show

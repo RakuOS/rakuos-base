@@ -106,8 +106,6 @@ class UpdateDaemon(QObject):
         if self._running:
             return
         self._running = True
-        import datetime
-        print(f"[daemon] Running update check at {datetime.datetime.now()}")
 
         from PyQt6.QtCore import QThread
 
@@ -129,6 +127,19 @@ class UpdateDaemon(QObject):
                 if settings.get("auto_check_image", True):
                     img_available, img_info = _run_check_image()
 
+                # Auto-update packages + flatpaks if enabled (never image)
+                if settings.get("auto_update", False):
+                    if pkg_updates:
+                        subprocess.run(
+                            [RAKUOS_UPDATE, "upgrade"],
+                            capture_output=True, timeout=300)
+                        _, pkg_updates = _run_check("check")
+                    if fp_updates:
+                        subprocess.run(
+                            ["flatpak", "update", "-y", "--noninteractive"],
+                            capture_output=True, timeout=300)
+                        _, fp_updates = _run_check("check-flatpak")
+
                 result = {
                     "packages":        pkg_updates,
                     "flatpak":         fp_updates,
@@ -146,10 +157,6 @@ class UpdateDaemon(QObject):
         self._threads.append(t)
 
     def _on_check_done(self, result: dict):
-        print(f"[daemon] Check done — total updates: {result.get('total', 0)}, "
-              f"pkgs: {len(result.get('packages',[]))}, "
-              f"flatpak: {len(result.get('flatpak',[]))}, "
-              f"image: {result.get('image_available', False)}")
         self._last_result = result
         self.updates_ready.emit(result)
         # Reschedule via signal so timer is touched on main thread

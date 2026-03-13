@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt
 
 from ..workers import Worker, StreamWorker
-from ..widgets import SectionTitle, LoadingWidget, TerminalWidget, AppIconWidget, hline
+from ..widgets import SectionTitle, LoadingWidget, TerminalWidget, IconWidget, hline
 from ..theme import dimmed
 from backend import flatpak, updates as upd
 
@@ -42,8 +42,9 @@ class PackageUpdateRow(QFrame):
         hl.setSpacing(10)
 
         if show_icon:
-            icon_w = AppIconWidget(
-                pkg.get("app_id") or pkg.get("name", ""), size=36)
+            icon_w = IconWidget(size=36)
+            icon_w.set_icon_name(
+                "", app_id=pkg.get("app_id", ""), pkg_name=pkg.get("name", ""))
             hl.addWidget(icon_w)
 
         # Name + version + flatpak badge

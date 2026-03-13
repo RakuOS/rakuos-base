@@ -5,6 +5,7 @@ Tabs:
   • Firmware / LVFS       — manage fwupd remotes and vendor dirs
 """
 
+import os
 import subprocess
 
 from PyQt6.QtWidgets import (
@@ -449,6 +450,113 @@ class FirmwareTab(QWidget):
             self._terminal.append_line("\n✗ Refresh failed.")
 
 
+# ── Update Schedule tab ───────────────────────────────────────────────────────
+
+import json as _json
+
+_SCHEDULES = [
+    ("Every 6 hours",  360),
+    ("Every 12 hours", 720),
+    ("Daily",          1440),
+    ("Weekly",         10080),
+    ("Manual only",    0),
+]
+
+class UpdateScheduleTab(QWidget):
+    schedule_changed = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        from PyQt6.QtWidgets import QComboBox, QGroupBox
+        vl = QVBoxLayout(self)
+        vl.setContentsMargins(16, 16, 16, 16)
+        vl.setSpacing(16)
+
+        vl.addWidget(bold_font(QLabel("Update Schedule"), extra_pts=1))
+        vl.addWidget(dimmed(QLabel(
+            "How often RakuOS Software checks for available updates in the background.")))
+        vl.addWidget(hline())
+
+        # Schedule dropdown
+        sched_row = QHBoxLayout()
+        sched_row.addWidget(QLabel("Check for updates:"))
+        self._sched_combo = QComboBox()
+        self._sched_combo.setFixedWidth(200)
+        settings = self._load()
+        cur_interval = settings.get("update_interval", 1440)
+        for label, minutes in _SCHEDULES:
+            self._sched_combo.addItem(label, minutes)
+            if minutes == cur_interval:
+                self._sched_combo.setCurrentIndex(self._sched_combo.count() - 1)
+        self._sched_combo.currentIndexChanged.connect(self._on_schedule_changed)
+        sched_row.addWidget(self._sched_combo)
+        sched_row.addStretch()
+        vl.addLayout(sched_row)
+        vl.addWidget(hline())
+
+        # What to check
+        vl.addWidget(bold_font(QLabel("Check for")))
+        self._check_pkgs = QCheckBox("Overlay package updates")
+        self._check_pkgs.setChecked(settings.get("auto_check_packages", True))
+        self._check_pkgs.toggled.connect(self._save)
+        vl.addWidget(self._check_pkgs)
+
+        self._check_flatpak = QCheckBox("Flatpak updates")
+        self._check_flatpak.setChecked(settings.get("auto_check_flatpak", True))
+        self._check_flatpak.toggled.connect(self._save)
+        vl.addWidget(self._check_flatpak)
+
+        self._check_image = QCheckBox("System image updates (bootc)")
+        self._check_image.setChecked(settings.get("auto_check_image", True))
+        self._check_image.toggled.connect(self._save)
+        vl.addWidget(self._check_image)
+
+        vl.addWidget(hline())
+
+        # Auto-update checkbox
+        vl.addWidget(bold_font(QLabel("Automatic Updates")))
+        self._auto_update = QCheckBox(
+            "Automatically install package and Flatpak updates when found")
+        self._auto_update.setChecked(settings.get("auto_update", False))
+        self._auto_update.toggled.connect(self._save)
+        vl.addWidget(self._auto_update)
+        vl.addWidget(dimmed(QLabel(
+            "System image updates always require manual approval and a reboot.")))
+
+        self._status = _status_lbl()
+        vl.addWidget(self._status)
+        vl.addStretch()
+
+    def _load(self) -> dict:
+        try:
+            with open(os.path.expanduser("~/.config/rakuos/software-settings.json")) as f:
+                return _json.load(f)
+        except Exception:
+            return {}
+
+    def _on_schedule_changed(self, _index: int):
+        self._save()
+        self.schedule_changed.emit()
+
+    def _save(self):
+        settings = self._load()
+        settings["update_interval"]     = self._sched_combo.currentData()
+        settings["auto_check_packages"] = self._check_pkgs.isChecked()
+        settings["auto_check_flatpak"]  = self._check_flatpak.isChecked()
+        settings["auto_check_image"]    = self._check_image.isChecked()
+        settings["auto_update"]         = self._auto_update.isChecked()
+        try:
+            os.makedirs(os.path.dirname(
+                os.path.expanduser("~/.config/rakuos/software-settings.json")),
+                exist_ok=True)
+            with open(os.path.expanduser(
+                    "~/.config/rakuos/software-settings.json"), "w") as f:
+                _json.dump(settings, f, indent=2)
+            _show_status(self._status, "Settings saved.", True)
+        except Exception as e:
+            _show_status(self._status, f"Failed to save: {e}", False)
+
+
 # ── Settings page (tab container) ─────────────────────────────────────────────
 
 class SettingsPage(QWidget):
@@ -460,7 +568,12 @@ class SettingsPage(QWidget):
 
         vl.addWidget(bold_font(QLabel("Settings"), extra_pts=3))
 
+        self._update_tab = UpdateScheduleTab()
         tabs = QTabWidget()
-        tabs.addTab(FlatpakReposTab(), "📦  Flatpak Repositories")
-        tabs.addTab(FirmwareTab(),     "🔧  Firmware / LVFS")
+        tabs.addTab(self._update_tab,      "🔄  Updates")
+        tabs.addTab(FlatpakReposTab(),     "📦  Flatpak Repositories")
+        tabs.addTab(FirmwareTab(),         "🔧  Firmware / LVFS")
         vl.addWidget(tabs)
+
+    def schedule_changed(self):
+        return self._update_tab.schedule_changed
