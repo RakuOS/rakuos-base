@@ -1,0 +1,7 @@
+{
+  "name": "rakuos-webapp",
+  "version": "1.0.0",
+  "description": "RakuOS Web App launcher",
+  "main": "main.js",
+  "private": true
+}

@@ -1,18 +1,20 @@
 #!/bin/bash
-# rakuos-webapp-launcher — Launch a web app using the bundled CEF cefsimple.
+# rakuos-webapp-launcher — Launch a web app using castlabs Electron (ECS).
 #
 # Usage: rakuos-webapp-launcher <url> <n> [custom_css]
 #
-# CEF binaries live at /usr/lib/rakuos-cef/
-# Per-app user data isolated at ~/.local/share/rakuos/webapps/cef-data/<id>
+# Electron binary:  /usr/lib/rakuos-electron/electron
+# WidevineCDM:      /usr/lib/rakuos-electron/WidevineCdm/
+# App JS:           /usr/lib/rakuos-electron-webapp/
+# Per-app data:     ~/.local/share/rakuos/webapps/electron-data/<id>/
 
-CEF_DIR="/usr/lib/rakuos-cef"
-CEFSIMPLE="${CEF_DIR}/cefsimple"
-WIDEVINE_DIR="${CEF_DIR}/WidevineCdm"
+ELECTRON="/usr/lib/rakuos-electron/electron"
+APP_DIR="/usr/lib/rakuos-electron-webapp"
+WIDEVINE_DIR="/usr/lib/rakuos-electron/WidevineCdm"
 
-if [[ ! -x "$CEFSIMPLE" ]]; then
-    echo "ERROR: CEF not found at ${CEF_DIR}" >&2
-    notify-send "RakuOS Web Apps" "CEF runtime missing. Please reinstall RakuOS." 2>/dev/null || true
+if [[ ! -x "$ELECTRON" ]]; then
+    echo "ERROR: Electron not found at ${ELECTRON}" >&2
+    notify-send "RakuOS Web Apps" "Electron runtime missing. Please reinstall RakuOS." 2>/dev/null || true
     exit 1
 fi
 
@@ -20,39 +22,6 @@ URL="${1:?Usage: rakuos-webapp-launcher <url> <n> [custom_css]}"
 NAME="${2:?Usage: rakuos-webapp-launcher <url> <n> [custom_css]}"
 CUSTOM_CSS="${3:-}"
 
-# Sanitise name to safe id for directory / WM_CLASS
-APP_ID="$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')"
-
-# Per-app isolated profile directory — each webapp gets its own cookies/storage
-DATA_DIR="${HOME}/.local/share/rakuos/webapps/cef-data/${APP_ID}"
-mkdir -p "$DATA_DIR"
-
-# If custom CSS provided, write an injector script into the profile
-if [[ -n "$CUSTOM_CSS" ]]; then
-    INJECT_DIR="${DATA_DIR}/injections"
-    mkdir -p "$INJECT_DIR"
-    cat > "${INJECT_DIR}/custom.css" << CSSEOF
-${CUSTOM_CSS}
-CSSEOF
-fi
-
-export LD_LIBRARY_PATH="${CEF_DIR}:${LD_LIBRARY_PATH:-}"
-
-# Auto-detect Widevine version from manifest.json
-if [[ -f "${WIDEVINE_DIR}/manifest.json" ]]; then
-    WV_VERSION=$(grep '"version"' "${WIDEVINE_DIR}/manifest.json" | head -n1 | awk -F '"' '{print $4}')
-else
-    echo "WARNING: Widevine manifest.json not found, skipping --widevine-cdm-version" >&2
-    WV_VERSION=""
-fi
-
-# Launch CEF
-exec "$CEFSIMPLE" \
-    --url="$URL" \
-    --user-data-dir="$DATA_DIR" \
-    --enable-media-stream \
-    --autoplay-policy=no-user-gesture-required \
-    --window-name="rakuos-webapp-${APP_ID}" \
+exec "$ELECTRON" \
     --widevine-cdm-path="$WIDEVINE_DIR" \
-    ${WV_VERSION:+--widevine-cdm-version="$WV_VERSION"} \
-    2>/dev/null
+    "$APP_DIR" "$URL" "$NAME" "$CUSTOM_CSS"
