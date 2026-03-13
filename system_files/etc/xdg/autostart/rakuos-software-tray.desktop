@@ -2,7 +2,7 @@
 Categories=
 Comment=RakuOS Software Center background service
 Comment=RakuOS Software Center background service
-Exec=/usr/libexec/rakuos/rakuos-software
+Exec=/usr/bin/rakuos-software
 GenericName=
 GenericName=
 Icon=system-software-install
