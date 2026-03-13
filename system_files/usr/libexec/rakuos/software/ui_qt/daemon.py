@@ -35,30 +35,46 @@ def _load_settings() -> dict:
 
 def _run_check(command: str) -> tuple[bool, list]:
     """Run rakuos-update <command>, return (success, parsed_updates_list)."""
+    _debug = os.environ.get("RAKUOS_DEBUG")
     try:
         r = subprocess.run(
             [RAKUOS_UPDATE, command],
             capture_output=True, text=True, timeout=120
         )
+        if _debug:
+            print(f"[daemon] {command} exit={r.returncode} stdout={r.stdout[:200]!r}")
         # exit 0 = updates available, exit 1 = none, other = error
         if r.returncode not in (0, 1):
             return False, []
         data = json.loads(r.stdout)
         return r.returncode == 0, data.get("updates", [])
-    except Exception:
+    except Exception as e:
+        if _debug:
+            print(f"[daemon] {command} error: {e}")
         return False, []
 
 
 def _run_check_image() -> tuple[bool, dict]:
     """Run rakuos-update check-image, return (update_available, info_dict)."""
+    _debug = os.environ.get("RAKUOS_DEBUG")
     try:
         r = subprocess.run(
             [RAKUOS_UPDATE, "check-image"],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, timeout=120
         )
+        if _debug:
+            print(f"[daemon] check-image exit={r.returncode} "
+                  f"stdout={r.stdout.strip()!r} "
+                  f"stderr={r.stderr.strip()[-200:]!r}")
         data = json.loads(r.stdout)
         return r.returncode == 0, data
-    except Exception:
+    except subprocess.TimeoutExpired:
+        if _debug:
+            print("[daemon] check-image TIMED OUT after 120s")
+        return False, {}
+    except Exception as e:
+        if _debug:
+            print(f"[daemon] check-image error: {e}")
         return False, {}
 
 
@@ -106,6 +122,9 @@ class UpdateDaemon(QObject):
         if self._running:
             return
         self._running = True
+        if os.environ.get("RAKUOS_DEBUG"):
+            import datetime
+            print(f"[daemon] Running update check at {datetime.datetime.now()}")
 
         from PyQt6.QtCore import QThread
 

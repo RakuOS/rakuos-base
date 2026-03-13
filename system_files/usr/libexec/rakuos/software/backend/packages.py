@@ -97,22 +97,22 @@ def _get_dnf() -> list[str]:
     return ["dnf"]
 
 
-def _get_pkexec_install_cmd(pkg_name: str) -> list[str]:
+def _get_install_cmd(pkg_name: str) -> list[str]:
     """Return the full privileged install command for pkg_name."""
     import shutil
     if shutil.which("rakuos"):
-        return ["pkexec", "/usr/libexec/rakuos/rakuos-install", pkg_name]
+        return ["sudo", "/usr/libexec/rakuos/rakuos-install", pkg_name]
     mgr = _get_pkg_manager()
-    return ["pkexec"] + mgr + ["install", "-y", pkg_name]
+    return ["sudo"] + mgr + ["install", "-y", pkg_name]
 
 
-def _get_pkexec_remove_cmd(pkg_name: str) -> list[str]:
+def _get_remove_cmd(pkg_name: str) -> list[str]:
     """Return the full privileged remove command for pkg_name."""
     import shutil
     if shutil.which("rakuos"):
-        return ["pkexec", "/usr/libexec/rakuos/rakuos-remove", pkg_name]
+        return ["sudo", "/usr/libexec/rakuos/rakuos-remove", pkg_name]
     mgr = _get_pkg_manager()
-    return ["pkexec"] + mgr + ["remove", "-y", pkg_name]
+    return ["sudo"] + mgr + ["remove", "-y", pkg_name]
 
 
 PACKAGES_LIST = Path("/var/lib/rakuos/packages.list")
@@ -248,7 +248,7 @@ def install_package_stream(pkg_name: str):
     Uses rakuos CLI if available, falls back to dnf5/dnf."""
     try:
         proc = subprocess.Popen(
-            _get_pkexec_install_cmd(pkg_name),
+            _get_install_cmd(pkg_name),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -267,7 +267,7 @@ def remove_package_stream(pkg_name: str):
     Uses rakuos CLI if available, falls back to dnf5/dnf."""
     try:
         proc = subprocess.Popen(
-            _get_pkexec_remove_cmd(pkg_name),
+            _get_remove_cmd(pkg_name),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -1027,7 +1027,7 @@ def install_local_rpm_stream(rpm_path: str):
     cmd = mgr + ["install", "-y", rpm_path]
     try:
         proc = subprocess.Popen(
-            ["pkexec"] + cmd,
+            ["sudo"] + cmd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
         )
         for line in proc.stdout:

@@ -139,7 +139,7 @@ def upgrade_packages_stream():
     """Generator that yields output from rakuos-update upgrade."""
     try:
         proc = subprocess.Popen(
-            ["pkexec", "/usr/libexec/rakuos/rakuos-update", "upgrade"],
+            ["sudo", "/usr/libexec/rakuos/rakuos-update", "upgrade"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -159,11 +159,11 @@ def upgrade_image_stream(update_type: str = "switch", repo_url: str = "", new_ta
     """
     try:
         if update_type == "upgrade":
-            cmd = ["pkexec", "bootc", "upgrade"]
+            cmd = ["sudo", "bootc", "upgrade"]
         else:
             # switch to new tag
             target = f"{repo_url}:{new_tag}" if repo_url and new_tag else None
-            cmd = ["pkexec", "bootc", "switch", target] if target else ["pkexec", "bootc", "upgrade"]
+            cmd = ["sudo", "bootc", "switch", target] if target else ["sudo", "bootc", "upgrade"]
 
         proc = subprocess.Popen(
             cmd,
@@ -184,7 +184,7 @@ def rollback_stream():
     """Generator that yields output from bootc rollback."""
     try:
         proc = subprocess.Popen(
-            ["pkexec", "bootc", "rollback"],
+            ["sudo", "bootc", "rollback"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True

@@ -1,3 +1,0 @@
-%wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-install
-%wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-remove
-%wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-update

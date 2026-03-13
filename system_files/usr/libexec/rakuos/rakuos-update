@@ -179,7 +179,7 @@ cmd_upgrade_flatpak() {
 _ghcr_get_image_info() {
     # Populates globals: IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
     local bootc_status
-    bootc_status=$(bootc status --json 2>/dev/null) || die "bootc status failed"
+    bootc_status=$(sudo bootc status --json 2>/dev/null) || die "bootc status failed"
 
     IMAGE_FULL=$(echo "$bootc_status" \
         | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
@@ -245,7 +245,7 @@ cmd_check_image() {
     # 2. Same tag — check if current tag has updated content via bootc upgrade --check
     echo "RakuOS: same tag, checking for content updates..." >&2
     local check_out
-    check_out=$(bootc upgrade --check 2>&1) || true
+    check_out=$(sudo bootc upgrade --check 2>&1) || true
 
     if echo "$check_out" | grep -q "No changes"; then
         echo "{\"update\":false,\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\"}"
