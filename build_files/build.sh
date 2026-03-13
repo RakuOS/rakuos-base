@@ -106,29 +106,40 @@ curl -fL "${CEF_URL}" -o /tmp/cef.tar.bz2 \
 echo "CEF installed at ${CEF_INSTALL_DIR}"
 
 # -----------------------------
-# Install Chrome to get Widevine
+# Download Chrome RPM to extract Widevine
 # -----------------------------
-echo "Installing Google Chrome to extract WidevineCDM..."
-dnf5 -y install google-chrome-stable
+CHROME_RPM_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
+TMP_DIR=$(mktemp -d)
 
-# Widevine files are usually in /opt/google/chrome/WidevineCdm
-CHROME_WV_DIR="/opt/google/chrome/WidevineCdm"
+echo "Downloading Chrome RPM..."
+curl -fL "$CHROME_RPM_URL" -o "${TMP_DIR}/chrome.rpm"
 
-if [ -d "$CHROME_WV_DIR" ]; then
-    echo "Copying WidevineCDM to CEF directory..."
-    cp -r "${CHROME_WV_DIR}/"* "$WIDEVINE_DIR/"
+echo "Extracting WidevineCDM..."
+mkdir -p "$WIDEVINE_DIR"
+
+# Extract the RPM contents
+cd "$TMP_DIR" || exit 1
+rpm2cpio chrome.rpm | cpio -idmv
+
+# Chrome installs Widevine to opt/google/chrome/WidevineCdm inside the RPM
+if [ -d "./opt/google/chrome/WidevineCdm" ]; then
+    cp -r ./opt/google/chrome/WidevineCdm/* "$WIDEVINE_DIR/"
     
-    # Optional: get Widevine version from manifest.json
-    WV_VERSION=$(grep '"version"' "$WIDEVINE_DIR/manifest.json" | head -n1 | awk -F '"' '{print $4}')
-    echo "WidevineCDM installed in ${WIDEVINE_DIR} (version ${WV_VERSION})"
+    # Get Widevine version from manifest.json
+    if [ -f "${WIDEVINE_DIR}/manifest.json" ]; then
+        WV_VERSION=$(grep '"version"' "$WIDEVINE_DIR/manifest.json" | head -n1 | awk -F '"' '{print $4}')
+        echo "WidevineCDM installed in ${WIDEVINE_DIR} (version ${WV_VERSION})"
+    else
+        echo "WARNING: manifest.json not found in WidevineCDM folder"
+        WV_VERSION=""
+    fi
 else
-    echo "Error: WidevineCdm directory not found in Chrome install."
+    echo "Error: WidevineCdm directory not found in Chrome RPM."
     exit 1
 fi
 
-# Remove Chrome
-echo "Removing Google Chrome package..."
-dnf5 -y remove google-chrome-stable
+# Cleanup
+rm -rf "$TMP_DIR"
 
 echo "CEF + WidevineCDM installation complete!"
 

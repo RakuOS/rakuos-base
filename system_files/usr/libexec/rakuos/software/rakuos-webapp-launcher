@@ -8,6 +8,7 @@
 
 CEF_DIR="/usr/lib/rakuos-cef"
 CEFSIMPLE="${CEF_DIR}/cefsimple"
+WIDEVINE_DIR="${CEF_DIR}/WidevineCdm"
 
 if [[ ! -x "$CEFSIMPLE" ]]; then
     echo "ERROR: CEF not found at ${CEF_DIR}" >&2
@@ -37,12 +38,21 @@ fi
 
 export LD_LIBRARY_PATH="${CEF_DIR}:${LD_LIBRARY_PATH:-}"
 
+# Auto-detect Widevine version from manifest.json
+if [[ -f "${WIDEVINE_DIR}/manifest.json" ]]; then
+    WV_VERSION=$(grep '"version"' "${WIDEVINE_DIR}/manifest.json" | head -n1 | awk -F '"' '{print $4}')
+else
+    echo "WARNING: Widevine manifest.json not found, skipping --widevine-cdm-version" >&2
+    WV_VERSION=""
+fi
+
+# Launch CEF
 exec "$CEFSIMPLE" \
     --url="$URL" \
     --user-data-dir="$DATA_DIR" \
     --enable-media-stream \
     --autoplay-policy=no-user-gesture-required \
     --window-name="rakuos-webapp-${APP_ID}" \
-    --widevine-cdm-path=/usr/lib/rakuos-cef/WidevineCdm \
-    --widevine-cdm-version=$WV_VERSION \
+    --widevine-cdm-path="$WIDEVINE_DIR" \
+    ${WV_VERSION:+--widevine-cdm-version="$WV_VERSION"} \
     2>/dev/null
