@@ -545,28 +545,62 @@ def run(rpm_file: str = None, flatpak_file: str = None,
     _probe = QLocalSocket()
     _probe.connectToServer(_SOCKET_NAME)
     if _probe.waitForConnected(300):
-        # Already running — send "raise" command and exit
-        _probe.write(b"raise\n")
+        # Already running — forward file path if any, then raise
+        import json as _json
+        msg = {
+            "cmd":          "raise",
+            "rpm_file":     rpm_file     or "",
+            "flatpak_file": flatpak_file or "",
+            "flatpakref":   flatpakref   or "",
+            "appimage":     appimage_file or "",
+        }
+        _probe.write((_json.dumps(msg) + "\n").encode())
         _probe.flush()
-        _probe.waitForBytesWritten(300)
+        _probe.waitForBytesWritten(500)
         _probe.disconnectFromServer()
         sys.exit(0)
 
     win = MainWindow()
 
-    # Start the local server to accept "raise" from future invocations
+    # Start the local server to accept commands from future invocations
     _server = QLocalServer(win)
     QLocalServer.removeServer(_SOCKET_NAME)  # clean up stale socket
     _server.listen(_SOCKET_NAME)
 
     def _on_new_connection():
+        import json as _json
         conn = _server.nextPendingConnection()
-        if conn:
-            conn.waitForReadyRead(200)
-            win.show()
-            win.raise_()
-            win.activateWindow()
-            conn.disconnectFromServer()
+        if not conn:
+            return
+        conn.waitForReadyRead(500)
+        raw = conn.readAll().data().decode().strip()
+        conn.disconnectFromServer()
+        win.show()
+        win.raise_()
+        win.activateWindow()
+        try:
+            msg = _json.loads(raw)
+        except Exception:
+            return  # plain "raise" from old client — just show window
+        # Forward file opens to the correct detail page
+        ai = msg.get("appimage", "")
+        rpm = msg.get("rpm_file", "")
+        fp  = msg.get("flatpak_file", "")
+        ref = msg.get("flatpakref", "")
+        if ai:
+            QTimer.singleShot(200, lambda: win._open_appimage_file(ai))
+        elif rpm:
+            from backend import packages as _pkg
+            QTimer.singleShot(200, lambda: win._open_detail(
+                _pkg.get_local_rpm_info(rpm)))
+        elif fp:
+            from backend import flatpak as _fp2
+            QTimer.singleShot(200, lambda: win._open_detail(
+                _fp2.get_local_flatpak_info(fp)))
+        elif ref:
+            from backend import flatpak as _fp2
+            QTimer.singleShot(200, lambda: win._open_detail(
+                _fp2.get_flatpakref_info(ref)))
 
     _server.newConnection.connect(_on_new_connection)
 
@@ -602,9 +636,12 @@ def run(rpm_file: str = None, flatpak_file: str = None,
 
     elif appimage_file:
         win.show()
+        win.raise_()
+        win.activateWindow()
         def _open_ai():
             win._open_appimage_file(appimage_file)
-        QTimer.singleShot(200, _open_ai)
+            win.raise_()
+        QTimer.singleShot(400, _open_ai)
 
     sys.exit(app.exec())
 

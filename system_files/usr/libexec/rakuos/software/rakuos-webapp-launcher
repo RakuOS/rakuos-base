@@ -24,4 +24,7 @@ CUSTOM_CSS="${3:-}"
 
 exec "$ELECTRON" \
     --widevine-cdm-path="$WIDEVINE_DIR" \
-    "$APP_DIR" "$URL" "$NAME" "$CUSTOM_CSS"
+    "$APP_DIR" \
+    "$URL" \
+    "$NAME" \
+    "$CUSTOM_CSS"

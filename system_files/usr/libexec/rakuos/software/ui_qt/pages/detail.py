@@ -1014,19 +1014,29 @@ class AppDetailPage(QWidget):
         self._name_lbl.setText(app.get("name", ""))
         self._summary_lbl.setText(app.get("summary") or app.get("description", ""))
 
-        # Icon — load from icon_path directly
+        # Icon — try icon_path first, async-resolve if missing
+        self._icon.setText("🌐")
         icon_path = app.get("icon_path", "")
-        if icon_path:
-            pix = QPixmap(icon_path)
+
+        def _set_icon(path: str):
+            if not path:
+                return
+            pix = QPixmap(path)
             if not pix.isNull():
                 self._icon.setPixmap(
                     pix.scaled(64, 64,
                                Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation))
-            else:
-                self._icon.setText("🌐")
+
+        if icon_path:
+            _set_icon(icon_path)
         else:
-            self._icon.setText("🌐")
+            # Download icon in background then update the label
+            app_id = app.get("id", "")
+            w = Worker(lambda: _wa.resolve_icon_for(app_id))
+            w.result.connect(_set_icon)
+            w.start()
+            self._workers.append(w)
 
         desc = app.get("description", "")
         self._desc.setText(desc)

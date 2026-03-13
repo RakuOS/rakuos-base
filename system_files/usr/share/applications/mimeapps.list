@@ -1,0 +1,15 @@
+# /usr/share/applications/mimeapps.list
+# System-wide default app associations for RakuOS
+# Install to: /usr/share/applications/mimeapps.list
+
+[Default Applications]
+application/vnd.appimage=rakuos-software.desktop
+application/x-rpm=rakuos-software.desktop
+application/vnd.flatpak=rakuos-software.desktop
+application/vnd.flatpak.ref=rakuos-software.desktop
+
+[Added Associations]
+application/vnd.appimage=rakuos-software.desktop
+application/x-rpm=rakuos-software.desktop
+application/vnd.flatpak=rakuos-software.desktop
+application/vnd.flatpak.ref=rakuos-software.desktop

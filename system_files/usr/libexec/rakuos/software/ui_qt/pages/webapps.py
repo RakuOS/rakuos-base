@@ -151,15 +151,13 @@ class WebAppsPage(QWidget):
         self._workers.append(w)
 
     def _fetch_catalog(self) -> list:
-        """Fetch catalog and eagerly cache all icons in the same thread."""
-        apps = webapps.get_catalog()
-        # _resolve_icon is called inside get_catalog already, but it returns
-        # empty string when the icon isn't cached yet and download is needed.
-        # Re-call it here so icons are warm before the UI renders.
-        for app in apps:
-            if not app.get("icon_path"):
-                app["icon_path"] = webapps._resolve_icon(app)
-        return apps
+        """
+        Fetch catalog and download all icons in this worker thread.
+        get_catalog() already calls _resolve_icon() per app which downloads
+        from icon_url if not cached — runs here off the main thread so the
+        UI never blocks on network I/O.
+        """
+        return webapps.get_catalog()
 
     def _render(self, apps: list):
         self._clear()

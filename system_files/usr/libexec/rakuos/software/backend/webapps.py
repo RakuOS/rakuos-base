@@ -46,7 +46,10 @@ def _ensure_dirs():
 # ── Catalog ───────────────────────────────────────────────────────────────────
 
 def get_catalog() -> list[dict]:
-    """Return all web apps from the system catalog."""
+    """
+    Return all web apps from the system catalog.
+    Icons are resolved and downloaded here — call from a worker thread.
+    """
     apps = []
     if not CATALOG_DIR.exists():
         return apps
@@ -55,12 +58,20 @@ def get_catalog() -> list[dict]:
             data = json.loads(path.read_text())
             data["source"]      = "webapp"
             data["installed"]   = is_installed(data["id"])
-            data["icon_path"]   = _resolve_icon(data)
+            data["icon_path"]   = _resolve_icon(data)   # downloads if needed
             data.setdefault("screenshots", [])
             apps.append(data)
         except Exception as e:
             print(f"[webapps] Failed to read {path}: {e}")
     return apps
+
+
+def resolve_icon_for(app_id: str) -> str:
+    """Resolve icon for a single app by id. Returns cached path or ''."""
+    app = get_catalog_by_id(app_id)
+    if not app:
+        return ""
+    return _resolve_icon(app)
 
 
 def get_catalog_by_id(app_id: str) -> dict | None:
@@ -116,9 +127,32 @@ def _resolve_icon(app: dict) -> str:
         try:
             _ensure_dirs()
             import tempfile, shutil
-            # Download to temp first so partial downloads don't leave bad cache
             tmp = Path(tempfile.mktemp(suffix=f".{ext}"))
-            urllib.request.urlretrieve(icon_url, tmp)
+            req = urllib.request.Request(
+                icon_url,
+                headers={"User-Agent": "Mozilla/5.0 RakuOS-Software-Center/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                tmp.write_bytes(resp.read())
+
+            # If .ico, convert to PNG using Qt so QPixmap loads cleanly
+            if ext == "ico" or icon_url.lower().endswith(".ico"):
+                try:
+                    # Lazy import — only needed for ico conversion
+                    import subprocess
+                    result = subprocess.run(
+                        ["python3", "-c",
+                         f"from PyQt6.QtGui import QImage; "
+                         f"img = QImage('{tmp}'); "
+                         f"img.save('{cached}', 'PNG')"],
+                        capture_output=True, timeout=5
+                    )
+                    tmp.unlink(missing_ok=True)
+                    if cached.exists():
+                        return str(cached)
+                except Exception:
+                    pass  # fall through to raw copy
+
             shutil.move(str(tmp), cached)
             return str(cached)
         except Exception as e:
@@ -160,10 +194,11 @@ def install(app_id: str) -> tuple[bool, str]:
     try:
         _ensure_dirs()
 
-        # Resolve and cache icon — downloads from icon_url if not yet cached
+        # Resolve and cache icon — downloads from icon_url, retrying once on failure
         icon_path = _resolve_icon(app)
-        # icon_path is the full local path to the cached icon file.
-        # Falls back to a named theme icon if download failed.
+        if not icon_path:
+            # Retry once in case of transient network error
+            icon_path = _resolve_icon(app)
         if not icon_path:
             icon_path = "web-browser"
 
