@@ -53,9 +53,10 @@ def get_catalog() -> list[dict]:
     for path in sorted(CATALOG_DIR.glob("*.json")):
         try:
             data = json.loads(path.read_text())
-            data["source"]    = "webapp"
-            data["installed"] = is_installed(data["id"])
-            data["icon_path"] = _resolve_icon(data)
+            data["source"]      = "webapp"
+            data["installed"]   = is_installed(data["id"])
+            data["icon_path"]   = _resolve_icon(data)
+            data.setdefault("screenshots", [])
             apps.append(data)
         except Exception as e:
             print(f"[webapps] Failed to read {path}: {e}")
@@ -69,36 +70,56 @@ def get_catalog_by_id(app_id: str) -> dict | None:
         return None
     try:
         data = json.loads(path.read_text())
-        data["source"]    = "webapp"
-        data["installed"] = is_installed(app_id)
-        data["icon_path"] = _resolve_icon(data)
+        data["source"]      = "webapp"
+        data["installed"]   = is_installed(app_id)
+        data["icon_path"]   = _resolve_icon(data)
+        data.setdefault("screenshots", [])
         return data
     except Exception:
         return None
 
 
 def _resolve_icon(app: dict) -> str:
-    """Return local icon path, downloading from icon_url if needed."""
+    """
+    Return local cached icon path for app, downloading from icon_url if needed.
+
+    Resolution order:
+      1. Already cached at ICON_DIR/{id}.{ext}  → return immediately
+      2. Download from icon_url → save as ICON_DIR/{id}.{ext} → return path
+      3. Fall back to empty string (UI shows placeholder)
+
+    The `icon` field in the catalog JSON is just the filename used for the
+    .desktop Icon= entry and is derived from the cached path — it is NOT
+    used as a local lookup. All icons live in the user cache dir.
+    """
     app_id   = app.get("id", "")
-    icon_name = app.get("icon", "")
+    icon_url = app.get("icon_url", "")
 
-    # 1. Check catalog dir first
-    if icon_name:
-        catalog_icon = CATALOG_DIR / icon_name
-        if catalog_icon.exists():
-            return str(catalog_icon)
+    # Derive extension from icon_url, default png
+    ext = "png"
+    if icon_url:
+        url_path = icon_url.split("?")[0]  # strip query string
+        if "." in url_path.split("/")[-1]:
+            ext = url_path.rsplit(".", 1)[-1].lower()
+            # Normalise ico → png since QPixmap handles png best
+            if ext not in ("png", "svg", "jpg", "jpeg", "webp"):
+                ext = "png"
 
-    # 2. Check cached user icon
-    cached = ICON_DIR / f"{app_id}.png"
+    cached = ICON_DIR / f"{app_id}.{ext}"
+
+    # 1. Already cached
     if cached.exists():
         return str(cached)
 
-    # 3. Download from icon_url
-    icon_url = app.get("icon_url", "")
+    # 2. Download from icon_url
     if icon_url:
         try:
             _ensure_dirs()
-            urllib.request.urlretrieve(icon_url, cached)
+            import tempfile, shutil
+            # Download to temp first so partial downloads don't leave bad cache
+            tmp = Path(tempfile.mktemp(suffix=f".{ext}"))
+            urllib.request.urlretrieve(icon_url, tmp)
+            shutil.move(str(tmp), cached)
             return str(cached)
         except Exception as e:
             print(f"[webapps] Failed to download icon for {app_id}: {e}")
@@ -139,10 +160,11 @@ def install(app_id: str) -> tuple[bool, str]:
     try:
         _ensure_dirs()
 
-        # Resolve and cache icon
+        # Resolve and cache icon — downloads from icon_url if not yet cached
         icon_path = _resolve_icon(app)
+        # icon_path is the full local path to the cached icon file.
+        # Falls back to a named theme icon if download failed.
         if not icon_path:
-            # Use a generic web icon as fallback
             icon_path = "web-browser"
 
         # Write installed JSON sidecar
@@ -155,6 +177,7 @@ def install(app_id: str) -> tuple[bool, str]:
             "icon_path":   icon_path,
             "categories":  app.get("categories", []),
             "keywords":    app.get("keywords", []),
+            "screenshots": app.get("screenshots", []),
             "source":      "webapp",
             "installed":   True,
         }
@@ -208,6 +231,10 @@ def _write_desktop(app: dict, icon_path: str):
     desc   = app.get("summary") or app.get("description", "")
     cats   = ";".join(app.get("categories", ["Network"])) + ";"
 
+    # Icon= uses the cached path so the file manager and app launcher both
+    # pick up the downloaded icon without needing a named theme icon
+    icon = icon_path or "web-browser"
+
     # Launcher command — uses cefpython3 wrapper
     exec_cmd = f"/usr/bin/rakuos-webapp-launcher '{url}' '{name}'"
 
@@ -215,7 +242,7 @@ def _write_desktop(app: dict, icon_path: str):
 Name={name}
 Comment={desc}
 Exec={exec_cmd}
-Icon={icon_path}
+Icon={icon}
 Terminal=false
 Type=Application
 Categories={cats}

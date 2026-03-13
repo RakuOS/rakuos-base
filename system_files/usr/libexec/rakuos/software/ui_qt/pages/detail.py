@@ -1050,6 +1050,13 @@ class AppDetailPage(QWidget):
             " border-radius: 4px; padding: 2px 8px; font-size: 11px; }")
         self._meta_row.addWidget(badge)
 
+        # Screenshots — same carousel used for Flatpak/native apps
+        for url in (app.get("screenshots") or [])[:8]:
+            ldr = ImageLoader(url)
+            ldr.loaded.connect(self._on_screenshot)
+            ldr.start()
+            self._workers.append(ldr)
+
         self._render_basic_actions(app)
 
     def _do_webapp_install(self, app: dict):

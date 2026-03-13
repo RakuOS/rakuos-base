@@ -36,14 +36,25 @@ class WebAppCard(QFrame):
         vl.setContentsMargins(14, 14, 14, 14)
         vl.setSpacing(8)
 
-        # Icon
-        icon_w = IconWidget(size=64)
+        # Icon — load directly from cached icon_path
+        icon_w = QLabel()
+        icon_w.setFixedSize(64, 64)
+        icon_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_path = app.get("icon_path", "")
         if icon_path:
-            icon_w.set_icon_name("", app_id=app.get("id", ""))
+            from PyQt6.QtGui import QPixmap
+            pix = QPixmap(icon_path)
+            if not pix.isNull():
+                icon_w.setPixmap(
+                    pix.scaled(64, 64,
+                               Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation))
+            else:
+                icon_w.setText("🌐")
+                f = icon_w.font(); f.setPointSize(28); icon_w.setFont(f)
         else:
             icon_w.setText("🌐")
-        icon_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            f = icon_w.font(); f.setPointSize(28); icon_w.setFont(f)
         vl.addWidget(icon_w, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Name
@@ -134,10 +145,21 @@ class WebAppsPage(QWidget):
     def load(self):
         self._clear()
         self._vl.addWidget(LoadingWidget("Loading web apps…"))
-        w = Worker(webapps.get_catalog)
+        w = Worker(self._fetch_catalog)
         w.result.connect(self._render)
         w.start()
         self._workers.append(w)
+
+    def _fetch_catalog(self) -> list:
+        """Fetch catalog and eagerly cache all icons in the same thread."""
+        apps = webapps.get_catalog()
+        # _resolve_icon is called inside get_catalog already, but it returns
+        # empty string when the icon isn't cached yet and download is needed.
+        # Re-call it here so icons are warm before the UI renders.
+        for app in apps:
+            if not app.get("icon_path"):
+                app["icon_path"] = webapps._resolve_icon(app)
+        return apps
 
     def _render(self, apps: list):
         self._clear()
