@@ -118,7 +118,6 @@ CHROME_WV_DIR="/opt/google/chrome/WidevineCdm"
 
 if [ -d "$CHROME_WV_DIR" ]; then
     echo "Copying WidevineCDM to CEF directory..."
-    mkdir -p "$WIDEVINE_DIR"
     cp -r "${CHROME_WV_DIR}/"* "$WIDEVINE_DIR/"
     
     # Optional: get Widevine version from manifest.json
