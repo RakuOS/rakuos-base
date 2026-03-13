@@ -14,11 +14,13 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QFrame, QStackedWidget,
     QSizePolicy, QSpacerItem, QScrollArea, QToolButton,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette, QPixmap, QIcon
 
 from .theme import STYLE, bold_font, _c, _mix, col_active_nav
 from .widgets import NavButton, spacer_v
+from .tray import RakuOSTray
+from .daemon import UpdateDaemon
 from .pages.home      import HomePage
 from .pages.explore   import ExplorePage
 from .pages.search    import SearchPage
@@ -361,6 +363,62 @@ class MainWindow(QMainWindow):
         self.navigate("home")
         packages.preload_appstream()
 
+        # ── Tray + background daemon ──────────────────────────────────────────
+        self._tray = RakuOSTray(self, parent=self)
+        self._daemon = UpdateDaemon(self)
+        self._daemon.updates_ready.connect(self._on_updates_ready)
+        self._daemon.notify.connect(self._on_notify)
+        self._daemon.start()
+
+    def closeEvent(self, event):
+        """Hide to tray instead of quitting."""
+        event.ignore()
+        self.hide()
+        if self._tray.isSystemTrayAvailable():
+            self._tray.show()
+            self._tray.showMessage(
+                "RakuOS Software",
+                "Running in the background. Click the tray icon to reopen.",
+                self._tray.MessageIcon.Information,
+                2000,
+            )
+
+    def _on_updates_ready(self, result: dict):
+        """Update tray badge and updates page when check completes."""
+        total = result["total"]
+        pkg_count = len(result.get("packages", []))
+        fp_count  = len(result.get("flatpak", []))
+        img       = result.get("image_available", False)
+
+        parts = []
+        if pkg_count:
+            parts.append(f"{pkg_count} package{'s' if pkg_count != 1 else ''}")
+        if fp_count:
+            parts.append(f"{fp_count} Flatpak{'s' if fp_count != 1 else ''}")
+        if img:
+            parts.append("system image")
+        summary = ", ".join(parts) + " available" if parts else ""
+
+        self._tray.set_updates(total, summary)
+
+        # Refresh updates page if it's currently visible
+        if self._stack.currentWidget() is self._updates:
+            self._updates.load(result)
+
+    def _on_notify(self, title: str, body: str):
+        """Show desktop notification via tray or notify-send."""
+        if self._tray.isSystemTrayAvailable() and self._tray.supportsMessages():
+            self._tray.showMessage(title, body,
+                                   self._tray.MessageIcon.Information, 8000)
+        else:
+            # GNOME fallback — notify-send
+            try:
+                import subprocess
+                subprocess.Popen(["notify-send", "--app-name=RakuOS Software",
+                                  "--icon=system-software-update", title, body])
+            except Exception:
+                pass
+
     # ── Navigation ────────────────────────────────────────────────────────────
 
     def navigate(self, page_id: str):
@@ -380,7 +438,7 @@ class MainWindow(QMainWindow):
         loaders = {
             "home":      self._home.load,
             "installed": self._installed.load,
-            "updates":   self._updates.load,
+            "updates":   lambda: self._updates.load(self._daemon.last_result() or None),
             "system":    self._system.load,
         }
         if page_id in loaders:

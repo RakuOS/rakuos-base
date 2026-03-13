@@ -103,6 +103,9 @@ def install_flatpak_stream(app_id: str):
         for line in proc.stdout:
             yield line.rstrip()
         proc.wait()
+        if proc.returncode == 0:
+            from . import packages
+            packages.invalidate_flatpak_cache()
         yield f"__done__{proc.returncode}"
     except Exception as e:
         yield f"Error: {e}"
@@ -121,6 +124,9 @@ def remove_flatpak_stream(app_id: str):
         for line in proc.stdout:
             yield line.rstrip()
         proc.wait()
+        if proc.returncode == 0:
+            from . import packages
+            packages.invalidate_flatpak_cache()
         yield f"__done__{proc.returncode}"
     except Exception as e:
         yield f"Error: {e}"

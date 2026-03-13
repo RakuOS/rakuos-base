@@ -1,0 +1,21 @@
+[Desktop Entry]
+Categories=
+Comment=RakuOS Software Center background service
+Comment=RakuOS Software Center background service
+Exec=/usr/libexec/rakuos/rakuos-software
+GenericName=
+GenericName=
+Icon=system-software-install
+MimeType=
+Name=RakuOS Software
+Name=RakuOS Software
+NoDisplay=true
+Path=
+StartupNotify=false
+Terminal=false
+TerminalOptions=
+Type=Application
+X-GNOME-Autostart-Delay=10
+X-GNOME-Autostart-enabled=true
+X-KDE-SubstituteUID=false
+X-KDE-Username=

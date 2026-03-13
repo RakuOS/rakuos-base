@@ -40,10 +40,14 @@ get_overlay_deps() {
     user_pkgs=$(get_user_packages)
     [[ -z "$user_pkgs" ]] && return
 
+    # --whatrequires accepts comma-separated list
+    local pkg_csv
+    pkg_csv=$(echo "$user_pkgs" | paste -sd ',')
+
     dnf repoquery --installed \
-        --whatrequires "$user_pkgs" \
+        --whatrequires "$pkg_csv" \
         --recursive \
-        --queryformat '%{name}' 2>/dev/null \
+        --queryformat '%{name}\n' 2>/dev/null \
         | sort -u || true
 }
 
@@ -52,6 +56,7 @@ get_overlay_packages() {
     local user deps
     user=$(get_user_packages)
     deps=$(get_overlay_deps)
+    # Return as newline-separated, space-joined for passing to dnf
     echo -e "$user\n$deps" | sort -u | grep -v '^$'
 }
 
@@ -74,9 +79,13 @@ cmd_check() {
         exit 1
     fi
 
+    # Convert newline-separated to array for safe passing to dnf
+    local -a pkg_array
+    mapfile -t pkg_array <<< "$overlay_pkgs"
+
     # dnf5 check-update exits 100 if updates available, 0 if none
     local check_output exit_code
-    check_output=$(dnf check-update --quiet $overlay_pkgs 2>/dev/null) || exit_code=$?
+    check_output=$(dnf check-update --quiet "${pkg_array[@]}" 2>/dev/null) || exit_code=$?
     exit_code=${exit_code:-0}
 
     if [[ $exit_code -eq 100 ]]; then
@@ -84,10 +93,17 @@ cmd_check() {
         local first=1
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
-            local name version repo gui
-            name=$(echo "$line"    | awk '{print $1}' | sed 's/\.[^.]*$//')
-            version=$(echo "$line" | awk '{print $2}')
-            repo=$(echo "$line"    | awk '{print $3}')
+            # Skip dnf header/separator lines (don't start with a package name)
+            [[ "$line" =~ ^[[:space:]] ]] && continue
+            [[ "$line" =~ ^Last ]] && continue
+            [[ "$line" =~ ^Obsoleting ]] && continue
+            local name_arch version repo name gui
+            name_arch=$(echo "$line" | awk '{print $1}')
+            version=$(echo "$line"   | awk '{print $2}')
+            repo=$(echo "$line"      | awk '{print $3}')
+            # Strip arch suffix: firefox.x86_64 -> firefox
+            name=$(echo "$name_arch" | sed 's/\.[a-z_0-9]*$//')
+            [[ -z "$name" || -z "$version" ]] && continue
             gui="false"
             is_gui_package "$name" && gui="true"
             [[ $first -eq 0 ]] && json+=","
@@ -115,7 +131,10 @@ cmd_upgrade() {
         exit 0
     fi
 
-    dnf upgrade -y $overlay_pkgs
+    local -a pkg_array
+    mapfile -t pkg_array <<< "$overlay_pkgs"
+
+    dnf upgrade -y "${pkg_array[@]}"
     echo "RakuOS: overlay package upgrade complete."
 }
 
@@ -215,14 +234,26 @@ cmd_check_image() {
     echo "Current tag: $CURRENT_TAG" >&2
     echo "Latest tag:  $NEWEST_TAG"  >&2
 
+    # 1. New date tag available — switch to it
     if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
-        if [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
-            echo "{\"update\":false,\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\"}"
-            exit 1
+        if [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
+            echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\",\"repo\":\"$REPO_URL\"}"
+            exit 0
         fi
     fi
 
-    echo "{\"update\":true,\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\",\"repo\":\"$REPO_URL\"}"
+    # 2. Same tag — check if current tag has updated content via bootc upgrade --check
+    echo "RakuOS: same tag, checking for content updates..." >&2
+    local check_out
+    check_out=$(bootc upgrade --check 2>&1) || true
+
+    if echo "$check_out" | grep -q "No changes"; then
+        echo "{\"update\":false,\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\"}"
+        exit 1
+    fi
+
+    # bootc found changes in current tag (hotfix/content update)
+    echo "{\"update\":true,\"type\":\"upgrade\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\",\"repo\":\"$REPO_URL\"}"
     exit 0
 }
 
@@ -232,14 +263,18 @@ cmd_upgrade_image() {
     local IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
     _ghcr_get_image_info
 
+    # 1. New date tag — switch to it
     if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$' \
-        && [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
-        echo "RakuOS: system image is already up to date ($CURRENT_TAG)."
+        && [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
+        echo "RakuOS: switching to new image tag $REPO_URL:$NEWEST_TAG..."
+        bootc switch "$REPO_URL:$NEWEST_TAG"
+        echo "RakuOS: system image update staged. Reboot to apply."
         exit 0
     fi
 
-    echo "RakuOS: switching to image $REPO_URL:$NEWEST_TAG..."
-    bootc switch "$REPO_URL:$NEWEST_TAG"
+    # 2. Same tag — run bootc upgrade for content updates (hotfixes)
+    echo "RakuOS: upgrading current image tag $CURRENT_TAG..."
+    bootc upgrade
     echo "RakuOS: system image update staged. Reboot to apply."
 }
 

@@ -167,9 +167,7 @@ def get_installed_packages() -> list[str]:
 
 
 def is_installed_native(pkg_name: str) -> bool:
-    if PACKAGES_LIST.exists():
-        return pkg_name in get_installed_packages()
-    # Non-RakuOS: ask rpm directly — much faster than scanning full DNF list
+    """Return True if pkg_name is actually installed on the system via rpm."""
     try:
         r = subprocess.run(
             ["rpm", "-q", "--quiet", pkg_name],
@@ -177,7 +175,11 @@ def is_installed_native(pkg_name: str) -> bool:
         )
         return r.returncode == 0
     except Exception:
+        pass
+    # Fallback — check packages.list
+    if PACKAGES_LIST.exists():
         return pkg_name in get_installed_packages()
+    return False
 
 
 # Simple in-process cache so repeated calls during one AppStream load don't hammer dnf
@@ -207,15 +209,38 @@ def pkg_exists_in_repos(pkg_name: str) -> bool:
         return False
 
 
+_flatpak_installed_cache: set[str] | None = None
+_flatpak_installed_lock = threading.Lock()
+
+def _get_flatpak_installed() -> set[str]:
+    """Return set of installed Flatpak app IDs. Cached per process lifetime."""
+    global _flatpak_installed_cache
+    with _flatpak_installed_lock:
+        if _flatpak_installed_cache is not None:
+            return _flatpak_installed_cache
+        try:
+            result = subprocess.run(
+                ["flatpak", "list", "--app", "--columns=application"],
+                capture_output=True, text=True, timeout=10
+            )
+            _flatpak_installed_cache = {
+                line.strip() for line in result.stdout.splitlines() if line.strip()
+            }
+        except Exception:
+            _flatpak_installed_cache = set()
+        return _flatpak_installed_cache
+
+
+def invalidate_flatpak_cache() -> None:
+    """Call after install/remove to force refresh of installed Flatpak list."""
+    global _flatpak_installed_cache
+    with _flatpak_installed_lock:
+        _flatpak_installed_cache = None
+
+
 def is_installed_flatpak(app_id: str) -> bool:
-    try:
-        result = subprocess.run(
-            ["flatpak", "info", app_id],
-            capture_output=True, text=True
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
+    """Return True only if app_id is an installed Flatpak application (not runtime/extension)."""
+    return app_id in _get_flatpak_installed()
 
 
 def install_package_stream(pkg_name: str):
@@ -308,7 +333,7 @@ def _load_appstream() -> dict:
         print(f"AppStream loaded {len(apps)} apps")
 
         # Inject native stubs for known Flatpak→RPM mappings that have no native AppStream entry.
-        # This ensures apps like Firefox appear with both sources without a slow repoquery scan.
+        # Only inject if the RPM actually exists in repos — avoids ghost "installed" entries.
         for fp_id_lower, rpm_name in _FLATPAK_TO_RPM.items():
             # Find the matching flatpak entry (case-insensitive id match)
             fp_entry = None
@@ -319,20 +344,22 @@ def _load_appstream() -> dict:
             if fp_entry is None:
                 continue
             # Skip if a native entry already exists with this pkg_name
-            native_key = f"native:{rpm_name}"
             if any(a.get("source") == "native" and a.get("pkg_name") == rpm_name
                    for a in apps.values()):
+                continue
+            # Only inject if the RPM is actually installable or already installed
+            if not pkg_exists_in_repos(rpm_name):
                 continue
             # Inject a native stub using the Flatpak's rich metadata
             stub = dict(fp_entry)
             stub["source"] = "native"
             stub["pkg_name"] = rpm_name
             stub["id"] = rpm_name
-            stub["installed"] = False  # enriched later
+            stub["installed"] = False  # enriched later by _enrich_installed → rpm -q
             stub.pop("origin", None)
             stub.pop("remote", None)
+            native_key = f"native:{rpm_name}"
             apps[native_key] = stub
-
         _appstream_cache = apps
         _cache_ready.set()
         return apps
@@ -427,11 +454,16 @@ def _parse_component(comp, source: str = "native") -> Optional[dict]:
 
 
 def _enrich_installed(app: dict) -> dict:
-    """Add installed status to an app dict."""
+    """Add installed status to an app dict.
+    Always re-checks the actual system state — never trusts cached installed value.
+    """
     app = dict(app)
     if app["source"] == "flatpak":
-        app["installed"] = is_installed_flatpak(app["pkg_name"])
+        # Must use the full Flatpak app ID (e.g. org.kde.gwenview), not pkg_name
+        flatpak_id = app.get("id") or app.get("pkg_name", "")
+        app["installed"] = is_installed_flatpak(flatpak_id)
     else:
+        # Use rpm -q on the RPM package name
         app["installed"] = is_installed_native(app["pkg_name"])
     return app
 
@@ -734,7 +766,7 @@ def get_installed_with_metadata() -> list[dict]:
     installed = get_installed_packages()
     apps = _load_appstream()
 
-    # Build pkg_name map — prefer non-addon, non-guessed entries on collision
+    # Build pkg_name map from all AppStream entries (native + flatpak-sourced metadata)
     pkg_map: dict[str, dict] = {}
     for a in apps.values():
         if a.get("is_addon"):
@@ -744,7 +776,6 @@ def get_installed_with_metadata() -> list[dict]:
         if existing is None:
             pkg_map[pn] = a
         elif existing.get("pkg_name_guessed") and not a.get("pkg_name_guessed"):
-            # Prefer the entry with a verified pkg_name
             pkg_map[pn] = a
 
     # Build Flatpak lookup by name and last ID segment for fallback matching
@@ -757,12 +788,16 @@ def get_installed_with_metadata() -> list[dict]:
 
     results = []
     for pkg in installed:
+        # Verify RPM is actually installed via rpm -q
+        if not is_installed_native(pkg):
+            continue
         if pkg in pkg_map:
             app = dict(pkg_map[pkg])
             app["installed"] = True
+            app["source"] = "native"
             results.append(app)
         else:
-            # Try matching against Flatpak metadata for icon/description
+            # Fallback — borrow Flatpak AppStream metadata for icon/description
             flatpak_match = flatpak_by_name.get(pkg.lower())
             if flatpak_match:
                 entry = dict(flatpak_match)
@@ -831,7 +866,6 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "com.google.chrome":              "google-chrome-stable",
     "com.google.chromedev":           "google-chrome-unstable",
     "com.google.chromebeta":          "google-chrome-beta",
-    "com.microsoft.Edge":             "microsoft-edge-stable",
     "org.gnome.evolution":            "evolution",
     "org.kde.dolphin":                "dolphin",
     "org.kde.konsole":                "konsole",
@@ -856,8 +890,8 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.signal.signal":              "signal-desktop",
     "com.discordapp.discord":         "discord",
     "org.telegram.desktop":           "telegram-desktop",
+    "com.spotify.client":             "spotify-client",
     "org.kde.elisa":                  "elisa",
-    "com.visualstudio.code":          "code",
     "org.gnome.nautilus":             "nautilus",
     "org.gnome.gedit":                "gedit",
     "org.gnome.eog":                  "eog",
@@ -865,8 +899,6 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.gnome.rhythmbox":            "rhythmbox",
     "org.gnome.cheese":               "cheese",
     "org.gnome.shotwell":             "shotwell",
-    "com.heroicgameslauncher.hgl":    "heroic-games-launcher-bin",
-    "io.github.Faugus.faugus-launcher": "faugus-launcher",
 }
 
 

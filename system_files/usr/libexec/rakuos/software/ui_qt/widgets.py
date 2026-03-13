@@ -119,7 +119,8 @@ class IconWidget(QLabel):
                     if os.path.exists(p) and _load(p):
                         return
 
-        # 4. Fetch from Flathub API async — icon pops in when downloaded
+        # 4. Fetch remotely async — KDE apps.kde.org for org.kde.* else Flathub API
+        #    Icon pops in when downloaded, no blocking
         if icon_id:
             self._start_remote_fetch(icon_id)
             return
@@ -130,24 +131,65 @@ class IconWidget(QLabel):
                 return
 
     def _start_remote_fetch(self, app_id: str):
-        """Fetch icon URL from Flathub API then download the image, both in background."""
+        """Fetch icon remotely in background.
+        For org.kde.* apps: tries apps.kde.org SVG first, falls back to Flathub.
+        For all others: Flathub API icon URL.
+        """
         widget_ref = self
 
         class _FetchThread(QThread):
             def run(self):
                 try:
-                    icon_url = packages.get_flathub_icon_url(app_id)
-                    if not icon_url:
+                    data = None
+
+                    # KDE apps — try apps.kde.org SVG first
+                    if app_id.startswith("org.kde."):
+                        kde_url = f"https://apps.kde.org/app-icons/{app_id}.svg"
+                        try:
+                            req = urllib.request.Request(
+                                kde_url, headers={"User-Agent": "RakuOS-Software/1.0"}
+                            )
+                            with urllib.request.urlopen(req, timeout=8) as r:
+                                if r.status == 200:
+                                    data = r.read()
+                                    packages.save_icon_to_cache(app_id, data)
+                        except Exception:
+                            pass  # fall through to Flathub
+
+                    # Flathub API fallback (or primary for non-KDE)
+                    if not data:
+                        icon_url = packages.get_flathub_icon_url(app_id)
+                        if not icon_url:
+                            return
+                        req = urllib.request.Request(
+                            icon_url, headers={"User-Agent": "RakuOS-Software/1.0"}
+                        )
+                        with urllib.request.urlopen(req, timeout=8) as r:
+                            data = r.read()
+                        packages.save_icon_to_cache(app_id, data)
+
+                    if not data:
                         return
-                    req = urllib.request.Request(
-                        icon_url, headers={"User-Agent": "RakuOS-Software/1.0"}
-                    )
-                    with urllib.request.urlopen(req, timeout=8) as r:
-                        data = r.read()
-                    path = packages.save_icon_to_cache(app_id, data)
-                    # Update widget on main thread
+
+                    # Render SVG or raster onto main thread
                     img = QImage()
                     img.loadFromData(data)
+                    if img.isNull():
+                        # Try SVG renderer
+                        from PyQt6.QtSvg import QSvgRenderer
+                        from PyQt6.QtCore import QByteArray
+                        renderer = QSvgRenderer(QByteArray(data))
+                        if renderer.isValid():
+                            img = QImage(
+                                widget_ref._size, widget_ref._size,
+                                QImage.Format.Format_ARGB32
+                            )
+                            img.fill(0)
+                            from PyQt6.QtGui import QPainter
+                            painter = QPainter(img)
+                            renderer.render(painter)
+                            painter.end()
+
                     pix = QPixmap.fromImage(img).scaled(
                         widget_ref._size, widget_ref._size,
                         Qt.AspectRatioMode.KeepAspectRatio,
@@ -161,7 +203,6 @@ class IconWidget(QLabel):
 
         t = _FetchThread(self)
         t.start()
-        # Keep reference so thread isn't GC'd
         if not hasattr(self, "_icon_threads"):
             self._icon_threads = []
         self._icon_threads.append(t)

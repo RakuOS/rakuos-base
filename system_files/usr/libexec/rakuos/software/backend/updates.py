@@ -130,13 +130,41 @@ def check_for_update() -> dict:
         return {"update_available": False, "error": str(e)}
 
 
-def apply_update_stream(new_tag: str = "", repo_url: str = ""):
-    """Generator that yields output from bootc upgrade or switch to dated tag."""
+def apply_update_stream():
+    """Generator that yields output from bootc upgrade."""
+    yield from upgrade_image_stream()
+
+
+def upgrade_packages_stream():
+    """Generator that yields output from rakuos-update upgrade."""
     try:
-        if new_tag and repo_url:
-            cmd = ["pkexec", "bootc", "switch", f"{repo_url}:{new_tag}"]
-        else:
+        proc = subprocess.Popen(
+            ["pkexec", "/usr/libexec/rakuos/rakuos-update", "upgrade"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        for line in proc.stdout:
+            yield line.rstrip()
+        proc.wait()
+        yield f"__done__{proc.returncode}"
+    except Exception as e:
+        yield f"Error: {e}"
+        yield "__done__1"
+
+
+def upgrade_image_stream(update_type: str = "switch", repo_url: str = "", new_tag: str = ""):
+    """Generator that yields output from bootc upgrade or switch.
+    update_type: 'switch' = new tag available, 'upgrade' = hotfix on same tag.
+    """
+    try:
+        if update_type == "upgrade":
             cmd = ["pkexec", "bootc", "upgrade"]
+        else:
+            # switch to new tag
+            target = f"{repo_url}:{new_tag}" if repo_url and new_tag else None
+            cmd = ["pkexec", "bootc", "switch", target] if target else ["pkexec", "bootc", "upgrade"]
+
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
