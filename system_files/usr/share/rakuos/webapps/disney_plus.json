@@ -1,0 +1,15 @@
+{
+  "id": "disney_plus",
+  "name": "Disney+",
+  "url": "https://www.disneyplus.com/",
+  "summary": "Movies and TV shows on demand From Disney",
+  "description": "Stream your favorite Disney movies, TV shows, and more.",
+  "icon": "hulu.png",
+  "icon_url": "https://cdn2.steamgriddb.com/icon/9e406957d45fcb6c6f38c2ada7bace91/32/256x256.png",
+  "screenshots": [
+  "https://thebusinessgossip.com/wp-content/uploads/2021/10/Screenshot-24-1024x488.png",
+  "https://cdn.businessinsider.de/wp-content/uploads/2020/03/5.-CD-Home-de-DE-1536x864.png"
+],
+  "categories": ["AudioVideo", "Video"],
+  "keywords": ["netflix", "streaming", "movies", "tv", "shows"]
+}

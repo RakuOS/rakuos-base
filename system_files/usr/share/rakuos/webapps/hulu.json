@@ -1,0 +1,15 @@
+{
+  "id": "hulu",
+  "name": "Hulu",
+  "url": "https://www.hulu.com/",
+  "summary": "Movies and TV shows on demand",
+  "description": "Stream movies, TV shows, anime, documentaries and more.",
+  "icon": "hulu.png",
+  "icon_url": "https://cdn2.steamgriddb.com/icon/9e406957d45fcb6c6f38c2ada7bace91/32/256x256.png",
+  "screenshots": [
+  "https://splaitor.com/wp-content/uploads/2021/07/screenshot-hulu-1024x681.png",
+  "https://thestreamable.com/media/pages/news/does-hulu-have-a-free-trial/e3bf20c81f-1716569738/hulu-screenshot-1328x756.jpg"
+],
+  "categories": ["AudioVideo", "Video"],
+  "keywords": ["netflix", "streaming", "movies", "tv", "shows"]
+}
