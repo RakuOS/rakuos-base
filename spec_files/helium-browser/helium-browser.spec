@@ -57,8 +57,8 @@ This package installs Helium under /opt/helium and integrates it with
 the system desktop environment.
 
 %prep
-# Extract the tarball without using %autosetup since it's a plain binary release
-%setup -c -T -n helium-%{version}-x86_64_linux
+%setup -c -T -n helium-%{version}
+# Now we're in helium-0.10.5.1
 
 # Fix desktop file to use system wrapper
 sed -i 's|Exec=.*|Exec=helium|' helium.desktop
