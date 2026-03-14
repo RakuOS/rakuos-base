@@ -57,8 +57,7 @@ This package installs Helium under /opt/helium and integrates it with
 the system desktop environment.
 
 %prep
-%setup -c -T -n helium-%{version}
-# Now we're in helium-0.10.5.1
+%autosetup -c -T
 
 %build
 # Nothing to build (binary release)
@@ -66,7 +65,7 @@ the system desktop environment.
 %install
 # Install browser to /opt
 mkdir -p %{buildroot}/opt/helium
-cp -a * %{buildroot}/opt/helium/
+cp -a helium-%{version}/* %{buildroot}/opt/helium/
 
 # Desktop entry
 mkdir -p %{buildroot}%{_datadir}/applications
