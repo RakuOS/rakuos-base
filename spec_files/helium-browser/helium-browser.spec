@@ -58,29 +58,33 @@ the system desktop environment.
 
 %prep
 %autosetup -c -T
-
-%build
-# Nothing to build (binary release)
+tar -xf %{SOURCE0}
+# Set a variable for the extracted folder
+%global helium_src_dir helium-%{version}
 
 %install
 # Install browser to /opt
 mkdir -p %{buildroot}/opt/helium
-cp -a helium-%{version}/* %{buildroot}/opt/helium/
+cp -a %{helium_src_dir}/* %{buildroot}/opt/helium/
 
 # Desktop entry
 mkdir -p %{buildroot}%{_datadir}/applications
-install -m 0644 helium.desktop %{buildroot}%{_datadir}/applications/
+install -m 0644 %{helium_src_dir}/helium.desktop \
+    %{buildroot}%{_datadir}/applications/
 
 # Icon
 mkdir -p %{buildroot}%{_datadir}/icons/hicolor/256x256/apps
-install -m 0644 product_logo_256.png %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/helium.png
+install -m 0644 %{helium_src_dir}/product_logo_256.png \
+    %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/helium.png
 
 # Wrapper binary
 mkdir -p %{buildroot}%{_bindir}
+
 cat > %{buildroot}%{_bindir}/helium << 'EOF'
 #!/bin/bash
 exec /opt/helium/helium "$@"
 EOF
+
 chmod +x %{buildroot}%{_bindir}/helium
 
 %files
