@@ -11,5 +11,13 @@
   "org.gnome.baobab": {
     "name": "Disk Usage Analyzer",
     "summary": "Check folder sizes and available disk space"
+  },
+  "flatpak:org.gnome.Epiphany": {
+    "name": "Web",
+    "summary": "Browse the web"
+  },
+  "org.gnome.Epiphany": {
+    "name": "Web",
+    "summary": "Browse the web"
   }
 }
