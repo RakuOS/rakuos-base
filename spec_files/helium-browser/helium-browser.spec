@@ -7,8 +7,6 @@ License:        GPL-3.0
 URL:            https://helium.computer/
 Source0:        https://github.com/imputnet/helium-linux/releases/download/%{version}/helium-%{version}-x86_64_linux.tar.xz
 
-BuildArch:      x86_64
-
 # Chromium/Chrome style runtime dependencies
 Requires:       alsa-lib
 Requires:       atk
