@@ -57,40 +57,34 @@ This package installs Helium under /opt/helium and integrates it with
 the system desktop environment.
 
 %prep
-%autosetup -c -T
-
-tar -xf %{SOURCE0}
+# Extract the tarball without using %autosetup since it's a plain binary release
+%setup -c -T -n helium-%{version}-x86_64_linux
 
 # Fix desktop file to use system wrapper
-sed -i 's|Exec=.*|Exec=helium|' helium-%{version}-x86_64_linux/helium.desktop
+sed -i 's|Exec=.*|Exec=helium|' helium.desktop
 
 %build
 # Nothing to build (binary release)
 
 %install
-
 # Install browser to /opt
 mkdir -p %{buildroot}/opt/helium
-cp -a helium-%{version}-x86_64_linux/* %{buildroot}/opt/helium/
+cp -a * %{buildroot}/opt/helium/
 
 # Desktop entry
 mkdir -p %{buildroot}%{_datadir}/applications
-install -m 0644 helium-%{version}-x86_64_linux/helium.desktop \
-    %{buildroot}%{_datadir}/applications/
+install -m 0644 helium.desktop %{buildroot}%{_datadir}/applications/
 
 # Icon
 mkdir -p %{buildroot}%{_datadir}/icons/hicolor/256x256/apps
-install -m 0644 helium-%{version}-x86_64_linux/product_logo_256.png \
-    %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/helium.png
+install -m 0644 product_logo_256.png %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/helium.png
 
 # Wrapper binary
 mkdir -p %{buildroot}%{_bindir}
-
 cat > %{buildroot}%{_bindir}/helium << 'EOF'
 #!/bin/bash
 exec /opt/helium/helium "$@"
 EOF
-
 chmod +x %{buildroot}%{_bindir}/helium
 
 %files
