@@ -26,6 +26,7 @@ ICON_PATH="${HOME}/.local/share/rakuos/webapps/icons/${APP_ID}.png"
 exec "$ELECTRON" \
     --widevine-cdm-path="$WIDEVINE_DIR" \
     --ozone-platform-hint=auto \
+    --ozone-platform=x11 \
     ${ICON_PATH:+--app-icon="$ICON_PATH"} \
     "$APP_DIR" \
     "$URL" \
