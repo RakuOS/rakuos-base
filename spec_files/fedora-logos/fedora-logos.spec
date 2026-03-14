@@ -4,11 +4,11 @@ Version:  42.0.1
 Release:  100%{?dist}.rakuos
 URL:    https://pagure.io/fedora-logos
 Source0:  https://pagure.io/fedora-logos/archive/%{version}/fedora-logos-%{version}.tar.gz
-Source1:  sidebar-bg.png
-Source2:  sidebar-logo.png
-Source3:  topbar-bg.png
-Source4:  anaconda_header.png
-Source5:  fedora.css
+Source1:  https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/fedora-logos/sidebar-bg.png
+Source2:  https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/fedora-logos/sidebar-logo.png
+Source3:  https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/fedora-logos/topbar-bg.png
+Source4:  https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/fedora-logos/anaconda_header.png
+Source5:  https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/fedora-logos/fedora.css
 License:  LicenseRef-Fedora-Logos
 Provides: redhat-logos = %{version}-%{release}
 Provides: gnome-logos = %{version}-%{release}
