@@ -4,7 +4,10 @@
     "key": "app-id or flatpak:app-id",
     "fields": "name, summary, description (all optional)"
   },
-
+  "flatpak:org.gnome.baobab": {
+    "name": "Disk Usage Analyzer",
+    "summary": "Check folder sizes and available disk space"
+  },
   "org.gnome.baobab": {
     "name": "Disk Usage Analyzer",
     "summary": "Check folder sizes and available disk space"
