@@ -1,0 +1,12 @@
+{
+  "_comment": "RakuOS AppStream metadata overrides.",
+  "_format": {
+    "key": "app-id or flatpak:app-id",
+    "fields": "name, summary, description (all optional)"
+  },
+
+  "org.gnome.baobab": {
+    "name": "Disk Usage Analyzer",
+    "summary": "Check folder sizes and available disk space"
+  }
+}

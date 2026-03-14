@@ -183,6 +183,39 @@ class UpdateDaemon(QObject):
                 }
                 daemon_ref._check_done_signal.emit(result)
 
+                # Refresh category top-app caches in background after
+                # update checks — runs last so it doesn't delay notifications
+                try:
+                    from ui_qt.pages.explore import (
+                        _get_top_by_category,
+                        _CAT_CACHE_VERSION,
+                        _CACHE_DIR,
+                        _cache_valid,
+                    )
+                    import os as _os, time as _time
+                    CATEGORIES = [
+                        "Game", "Network", "AudioVideo", "Graphics",
+                        "Office", "Development", "System", "Utility",
+                        "Education", "Science", "Accessibility",
+                    ]
+                    for cat in CATEGORIES:
+                        cache_path = _os.path.join(
+                            _CACHE_DIR,
+                            f"cat_top_v{_CAT_CACHE_VERSION}_{cat.lower()}.json")
+                        # Only refresh if cache is expired
+                        if not _cache_valid(cache_path):
+                            if os.environ.get("RAKUOS_DEBUG"):
+                                print(f"[daemon] refreshing category cache: {cat}")
+                            try:
+                                _get_top_by_category(cat, 12)
+                            except Exception as e:
+                                if os.environ.get("RAKUOS_DEBUG"):
+                                    print(f"[daemon] cat cache error {cat}: {e}")
+                            _time.sleep(0.5)  # gentle pacing between categories
+                except Exception as e:
+                    if os.environ.get("RAKUOS_DEBUG"):
+                        print(f"[daemon] category cache refresh error: {e}")
+
         t = _CheckThread(self)
         t.finished.connect(lambda: setattr(self, "_running", False))
         t.start()

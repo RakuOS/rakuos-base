@@ -30,136 +30,138 @@ from backend import packages, flatpak, appimages, webapps
 
 class InstalledRow(QFrame):
     """
-    One installed item — icon | name + summary | version | Uninstall btn.
-    Uninstall button turns into an inline red progress bar while running,
-    then shows ✓ or ✗ when done.
+    One installed item row — fixed 48px height.
+    icon | name + summary | [Runtime] | version | Uninstall/progress/result
     """
-    clicked    = pyqtSignal(dict)
-    uninstall  = pyqtSignal(dict)
-    done       = pyqtSignal(dict, int)   # (app, exit_code)
+    clicked   = pyqtSignal(dict)
+    uninstall = pyqtSignal(dict)
 
     def __init__(self, app: dict, parent=None):
         super().__init__(parent)
         self._app = app
         self.setObjectName("installedRow")
         self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setFixedHeight(48)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         hl = QHBoxLayout(self)
-        hl.setContentsMargins(8, 6, 8, 6)
-        hl.setSpacing(12)
+        hl.setContentsMargins(12, 0, 12, 0)
+        hl.setSpacing(10)
 
-        # Icon
-        icon_lbl = QLabel()
-        icon_lbl.setFixedSize(36, 36)
+        # ── Icon 32×32 ────────────────────────────────────────────────────────
+        icon_lbl = QLabel(self)
+        icon_lbl.setFixedSize(32, 32)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_path = app.get("icon_path", "")
-        loaded = False
         if icon_path:
             pix = QPixmap(icon_path)
             if not pix.isNull():
                 icon_lbl.setPixmap(pix.scaled(
-                    36, 36,
+                    32, 32,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
-                loaded = True
-        if not loaded:
-            src = app.get("source", "")
-            icon_lbl.setText(
-                "🌐" if src == "webapp" else
-                "📦" if src == "appimage" else
-                "◈"     if src == "flatpak" else "⬡")
-            f = icon_lbl.font(); f.setPointSize(18); icon_lbl.setFont(f)
+            else:
+                icon_lbl.setText(self._fallback_icon(app))
+        else:
+            icon_lbl.setText(self._fallback_icon(app))
         hl.addWidget(icon_lbl)
 
-        # Name + summary
-        text_col = QVBoxLayout()
-        text_col.setSpacing(1)
-        name = app.get("name") or app.get("id", "unknown")
-        self._name_lbl = bold_font(QLabel(name))
-        self._name_lbl.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        text_col.addWidget(self._name_lbl)
+        # ── Name (bold) + summary (small, dimmed) — single expanding widget ────
+        name    = app.get("name") or app.get("id", "unknown")
         summary = app.get("summary") or app.get("description", "")
-        if summary:
-            s_lbl = dimmed(QLabel(summary[:80] + ("…" if len(summary) > 80 else "")))
-            s_lbl.setStyleSheet("font-size: 11px;")
-            text_col.addWidget(s_lbl)
-        hl.addLayout(text_col, stretch=1)
+        summary_short = summary[:72] + ("…" if len(summary) > 72 else "")
 
-        # Badge
-        badge_text = ""
-        src = app.get("source", "")
+        text_widget = QWidget(self)
+        text_widget.setFixedHeight(48)
+        text_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        tv = QVBoxLayout(text_widget)
+        tv.setContentsMargins(0, 4, 0, 4)
+        tv.setSpacing(1)
+
+        name_lbl = QLabel(name, text_widget)
+        nf = name_lbl.font()
+        nf.setBold(True)
+        name_lbl.setFont(nf)
+        name_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        tv.addWidget(name_lbl)
+
+        if summary_short:
+            s_lbl = QLabel(summary_short, text_widget)
+            s_lbl.setStyleSheet("font-size: 11px; color: palette(mid);")
+            s_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            tv.addWidget(s_lbl)
+
+        hl.addWidget(text_widget, stretch=1)
+
+        # ── Runtime badge ─────────────────────────────────────────────────────
         if app.get("runtime"):
-            badge_text = "Runtime"
-        elif src == "appimage":
-            badge_text = "AppImage"
-        elif src == "webapp":
-            badge_text = "Web App"
-        if badge_text:
-            badge = QLabel(badge_text)
+            badge = QLabel("Runtime", self)
             badge.setStyleSheet(
                 "QLabel { background: rgba(128,128,128,0.15); color: palette(mid);"
                 " border-radius: 4px; padding: 1px 7px; font-size: 10px; }")
+            badge.setFixedHeight(18)
             hl.addWidget(badge)
 
-        # Version
-        ver = app.get("version", "")
+        # ── Version ───────────────────────────────────────────────────────────
+        ver = str(app.get("version", ""))
         if ver:
-            ver_lbl = dimmed(QLabel(ver))
-            ver_lbl.setStyleSheet("font-size: 11px; min-width: 60px;")
-            ver_lbl.setAlignment(
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            ver_lbl = QLabel(ver, self)
+            ver_lbl.setFixedWidth(90)
+            ver_lbl.setAlignment(Qt.AlignmentFlag.AlignRight |
+                                  Qt.AlignmentFlag.AlignVCenter)
+            ver_lbl.setStyleSheet("font-size: 11px; color: palette(mid);")
             hl.addWidget(ver_lbl)
 
-        # Right side: stacked uninstall btn / progress / status
-        from PyQt6.QtWidgets import QStackedWidget, QProgressBar
-        self._right = QStackedWidget()
-        self._right.setFixedWidth(100)
-        self._right.setFixedHeight(28)
+        # ── Uninstall / progress / result stack ───────────────────────────────
+        self._state = 0   # 0=btn 1=progress 2=result
 
-        # Page 0 — Uninstall button
-        self._btn = QPushButton("Uninstall")
-        self._btn.setFixedHeight(26)
+        self._btn = QPushButton("Uninstall", self)
+        self._btn.setFixedSize(90, 28)
         self._btn.setObjectName("dangerButton")
         self._btn.clicked.connect(lambda: self.uninstall.emit(self._app))
-        self._right.addWidget(self._btn)
 
-        # Page 1 — Progress bar (indeterminate, red)
-        self._progress = QProgressBar()
-        self._progress.setRange(0, 0)
-        self._progress.setFixedHeight(8)
-        self._progress.setTextVisible(False)
-        self._progress.setStyleSheet(
-            "QProgressBar { border-radius: 4px; background: rgba(229,57,53,0.15); }"
-            "QProgressBar::chunk { background: #e53935; border-radius: 4px; }")
-        prog_wrap = QWidget()
-        pw = QVBoxLayout(prog_wrap)
-        pw.setContentsMargins(4, 0, 4, 0)
-        pw.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        pw.addWidget(self._progress)
-        self._right.addWidget(prog_wrap)
+        self._prog = QProgressBar(self)
+        self._prog.setRange(0, 0)
+        self._prog.setFixedSize(90, 8)
+        self._prog.setTextVisible(False)
+        self._prog.setStyleSheet(
+            "QProgressBar{border-radius:4px;background:rgba(229,57,53,0.15);}"
+            "QProgressBar::chunk{background:#e53935;border-radius:4px;}")
+        self._prog.hide()
 
-        # Page 2 — Result icon
-        self._result_lbl = QLabel()
-        self._result_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._right.addWidget(self._result_lbl)
+        self._result = QLabel(self)
+        self._result.setFixedSize(90, 28)
+        self._result.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._result.hide()
 
-        self._right.setCurrentIndex(0)
-        hl.addWidget(self._right)
+        hl.addWidget(self._btn)
+        hl.addWidget(self._prog)
+        hl.addWidget(self._result)
+
+    @staticmethod
+    def _fallback_icon(app: dict) -> str:
+        src = app.get("source", "")
+        return ("🌐" if src == "webapp" else
+                "📦" if src == "appimage" else
+                "◈"     if src == "flatpak" else "⬡")
 
     def set_uninstalling(self):
-        self._right.setCurrentIndex(1)
+        self._btn.hide()
+        self._prog.show()
+        self._result.hide()
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def set_done(self, success: bool):
-        self._right.setCurrentIndex(2)
+        self._btn.hide()
+        self._prog.hide()
+        self._result.show()
         if success:
-            self._result_lbl.setText("✓")
-            self._result_lbl.setStyleSheet("color: #4caf50; font-size: 18px;")
+            self._result.setText("✓")
+            self._result.setStyleSheet("color: #4caf50; font-size: 18px;")
         else:
-            self._result_lbl.setText("✗")
-            self._result_lbl.setStyleSheet("color: #e53935; font-size: 18px;")
+            self._result.setText("✗")
+            self._result.setStyleSheet("color: #e53935; font-size: 18px;")
 
     def mousePressEvent(self, event):
         self.clicked.emit(self._app)

@@ -15,50 +15,114 @@ from typing import Optional
 
 def _get_system_lang() -> str:
     """Get system language code e.g. 'en', 'de', 'fr'"""
+    import os as _os
+    # Try env vars first — most reliable on modern Linux/Flatpak/Wayland
+    for var in ("LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES"):
+        val = _os.environ.get(var, "")
+        if val and val.upper() not in ("", "C", "POSIX", "C.UTF-8"):
+            lang = val.split(".")[0].split("_")[0].lower()
+            if lang and lang != "c":
+                return lang
+    # Fall back to Python locale module
     try:
-        lang = locale.getlocale()[0] or "en"
-        return lang.split("_")[0].lower()
+        lang = locale.getlocale()[0] or ""
+        if lang and lang.upper() not in ("C", "POSIX"):
+            return lang.split("_")[0].lower()
     except Exception:
-        return "en"
+        pass
+    return "en"
 
+# Evaluated once at import — good enough since locale doesn't change mid-session
 SYSTEM_LANG = _get_system_lang()
+print(f"[packages] SYSTEM_LANG={SYSTEM_LANG!r}  LANG_env={__import__('os').environ.get('LANG','unset')}")
 XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
+
+
+# Languages that use Latin script — prefer these as last resort over others
+_LATIN_LANGS = {
+    "en","de","fr","es","it","pt","nl","sv","da","no","fi","pl","cs","sk",
+    "hu","ro","hr","sl","lt","lv","et","tr","id","ms","vi","af","eu","ca",
+}
+
+def _pick_lang(by_lang: dict, default: str) -> str:
+    """Pick best text from a lang→text dict, preferring system lang then en."""
+    # 1. Exact system language match
+    if by_lang.get(SYSTEM_LANG):
+        return by_lang[SYSTEM_LANG]
+    # 2. English variants
+    for en in ("en", "en-us", "en-gb"):
+        if by_lang.get(en):
+            return by_lang[en]
+    # 3. Untagged default (most AppStream files store English as default)
+    if default:
+        return default
+    # 4. Any Latin-script language (better than returning nothing or CJK/RTL)
+    for lang, text in by_lang.items():
+        if lang.split("-")[0] in _LATIN_LANGS and text:
+            return text
+    # 5. Absolute last resort — first available (at least shows something)
+    return next((v for v in by_lang.values() if v), "")
+
+
+def _lang_key(lang: str) -> str:
+    """Normalise xml:lang value to a simple language code.
+    Handles both BCP-47 (en-GB) and POSIX (en_GB) style tags.
+    """
+    return lang.replace("_", "-").split("-")[0].lower()
+
 
 def _get_localized(comp, tag: str) -> str:
     """Get localized text matching system locale with English fallback."""
     els = comp.findall(tag)
-    by_lang = {}
+    by_lang = {}    # normalised lang code → text
+    by_lang_full = {}  # full lang tag → text (for en-GB etc)
     default = ""
     for el in els:
-        lang = el.get(XML_LANG, "")
-        if lang == "":
-            default = el.text or ""
+        raw_lang = el.get(XML_LANG, "")
+        text = el.text or ""
+        if raw_lang == "":
+            default = text
         else:
-            by_lang[lang.split("-")[0].lower()] = el.text or ""
-    return (
-        by_lang.get(SYSTEM_LANG)
+            by_lang_full[raw_lang.lower()] = text
+            by_lang[_lang_key(raw_lang)] = text
+    # Check full tags first for exact match (e.g. en-GB, en_US)
+    result = (
+        by_lang_full.get(SYSTEM_LANG)
+        or by_lang.get(SYSTEM_LANG)
+        or by_lang_full.get("en-gb")
+        or by_lang_full.get("en-us")
+        or by_lang_full.get("en_gb")
+        or by_lang_full.get("en_us")
         or by_lang.get("en")
         or default
-        or ""
     )
+    return result or _pick_lang(by_lang, default)
+
 
 def _get_localized_description(comp) -> str:
     """Get localized description, handling nested p/ul/li tags."""
     by_lang = {}
+    by_lang_full = {}
     default = ""
     for desc_el in comp.findall("description"):
-        lang = desc_el.get(XML_LANG, "")
+        raw_lang = desc_el.get(XML_LANG, "")
         text = " ".join(desc_el.itertext()).strip()
-        if lang == "":
+        if raw_lang == "":
             default = text
         else:
-            by_lang[lang.split("-")[0].lower()] = text
-    return (
-        by_lang.get(SYSTEM_LANG)
+            by_lang_full[raw_lang.lower()] = text
+            by_lang[_lang_key(raw_lang)] = text
+    result = (
+        by_lang_full.get(SYSTEM_LANG)
+        or by_lang.get(SYSTEM_LANG)
+        or by_lang_full.get("en-gb")
+        or by_lang_full.get("en-us")
+        or by_lang_full.get("en_gb")
+        or by_lang_full.get("en_us")
         or by_lang.get("en")
         or default
-        or ""
     )
+    return result or _pick_lang(by_lang, default)
 
 # ── Package manager detection ─────────────────────────────────────────────────
 
@@ -134,6 +198,35 @@ ICON_DIRS = [
 ]
 
 _appstream_cache: dict = {}
+
+# ── AppStream metadata overrides ──────────────────────────────────────────────
+# Ships at /usr/share/rakuos/appstream-overrides.json
+# Community-contributed fixes for apps with missing/wrong English metadata.
+_OVERRIDES_PATH = "/usr/share/rakuos/appstream-overrides.json"
+
+def _load_overrides() -> dict:
+    """Load appstream-overrides.json, return dict of app_id → override fields."""
+    try:
+        with open(_OVERRIDES_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        # Strip comment keys
+        return {k: v for k, v in data.items() if not k.startswith("_")}
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        print(f"[packages] overrides load error: {e}")
+        return {}
+
+
+def _apply_overrides(apps: dict, overrides: dict) -> None:
+    """Apply metadata overrides to parsed AppStream entries in-place."""
+    for app_id, fields in overrides.items():
+        # Match against both the plain id and flatpak: prefixed key
+        for key in (app_id, f"flatpak:{app_id}"):
+            if key in apps:
+                for field in ("name", "summary", "description"):
+                    if fields.get(field):
+                        apps[key][field] = fields[field]
 _cache_lock = threading.Lock()
 _cache_ready = threading.Event()
 
@@ -324,13 +417,37 @@ def _load_appstream() -> dict:
                         components = root.findall("component")
                     for comp in components:
                         app = _parse_component(comp, source=source)
-                        if app:
-                            apps[app["id"]] = app
+                        if not app:
+                            continue
+                        app_id = app["id"]
+                        existing = apps.get(app_id)
+                        if existing is None:
+                            # No existing entry — just store it
+                            apps[app_id] = app
+                        elif existing["source"] == "native" and app["source"] == "flatpak":
+                            # Flatpak AppStream overwriting a native entry —
+                            # keep native metadata (has correct English) but
+                            # enrich with Flatpak screenshots/icon if missing
+                            if not existing.get("screenshots") and app.get("screenshots"):
+                                existing["screenshots"] = app["screenshots"]
+                            if not existing.get("icon") and app.get("icon"):
+                                existing["icon"] = app["icon"]
+                            # Store flatpak version under its own flatpak key too
+                            apps[f"flatpak:{app_id}"] = app
+                        else:
+                            # Same source or flatpak→flatpak — overwrite normally
+                            apps[app_id] = app
                 except Exception as e:
                     print(f"AppStream process error {fname}: {e}")
                     continue
 
-        print(f"AppStream loaded {len(apps)} apps")
+        # Apply community metadata overrides (correct English names etc.)
+        overrides = _load_overrides()
+        if overrides:
+            _apply_overrides(apps, overrides)
+            print(f"AppStream loaded {len(apps)} apps ({len(overrides)} overrides applied)")
+        else:
+            print(f"AppStream loaded {len(apps)} apps")
 
         # Inject native stubs for known Flatpak→RPM mappings that have no native AppStream entry.
         # Only inject if the RPM actually exists in repos — avoids ghost "installed" entries.

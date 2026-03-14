@@ -27,14 +27,19 @@ class AppImageDetailPage(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setAutoFillBackground(True)
         self._workers: list = []
         self._app_info: dict = {}
         self._src_path: str = ""
+        self._terminal = None
+        self._progress = None
+        self._action_btn = None
+        self._loading = False   # guard against stale worker callbacks
 
-        scroll = QScrollArea()
+        scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._content = QWidget()
+        self._content = QWidget(scroll)
         self._vl = QVBoxLayout(self._content)
         self._vl.setContentsMargins(32, 24, 32, 24)
         self._vl.setSpacing(16)
@@ -50,22 +55,44 @@ class AppImageDetailPage(QWidget):
         """Called when user opens an .AppImage file."""
         import os
         print(f"[appimage_detail] load_from_file: {path!r}")
+        self._abort_workers()
         self._src_path = path
+        self._loading = True
         self._clear()
         self._vl.addWidget(LoadingWidget("Reading AppImage…"))
         w = Worker(lambda: appimages.get_appimage_info_for_display(path))
-        w.result.connect(self._render)
+        w.result.connect(self._on_render_ready)
         w.start()
         self._workers.append(w)
 
     def load_installed(self, app_info: dict):
         """Called from Installed page for an already-installed AppImage."""
+        self._abort_workers()
         self._src_path = app_info.get("installed_path", "")
+        self._loading = True
+        self._clear()
         self._render(app_info)
 
     # ── Render ────────────────────────────────────────────────────────────────
 
+    def _abort_workers(self):
+        """Stop all pending workers so stale callbacks don't fire."""
+        for w in self._workers:
+            try:
+                w.quit()
+                w.wait(100)
+            except Exception:
+                pass
+        self._workers.clear()
+
+    def _on_render_ready(self, info: dict):
+        """Guard wrapper — ignore result if a new load was started."""
+        if not self._loading:
+            return
+        self._render(info)
+
     def _render(self, info: dict):
+        self._loading = False
         self._clear()
         self._app_info = info
 
@@ -318,9 +345,30 @@ class AppImageDetailPage(QWidget):
     # ── Clear ─────────────────────────────────────────────────────────────────
 
     def _clear(self):
-        self._terminal = None
-        self._progress = None
+        # Null out refs before deleting widgets to sever signal connections
+        self._terminal      = None
+        self._progress      = None
+        self._action_btn    = None
+        self._src_combo     = None
+        self._url_field     = None
+        self._pattern_field = None
+        # Use setParent(None) for immediate synchronous deletion
+        # deleteLater() is async and causes stacking when _render fires quickly
         while self._vl.count():
             item = self._vl.takeAt(0)
             if item.widget():
-                item.widget().deleteLater()
+                w = item.widget()
+                w.setParent(None)
+                w.deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
+
+    def _clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                w = item.widget()
+                w.setParent(None)
+                w.deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())

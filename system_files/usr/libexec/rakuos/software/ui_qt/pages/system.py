@@ -143,6 +143,7 @@ class DESelectorCard(QFrame):
         self.setObjectName("card")
         self.setFrameShape(QFrame.Shape.StyledPanel)
 
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._vl = QVBoxLayout(self)
         self._vl.setContentsMargins(18, 16, 18, 16)
         self._vl.setSpacing(12)
@@ -345,10 +346,11 @@ class SystemPage(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._content = QWidget()
+        self._content = QWidget(scroll)
         self._vl = QVBoxLayout(self._content)
         self._vl.setContentsMargins(24, 20, 24, 20)
         self._vl.setSpacing(16)
+        self._vl.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
         scroll.setWidget(self._content)
 
         outer = QVBoxLayout(self)
@@ -358,8 +360,18 @@ class SystemPage(QWidget):
     def load(self):
         self._clear()
         self._vl.addWidget(LoadingWidget())
-        w = Worker(lambda: (updates.get_system_status(),
-                            updates.get_overlay_status()))
+        def _fetch():
+            from pathlib import Path
+            status  = updates.get_system_status()
+            pkgs_file = Path("/var/lib/rakuos/packages.list")
+            pkgs = []
+            if pkgs_file.exists():
+                pkgs = [l.strip() for l in pkgs_file.read_text().splitlines()
+                        if l.strip() and not l.startswith("#")]
+            print(f"[system] packages.list read: {len(pkgs)} packages")
+            return status, {"packages": pkgs}
+
+        w = Worker(_fetch)
         w.result.connect(self._on_data)
         w.start()
         self._workers.append(w)
@@ -409,27 +421,36 @@ class SystemPage(QWidget):
         # ── Overlay packages card ──────────────────────────────────────────────
         ov_card = self._make_card()
         ol = ov_card.layout()
-        ol.addWidget(SectionTitle("\U0001f4e6  Overlay Packages"))
+
+        # Header row: title + Reset button on the right
+        hdr = QHBoxLayout()
+        hdr.addWidget(SectionTitle("\U0001f4e6  Overlay Packages"))
+        hdr.addStretch()
+        reset_btn = QPushButton("Reset Overlay")
+        reset_btn.setFixedWidth(130)
+        reset_btn.clicked.connect(self._reset_overlay)
+        hdr.addWidget(reset_btn)
+        ol.addLayout(hdr)
+        ol.addWidget(hline())
 
         pkgs = overlay.get("packages", [])
         if pkgs:
             for pkg in sorted(pkgs):
-                ol.addWidget(QLabel(f"  \u2022 {pkg}"))
+                lbl = QLabel(f"  • {pkg}")
+                lbl.setTextInteractionFlags(
+                    Qt.TextInteractionFlag.TextSelectableByMouse)
+                ol.addWidget(lbl)
         else:
             ol.addWidget(dimmed(QLabel("No overlay packages installed")))
 
-        ol.addWidget(hline())
-        reset_btn = QPushButton("Reset Overlay")
-        reset_btn.setFixedWidth(130)
-        reset_btn.clicked.connect(self._reset_overlay)
-        ol.addWidget(reset_btn)
         self._vl.addWidget(ov_card)
-        self._vl.addStretch()
+        self._vl.addStretch()  # pushes cards to top, scroll handles the rest
 
     def _make_card(self) -> QFrame:
         card = QFrame()
         card.setObjectName("card")
         card.setFrameShape(QFrame.Shape.StyledPanel)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         cl = QVBoxLayout(card)
         cl.setContentsMargins(18, 16, 18, 16)
         cl.setSpacing(8)

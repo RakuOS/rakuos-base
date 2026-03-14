@@ -442,11 +442,6 @@ class MainWindow(QMainWindow):
         if page_id == "detail":
             return
         self._prev_page = page_id
-        # Explicitly hide all other pages — prevents Wayland compositor bleedthrough
-        for pid, widget in self._pages.items():
-            if pid != page_id:
-                widget.hide()
-        self._pages[page_id].show()
         self._stack.setCurrentWidget(self._pages[page_id])
 
         # Update static nav button active states
@@ -472,7 +467,7 @@ class MainWindow(QMainWindow):
         for btn in self._nav_btns.values():
             btn.set_active(False)
         self._prev_page = "explore"
-        self._show_page(self._explore)
+        self._stack.setCurrentWidget(self._explore)
         # Look up subcategories for this top-level cat
         subcats = None
         for top_label, top_cat, subs in CATEGORY_TREE:
@@ -486,11 +481,7 @@ class MainWindow(QMainWindow):
         self._explore.load_category(cat, label, subcats=None)
 
     def _show_page(self, widget):
-        """Switch to a page widget, hiding all others to prevent Wayland bleedthrough."""
-        for w in self._pages.values():
-            if w is not widget:
-                w.hide()
-        widget.show()
+        """Switch to a page widget."""
         self._stack.setCurrentWidget(widget)
 
     def _open_detail(self, app: dict):
