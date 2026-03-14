@@ -1,0 +1,16 @@
+{
+  "id": "xbox_cloud",
+  "name": "Xbox Cloud Gaming",
+  "url": "https://www.xbox.com/en-us/play",
+  "summary": "Stream and play your favorite games anywhere with Xbox Game Pass via cloud gaming.",
+  "description": "Play Xbox Cloud Gaming on Xbox.com. Use your Xbox Game Pass Ultimate membership to play 100s of consoles games on PC and supported mobile devices.",
+  "icon": "xbox_cloud.png",
+  "icon_url": "https://cdn2.steamgriddb.com/icon_thumb/31c9f58aa5c02d63abfa65bf94dd602e.png",
+  "custom_css": "",
+  "screenshots": [
+  "https://static0.gamerantimages.com/wordpress/wp-content/uploads/2025/01/xbox-cloud-gaming-improvements-new-games-4k-streaming-report_2.jpg",
+  "https://media.tech-latest.com/wp-content/uploads/2023/04/19180419/Xbox-Cloud-Gaming-1-1200x645.jpg"
+],
+  "categories": ["games"],
+  "keywords": ["xbox", "cloud", "streaming", "gamepass", "games"]
+}
