@@ -4,6 +4,7 @@ set -ouex pipefail
 FEDORA_VERSION="${FEDORA_VERSION:-43}"
 ## Enable repos
 dnf5 -y install dnf5-plugins
+dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
