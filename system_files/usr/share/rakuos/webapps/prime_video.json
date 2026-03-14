@@ -1,5 +1,5 @@
 {
-  "id": "prime",
+  "id": "prime_video",
   "name": "Prime Video",
   "url": "https://www.amazon.com/gp/video/storefront",
   "summary": "Movies and TV shows on demand",
@@ -12,5 +12,5 @@
   "https://downloadr2.apkmirror.com/wp-content/uploads/2025/03/36/Prime-Video-com.amazon.amazonvideo.livingroom-7-2048x1152.jpg"
 ],
   "categories": ["AudioVideo", "Video"],
-  "keywords": ["netflix", "streaming", "movies", "tv", "shows"]
+  "keywords": ["prime", "amazon", "streaming", "movies", "tv", "shows"]
 }
