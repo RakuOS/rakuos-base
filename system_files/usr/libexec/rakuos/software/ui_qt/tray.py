@@ -46,7 +46,7 @@ def _badge_icon(count: int) -> QIcon:
 
 def _plain_icon() -> QIcon:
     """Return plain tray icon (no updates)."""
-    icon = QIcon.fromTheme("system-software-install",
+    icon = QIcon.fromTheme("system-software-update",
                            QIcon.fromTheme("applications-system"))
     if icon.isNull():
         icon = QIcon.fromTheme("package-manager")
