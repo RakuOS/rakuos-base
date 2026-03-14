@@ -60,9 +60,6 @@ the system desktop environment.
 %setup -c -T -n helium-%{version}
 # Now we're in helium-0.10.5.1
 
-# Fix desktop file to use system wrapper
-sed -i 's|Exec=.*|Exec=helium|' helium.desktop
-
 %build
 # Nothing to build (binary release)
 
