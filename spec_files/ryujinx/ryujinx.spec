@@ -1,5 +1,5 @@
 Name:           ryujinx
-Version:        1.3.2
+Version:        1.3.3
 Release:        1%{?dist}
 Summary:        Experimental Nintendo Switch Emulator written in C# (master build channel release)
 License:        MIT
