@@ -1,4 +1,4 @@
-Name:           helium-browser
+Name:           helium
 Version:        0.10.5.1
 Release:        1%{?dist}
 Summary:        Privacy-focused minimal Chromium-based web browser
@@ -74,12 +74,13 @@ install -d %{buildroot}%{_datadir}/pixmaps
 cd helium-%{version}-x86_64_linux
 
 # Install all files to /usr/lib64/helium
-cp -a * %{buildroot}%{_libdir}/%{name}/
+mkdir -p %{buildroot}/opt/helium
+cp -a * %{buildroot}/opt/helium/
 
 # Create wrapper script in /usr/bin
 cat > %{buildroot}%{_bindir}/%{name} << 'EOF'
 #!/bin/bash
-exec /usr/lib64/helium/helium-wrapper "$@"
+exec /opt/helium/helium-wrapper "$@"
 EOF
 chmod 755 %{buildroot}%{_bindir}/%{name}
 
