@@ -44,4 +44,7 @@ while IFS= read -r -d '' service_file; do
 
 done < <(find "$SERVICE_DIR" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
 
+echo "Reload udev..."
+udevadm control --reload-rules && udevadm trigger
+
 echo "RakuOS overlay services: done."

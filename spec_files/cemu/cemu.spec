@@ -25,8 +25,6 @@ BuildRequires:  nasm
 BuildRequires:  zip
 BuildRequires:  unzip
 BuildRequires:  hicolor-icon-theme
-BuildRequires:  libboost-filesystem-devel
-BuildRequires:  libboost-program-options-devel
 BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(jack)

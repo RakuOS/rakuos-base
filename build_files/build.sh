@@ -57,12 +57,9 @@ xpadneo \
 mokutil \
 sqlite3 \
 openssl \
-freerdp \
 libnotify \
 inotify-tools \
 podman-compose \
-webkit2gtk4.1 \
-python3-flask \
 python3-pip \
 appstream \
 appstream-data \
@@ -71,7 +68,6 @@ python3-pyqt6 \
 python3-dbus \
 python3-gobject \
 steam-devices \
-openrgb-udev-rules \
 nodejs \
 nodejs-npm \
 fuse \
