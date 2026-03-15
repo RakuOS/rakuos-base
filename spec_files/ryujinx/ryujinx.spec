@@ -1,3 +1,6 @@
+%define debug_package %{nil}
+%define __os_install_post %{nil}
+
 Name:           ryujinx
 Version:        1.3.3
 Release:        1%{?dist}
