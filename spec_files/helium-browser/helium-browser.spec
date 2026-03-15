@@ -71,11 +71,11 @@ install -d %{buildroot}%{_datadir}/applications
 install -d %{buildroot}%{_datadir}/pixmaps
 
 # Navigate into the extracted directory
-cd helium-%{version}-x86_64_linux
+cd %{name}-%{version}-x86_64_linux
 
 # Install all files to /usr/lib64/helium
-mkdir -p %{buildroot}/opt/helium
-cp -a * %{buildroot}/opt/helium/
+mkdir -p %{buildroot}/opt/%{name}
+cp -a * %{buildroot}/opt/%{name}/
 
 # Create wrapper script in /usr/bin
 cat > %{buildroot}%{_bindir}/%{name} << 'EOF'
@@ -95,7 +95,7 @@ sed -i 's|Exec=.*|Exec=/usr/bin/helium %U|g' %{buildroot}%{_datadir}/application
 sed -i 's|Icon=.*|Icon=helium|g' %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %files
-%{_libdir}/%{name}/
+/opt/%{name}/
 %{_bindir}/%{name}
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/pixmaps/%{name}.png
