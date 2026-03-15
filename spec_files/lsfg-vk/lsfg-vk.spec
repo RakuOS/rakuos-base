@@ -7,6 +7,7 @@
 %else
 %bcond_with ui
 %endif
+
 Name:           lsfg-vk
 Version:        1.0.0
 Release:        1%{?dist}
@@ -14,9 +15,12 @@ Summary:        Lossless Scaling Frame Generation on Linux
 License:        MIT
 URL:            https://github.com/PancakeTAS/lsfg-vk
 
-# see _service
-Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
+# Git source instead of tarball
+Source0:        git+https://github.com/PancakeTAS/lsfg-vk.git#tag=v%{version}
+
+# Optional configuration files
 Source2:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/lsfg-vk/baselibs.conf
+
 BuildRequires:  cmake
 BuildRequires:  ninja-build
 BuildRequires:  pkgconfig
@@ -34,15 +38,19 @@ BuildRequires:  clang-devel
 BuildRequires:  gcc-c++
 %endif
 
+# Disable debug package generation if no ELF sources to debug
+%define debug_package %{nil}
+
 %description
 Lossless Scaling is a Windows-exclusive app bringing frame generation (among
 other features) to every single game or app.
 
 lsfg-vk brings this frame generation to Linux users by acting as a Vulkan layer
-inbetween your game and your graphics card.
+in between your game and your graphics card.
 
 %prep
-%autosetup -p1
+# Clone git tag and init submodules
+%autosetup -S git -n lsfg-vk-%{version} -X git-submodules
 
 %build
 %cmake \
@@ -56,7 +64,6 @@ inbetween your game and your graphics card.
 %endif
   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=On
 %cmake_build
-
 
 %install
 %cmake_install
@@ -77,3 +84,5 @@ inbetween your game and your graphics card.
 %endif
 
 %changelog
+* Sat Mar 14 2026 RakuOS Maintainer <maintainer@rakuos.org> - 1.0.0-1
+- Switch to Git tag checkout with submodules
