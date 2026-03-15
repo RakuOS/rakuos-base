@@ -18,7 +18,7 @@ URL:            https://github.com/PancakeTAS/lsfg-vk
 Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
 Source2:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/lsfg-vk/baselibs.conf
 BuildRequires:  cmake
-BuildRequires:  ninja
+BuildRequires:  ninja-build
 BuildRequires:  pkgconfig
 BuildRequires:  zstd
 BuildRequires:  pkgconfig(vulkan)
