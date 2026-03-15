@@ -1,90 +1,113 @@
-# building with gcc leads to a crash in the config parser
-%define __builder ninja
-%bcond_without clang
-
-%ifarch x86_64
-%bcond_without ui
-%else
-%bcond_with ui
-%endif
+%global tag 1.0.0
+%global date %(date +%Y%m%d)
+%global commit 5e04b4f
+%global longcommit 5e04b4f5f60eae5345acfb156610609cb77c671a
 
 Name:           lsfg-vk
-Version:        1.0.0
-Release:        1%{?dist}
-Summary:        Lossless Scaling Frame Generation on Linux
+Version:        %{tag}
+Release:        1.%{date}git%{commit}%{?dist}
+Summary:        Lossless Scaling Frame Generation on Linux via DXVK/Vulkan.
+
+# SPDX
 License:        MIT
 URL:            https://github.com/PancakeTAS/lsfg-vk
 
-# Define source but we handle cloning in prep
-Source0:        %{name}-%{version}.tar.gz
+BuildRequires:       clang
+BuildRequires:       llvm
+BuildRequires:       cmake
+BuildRequires:       cmake-rpm-macros
+BuildRequires:       cargo-rpm-macros >= 24
+BuildRequires:       ninja-build
+BuildRequires:       git
+BuildRequires:       pkgconfig(gl)
+BuildRequires:       pkgconfig(vulkan)
+BuildRequires:       pkgconfig(SPIRV-Headers)
+BuildRequires:       vulkan-headers
+BuildRequires:       pkgconfig(wayland-client) >= 0.2.7
+BuildRequires:       pkgconfig(wayland-cursor) >= 0.2.7
+BuildRequires:       pkgconfig(wayland-egl) >= 0.2.7
+BuildRequires:       pkgconfig(xkbcommon) >= 0.5.0
+BuildRequires:       pkgconfig(x11)
+BuildRequires:       pkgconfig(xext)
+BuildRequires:       pkgconfig(xrandr)
+BuildRequires:       pkgconfig(xinerama)
+BuildRequires:       pkgconfig(xcursor)
+BuildRequires:       pkgconfig(xi)
+BuildRequires:       pkgconfig(wayland-protocols)
 
-BuildRequires:  cmake
-BuildRequires:  ninja-build
-BuildRequires:  pkgconfig
-BuildRequires:  zstd
-BuildRequires:  git-core
-BuildRequires:  pkgconfig(vulkan)
+# UI dependencies
+BuildRequires:       pkgconfig(glib-2.0)
+BuildRequires:       pkgconfig(pango)
+BuildRequires:       pkgconfig(gdk-pixbuf-2.0)
+BuildRequires:       pkgconfig(graphene-gobject-1.0)
+BuildRequires:       pkgconfig(gtk4)
+BuildRequires:       pkgconfig(libadwaita-1)
 
-%if %{with ui}
-BuildRequires:  cmake(Qt6Quick)
-BuildRequires:  cmake(Qt6Widgets)
-BuildRequires:  hicolor-icon-theme
-Requires:       hicolor-icon-theme
-%endif
+Recommends:          mesa-dri-drivers
+Recommends:          mesa-vulkan-drivers
+Recommends:          lsfg-vk-ui
 
-%if %{with clang}
-BuildRequires:  clang
-BuildRequires:  llvm
-%else
-BuildRequires:  gcc-c++
-%endif
+Requires:            %{name}-libs = %{version}-%{release}
 
 %description
-lsfg-vk brings frame generation to Linux users by acting as a Vulkan layer
-in between your game and your graphics card.
+The %{name} package provides Lossless Scaling Frame Generation on Linux via DXVK/Vulkan.
 
 %prep
-%setup -q -c -T
-git clone --depth 1 --branch v%{version} %{url}.git .
+git clone --single-branch --branch develop https://github.com/PancakeTAS/lsfg-vk
+cd lsfg-vk
+git checkout %{longcommit}
 git submodule update --init --recursive
 
 %build
-%cmake \
-    -G Ninja \
-%if %{with clang}
-    -DCMAKE_C_COMPILER=clang \
-    -DCMAKE_CXX_COMPILER=clang++ \
-%endif
-%if %{with ui}
-    -DLSFGVK_BUILD_UI=ON \
-    -DLSFGVK_INSTALL_XDG_FILES=ON \
-%else
-    -DLSFGVK_BUILD_UI=OFF \
-%endif
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+cd lsfg-vk
 
-%cmake_build
+CMAKE_OPTIONS=(
+   -DCMAKE_BUILD_TYPE=Release \
+   -DCMAKE_C_COMPILER=clang \
+   -DCMAKE_CXX_COMPILER=clang++ \
+   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+)
+%__cmake "${CMAKE_OPTIONS[@]}" .
+%__cmake --build . %{?_smp_mflags} --verbose
+
+cd ui
+# Call on cargo directly, need to wait for various rust packages to be updated
+%__cargo build --release --locked
 
 %install
-%cmake_install
+cd lsfg-vk
+
+# Install the Vulkan layer JSON file and shared library
+install -Dm644 VkLayer_LS_frame_generation.json "%{buildroot}/%{_datadir}/vulkan/implicit_layer.d/VkLayer_LS_frame_generation.json"
+install -Dm644 liblsfg-vk.so "%{buildroot}/%{_libdir}/liblsfg-vk.so"
+
+# Install the UI binary and desktop bits (for ui subpackage)
+install -Dm755 ui/target/release/lsfg-vk-ui "%{buildroot}%{_bindir}/lsfg-vk-ui"
+install -Dm644 ui/rsc/gay.pancake.lsfg-vk-ui.desktop "%{buildroot}%{_datadir}/applications/lsfg-vk-ui.desktop"
+install -Dm644 ui/rsc/icon.png "%{buildroot}%{_datadir}/icons/hicolor/256x256/apps/gay.pancake.lsfg-vk-ui.png"
 
 %files
-%license LICENSE.md
-%doc README.md
-%{_bindir}/lsfg-vk-cli
-%dir %{_datadir}/vulkan/
-%dir %{_datadir}/vulkan/implicit_layer.d/
-%{_datadir}/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json
-%{_libdir}/liblsfg-vk-layer.so
+%license lsfg-vk/LICENSE.md
+%{_datadir}/vulkan/implicit_layer.d/VkLayer_LS_frame_generation*.json
 
-%if %{with ui}
+%package libs
+Summary:       lsfg-vk libraries
+%description libs
+%summary
+
+%files libs
+%{_libdir}/liblsfg-vk.so
+
+%package ui
+Summary:       Rust-based GUI for modifying lsfg-vk configuration
+Requires:      %{name} = %{version}-%{release}
+%description ui
+This package provides the GUI for modifying configuration of lsfg-vk.
+
+%files ui
 %{_bindir}/lsfg-vk-ui
-%{_datadir}/applications/*.desktop
-%{_datadir}/icons/hicolor/*/apps/*.png
-%endif
+%{_datadir}/applications/lsfg-vk-ui.desktop
+%{_datadir}/icons/hicolor/256x256/apps/gay.pancake.lsfg-vk-ui.png
 
 %changelog
-* Sat Mar 14 2026 RakuOS Maintainer <maintainer@rakuos.org> - 1.0.0-1
-- Fixed macro expansion in comments causing rpkg parser failure
-- Fixed %setup syntax and directory handling
+%autochangelog
