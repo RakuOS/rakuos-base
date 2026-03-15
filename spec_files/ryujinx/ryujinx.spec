@@ -4,6 +4,7 @@ Release:        1%{?dist}
 Summary:        Experimental Nintendo Switch Emulator written in C# (master build channel release)
 License:        MIT
 URL:            https://git.ryujinx.app/ryubing/ryujinx
+
 Source0:        https://git.ryujinx.app/api/v4/projects/1/packages/generic/Ryubing/%{version}/ryujinx-%{version}-linux_x64.tar.gz
 Source1:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/ryujinx/Ryujinx.desktop
 Source2:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/ryujinx/Logo.svg
