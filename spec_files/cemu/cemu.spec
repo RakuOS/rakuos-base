@@ -34,14 +34,10 @@ chmod +x %{buildroot}/%{_bindir}/%{name}
 cp %{SOURCE1} %{buildroot}/%{_datadir}/applications
 cp -R Cemu_%{version}/gameProfiles %{buildroot}/%{_datadir}/%{name}/gameProfiles
 cp -R Cemu_%{version}/resources %{buildroot}/%{_datadir}/%{name}/resources
-cp %{SOURCE2} %{buildroot}/%{_datadir}/doc/packages/%{name}
-cp %{SOURCE3} %{buildroot}/%{_datadir}/licenses/%{name}
 cp %{SOURCE4} %{buildroot}/%{_datadir}/pixmaps
 
 
 %files
-%doc README.md
-%license LICENSE.txt
 %{_bindir}/*
 %{_datadir}/cemu
 %{_datadir}/applications/%{name}.desktop
