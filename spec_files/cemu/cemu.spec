@@ -29,7 +29,7 @@ BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(jack)
 BuildRequires:  pkgconfig(fmt)
-BuildRequires:  pkgconfig(libglm-devel)
+BuildRequires:  libglm-devel
 BuildRequires:  pkgconfig(openssl)
 BuildRequires:  pkgconfig(hidapi-hidraw)
 BuildRequires:  pkgconfig(libavdevice)
