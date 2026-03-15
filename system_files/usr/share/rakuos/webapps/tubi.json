@@ -1,0 +1,15 @@
+{
+  "id": "tubi",
+  "name": "Tubi",
+  "url": "https://tubitv.com/",
+  "summary": "Tubi is a free streaming service",
+  "description": "Watch free on Tubi. From deep cuts to hit movies, shows, series, live TV and awarded originals. No subscription. Free forever.",
+  "icon": "tubi.png",
+  "icon_url": "https://cdn2.steamgriddb.com/icon/3f1bd7d13bac8f4432977fbc853f1164/32/256x256.png",
+  "custom_css": "",
+  "screenshots": [
+  "https://i0.wp.com/clark.com/wp-content/uploads/2020/01/TubiOriginalsMenu2.png?resize=800%2C416&ssl=1"
+],
+  "categories": ["AudioVideo", "Video"],
+  "keywords": ["tubi", "streaming", "movies", "tv", "shows"]
+}
