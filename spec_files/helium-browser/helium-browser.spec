@@ -1,3 +1,9 @@
+%ifarch aarch64
+%global helium_arch arm64
+%endif
+%ifarch x86_64
+%global helium_arch x86_64
+%endif
 Name:           helium
 Version:        0.10.5.1
 Release:        1%{?dist}
@@ -5,7 +11,7 @@ Summary:        Privacy-focused minimal Chromium-based web browser
 
 License:        GPL-3.0
 URL:            https://github.com/imputnet/helium-linux
-Source0:        %{url}/releases/download/%{version}/helium-%{version}-x86_64_linux.tar.xz
+Source0:        %{url}/releases/download/%{version}/helium-%{version}-%{helium_arch}_linux.tar.xz
 AutoReqProv:    no
 
 # Disable automatic debug package (no ELF sources)
