@@ -25,14 +25,13 @@ BuildRequires:  nasm
 BuildRequires:  zip
 BuildRequires:  unzip
 BuildRequires:  hicolor-icon-theme
-BuildRequires:  libboost_filesystem-devel
-BuildRequires:  libboost_program_options-devel
-BuildRequires:  libboost_nowide-devel
+BuildRequires:  libboost-filesystem-devel
+BuildRequires:  libboost-program-options-devel
 BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(jack)
 BuildRequires:  pkgconfig(fmt)
-BuildRequires:  pkgconfig(glm)
+BuildRequires:  pkgconfig(libglm-devel)
 BuildRequires:  pkgconfig(openssl)
 BuildRequires:  pkgconfig(hidapi-hidraw)
 BuildRequires:  pkgconfig(libavdevice)
