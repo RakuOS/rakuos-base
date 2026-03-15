@@ -49,12 +49,15 @@ lsfg-vk brings this frame generation to Linux users by acting as a Vulkan layer
 in between your game and your graphics card.
 
 %prep
-%setup -q -n lsfg-vk-%{version}
+# For Git sources, Copr already clones into %{_sourcedir}/lsfg-vk
+# Enter the cloned directory
+cd %{_sourcedir}/lsfg-vk
 
 # Initialize git submodules
 git submodule update --init --recursive
 
 %build
+cd %{_sourcedir}/lsfg-vk
 %cmake \
   %if %{with clang}
   -DCMAKE_C_COMPILER=clang \
@@ -68,6 +71,7 @@ git submodule update --init --recursive
 %cmake_build
 
 %install
+cd %{_sourcedir}/lsfg-vk
 %cmake_install
 
 %files
