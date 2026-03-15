@@ -4,8 +4,9 @@ Release:        1%{?dist}
 Summary:        Privacy-focused minimal Chromium-based web browser
 
 License:        GPL-3.0
-URL:            https://helium.computer/
-Source0:        https://github.com/imputnet/helium-linux/releases/download/%{version}/helium-%{version}-x86_64_linux.tar.xz
+URL:            https://github.com/imputnet/helium-linux
+Source0:        %{url}/releases/download/%{version}/helium-%{version}-x86_64_linux.tar.xz
+AutoReqProv:    no
 
 # Chromium/Chrome style runtime dependencies
 Requires:       alsa-lib
@@ -57,47 +58,46 @@ This package installs Helium under /opt/helium and integrates it with
 the system desktop environment.
 
 %prep
-%autosetup -c -T
-tar -xf %{SOURCE0}
-# Set a variable for the extracted folder
-%global helium_src_dir helium-%{version}
+%setup -q -c
+
+%build
+# No build needed - binary distribution
 
 %install
-# Install browser to /opt
-mkdir -p %{buildroot}/opt/helium
-cp -a %{helium_src_dir}/* %{buildroot}/opt/helium/
+# Create directory structure
+install -d %{buildroot}%{_libdir}/%{name}
+install -d %{buildroot}%{_bindir}
+install -d %{buildroot}%{_datadir}/applications
+install -d %{buildroot}%{_datadir}/pixmaps
 
-# Desktop entry
-mkdir -p %{buildroot}%{_datadir}/applications
-install -m 0644 %{helium_src_dir}/helium.desktop \
-    %{buildroot}%{_datadir}/applications/
+# Navigate into the extracted directory
+cd helium-%{version}-x86_64_linux
 
-# Icon
-mkdir -p %{buildroot}%{_datadir}/icons/hicolor/256x256/apps
-install -m 0644 %{helium_src_dir}/product_logo_256.png \
-    %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/helium.png
+# Install all files to /usr/lib64/helium
+cp -a * %{buildroot}%{_libdir}/%{name}/
 
-# Wrapper binary
-mkdir -p %{buildroot}%{_bindir}
-
-cat > %{buildroot}%{_bindir}/helium << 'EOF'
+# Create wrapper script in /usr/bin
+cat > %{buildroot}%{_bindir}/%{name} << 'EOF'
 #!/bin/bash
-exec /opt/helium/helium "$@"
+exec /usr/lib64/helium/helium-wrapper "$@"
 EOF
+chmod 755 %{buildroot}%{_bindir}/%{name}
 
-chmod +x %{buildroot}%{_bindir}/helium
+# Install desktop file
+install -m 644 %{name}.desktop %{buildroot}%{_datadir}/applications/
+
+# Install icon
+install -m 644 product_logo_256.png %{buildroot}%{_datadir}/pixmaps/%{name}.png
+
+# Fix desktop file to use correct paths
+sed -i 's|Exec=.*|Exec=/usr/bin/helium %U|g' %{buildroot}%{_datadir}/applications/%{name}.desktop
+sed -i 's|Icon=.*|Icon=helium|g' %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %files
-/opt/helium
-%{_bindir}/helium
-%{_datadir}/applications/helium.desktop
-%{_datadir}/icons/hicolor/256x256/apps/helium.png
-
-%post
-update-desktop-database &> /dev/null || :
-
-%postun
-update-desktop-database &> /dev/null || :
+%{_libdir}/%{name}/
+%{_bindir}/%{name}
+%{_datadir}/applications/%{name}.desktop
+%{_datadir}/pixmaps/%{name}.png
 
 %changelog
 * Sat Mar 14 2026 RakuOS Maintainer <maintainer@rakuos.org> - 0.10.5.1-1
