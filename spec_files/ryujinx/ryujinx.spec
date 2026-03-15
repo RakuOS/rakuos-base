@@ -8,7 +8,6 @@ Source0:        https://git.ryujinx.app/api/v4/projects/1/packages/generic/Ryubi
 Source1:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/ryujinx/Ryujinx.desktop
 Source2:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/ryujinx/Logo.svg
 Source3:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/ryujinx/Ryujinx.xml
-BuildArch:      x86_64
 
 %description
 Ryujinx is an experimental Nintendo Switch emulator written in C#. This package installs the master build channel release.
