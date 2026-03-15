@@ -15,7 +15,7 @@ Summary:        Lossless Scaling Frame Generation on Linux
 License:        MIT
 URL:            https://github.com/PancakeTAS/lsfg-vk
 
-# We define the source but don't rely on %autosetup since we are cloning manually
+# Define source but we handle cloning in prep
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  cmake
@@ -44,15 +44,11 @@ lsfg-vk brings frame generation to Linux users by acting as a Vulkan layer
 in between your game and your graphics card.
 
 %prep
-# Move to the build directory (Standard RPM behavior)
 %setup -q -c -T
-# Clone the specific tag directly into the current build directory (.)
 git clone --depth 1 --branch v%{version} %{url}.git .
-# Initialize submodules
 git submodule update --init --recursive
 
 %build
-# The %cmake macro automatically creates a build folder and enters it
 %cmake \
     -G Ninja \
 %if %{with clang}
@@ -90,5 +86,5 @@ git submodule update --init --recursive
 
 %changelog
 * Sat Mar 14 2026 RakuOS Maintainer <maintainer@rakuos.org> - 1.0.0-1
-- Fixed build directory logic for Copr compatibility
-- Manual git clone of tag v1.0.0 with submodules
+- Fixed macro expansion in comments causing rpkg parser failure
+- Fixed %setup syntax and directory handling
