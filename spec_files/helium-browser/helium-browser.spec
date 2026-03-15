@@ -8,6 +8,9 @@ URL:            https://github.com/imputnet/helium-linux
 Source0:        %{url}/releases/download/%{version}/helium-%{version}-x86_64_linux.tar.xz
 AutoReqProv:    no
 
+# Disable automatic debug package (no ELF sources)
+%define debug_package %{nil}
+
 # Chromium/Chrome style runtime dependencies
 Requires:       alsa-lib
 Requires:       atk
