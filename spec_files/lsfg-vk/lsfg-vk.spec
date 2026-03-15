@@ -49,8 +49,10 @@ lsfg-vk brings this frame generation to Linux users by acting as a Vulkan layer
 in between your game and your graphics card.
 
 %prep
-# Clone git tag and init submodules
-%autosetup -S git -n lsfg-vk-%{version} -X git-submodules
+%setup -q -n lsfg-vk-%{version}
+
+# Initialize git submodules
+git submodule update --init --recursive
 
 %build
 %cmake \
