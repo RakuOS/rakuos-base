@@ -80,7 +80,7 @@ install -d %{buildroot}%{_datadir}/applications
 install -d %{buildroot}%{_datadir}/pixmaps
 
 # Navigate into the extracted directory
-cd %{name}-%{version}-x86_64_linux
+cd %{name}-%{version}-%{helium_arch}_linux
 
 # Install all files to /usr/lib64/helium
 mkdir -p %{buildroot}/opt/%{name}
