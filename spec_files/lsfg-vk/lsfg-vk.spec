@@ -1,7 +1,7 @@
-# building with gcc leads to a crash in the config parser https://github.com/PancakeTAS/lsfg-vk/issues/214
+# building with gcc leads to a crash in the config parser
 %define __builder ninja
 %bcond_without clang
-# we mostly build the library on 32bit for the 32bit package
+
 %ifarch x86_64
 %bcond_without ui
 %else
@@ -15,80 +15,80 @@ Summary:        Lossless Scaling Frame Generation on Linux
 License:        MIT
 URL:            https://github.com/PancakeTAS/lsfg-vk
 
-# Git source instead of tarball
-Source0:        git+https://github.com/PancakeTAS/lsfg-vk.git#tag=v%{version}
-
-# Optional configuration files
-Source2:        https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/lsfg-vk/baselibs.conf
+# We define the source but don't rely on %autosetup since we are cloning manually
+Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  cmake
 BuildRequires:  ninja-build
 BuildRequires:  pkgconfig
 BuildRequires:  zstd
+BuildRequires:  git-core
 BuildRequires:  pkgconfig(vulkan)
+
 %if %{with ui}
 BuildRequires:  cmake(Qt6Quick)
-Requires:       qt6qmlimport(QtQuick)
+BuildRequires:  cmake(Qt6Widgets)
 BuildRequires:  hicolor-icon-theme
 Requires:       hicolor-icon-theme
 %endif
+
 %if %{with clang}
-BuildRequires:  clang-devel
+BuildRequires:  clang
+BuildRequires:  llvm
 %else
 BuildRequires:  gcc-c++
 %endif
 
-# Disable debug package generation if no ELF sources to debug
-%define debug_package %{nil}
-
 %description
-Lossless Scaling is a Windows-exclusive app bringing frame generation (among
-other features) to every single game or app.
-
-lsfg-vk brings this frame generation to Linux users by acting as a Vulkan layer
+lsfg-vk brings frame generation to Linux users by acting as a Vulkan layer
 in between your game and your graphics card.
 
 %prep
-# For Git sources, Copr already clones into %{_sourcedir}/lsfg-vk
-# Enter the cloned directory
-cd %{_sourcedir}/lsfg-vk
-
-# Initialize git submodules
+# Move to the build directory (Standard RPM behavior)
+%setup -q -c -T
+# Clone the specific tag directly into the current build directory (.)
+git clone --depth 1 --branch v%{version} %{url}.git .
+# Initialize submodules
 git submodule update --init --recursive
 
 %build
-cd %{_sourcedir}/lsfg-vk
+# The %cmake macro automatically creates a build folder and enters it
 %cmake \
-  %if %{with clang}
-  -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  %endif
-%if %{with ui}
-  -DLSFGVK_BUILD_UI=On \
-  -DLSFGVK_INSTALL_XDG_FILES=ON \
+    -G Ninja \
+%if %{with clang}
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
 %endif
-  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=On
+%if %{with ui}
+    -DLSFGVK_BUILD_UI=ON \
+    -DLSFGVK_INSTALL_XDG_FILES=ON \
+%else
+    -DLSFGVK_BUILD_UI=OFF \
+%endif
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+
 %cmake_build
 
 %install
-cd %{_sourcedir}/lsfg-vk
 %cmake_install
 
 %files
 %license LICENSE.md
 %doc README.md
 %{_bindir}/lsfg-vk-cli
-#
+%dir %{_datadir}/vulkan/
 %dir %{_datadir}/vulkan/implicit_layer.d/
 %{_datadir}/vulkan/implicit_layer.d/VkLayer_LSFGVK_frame_generation.json
 %{_libdir}/liblsfg-vk-layer.so
-#
+
 %if %{with ui}
 %{_bindir}/lsfg-vk-ui
-%{_datadir}/applications/gay.pancake.lsfg-vk-ui.desktop
-%{_datadir}/icons/hicolor/256x256/apps/gay.pancake.lsfg-vk-ui.png
+%{_datadir}/applications/*.desktop
+%{_datadir}/icons/hicolor/*/apps/*.png
 %endif
 
 %changelog
 * Sat Mar 14 2026 RakuOS Maintainer <maintainer@rakuos.org> - 1.0.0-1
-- Switch to Git tag checkout with submodules
+- Fixed build directory logic for Copr compatibility
+- Manual git clone of tag v1.0.0 with submodules
