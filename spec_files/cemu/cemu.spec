@@ -15,46 +15,6 @@ Source3: https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/sp
 Source4: https://raw.githubusercontent.com/RakuOS/rakuos-base/refs/heads/main/spec_files/cemu/cemu.png
 
 ExclusiveArch:  x86_64
-BuildRequires:  coreutils
-BuildRequires:  unzip
-BuildRequires:  chrpath
-BuildRequires:  fdupes
-BuildRequires:  update-desktop-files
-BuildRequires:  curl
-BuildRequires:  nasm
-BuildRequires:  zip
-BuildRequires:  unzip
-BuildRequires:  hicolor-icon-theme
-BuildRequires:  pkgconfig
-BuildRequires:  pkgconfig(alsa)
-BuildRequires:  pkgconfig(jack)
-BuildRequires:  pkgconfig(fmt)
-BuildRequires:  libglm-devel
-BuildRequires:  pkgconfig(openssl)
-BuildRequires:  pkgconfig(hidapi-hidraw)
-BuildRequires:  pkgconfig(libavdevice)
-BuildRequires:  pkgconfig(libavfilter)
-BuildRequires:  pkgconfig(libavformat)
-BuildRequires:  pkgconfig(libavutil)
-BuildRequires:  pkgconfig(libcurl)
-BuildRequires:  pkgconfig(liblz4)
-BuildRequires:  pkgconfig(liblzma)
-BuildRequires:  pkgconfig(libpng)
-BuildRequires:  pkgconfig(libpostproc)
-BuildRequires:  pkgconfig(libpulse)
-BuildRequires:  pkgconfig(libswresample)
-BuildRequires:  pkgconfig(libswscale)
-BuildRequires:  pkgconfig(libzip)
-BuildRequires:  pkgconfig(libzstd)
-BuildRequires:  pkgconfig(zlib)
-BuildRequires:  pkgconfig(pugixml)
-BuildRequires:  pkgconfig(RapidJSON)
-BuildRequires:  pkgconfig(sdl2)
-BuildRequires:  pkgconfig(speexdsp)
-BuildRequires:  pkgconfig(vulkan)
-BuildRequires:  pkgconfig(wayland-client)
-BuildRequires:  pkgconfig(wayland-protocols)
-BuildRequires:  pkgconfig(wayland-scanner)
 
 %description
 This is Cemu, a Wii U emulator that is able to run most Wii U games and homebrew in a playable state.
