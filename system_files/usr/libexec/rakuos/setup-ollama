@@ -3,11 +3,18 @@ set -e
 
 echo "Checking GPU..."
 
-if lspci -nn | grep -i "VGA\|3D" | grep -qi "AMD\|ATI"; then
-    echo "AMD GPU detected. Installing ROCm..."
-    rakuos install rocm
+GPU=$(lspci -nn | grep -E "VGA|3D|Display")
+
+if echo "$GPU" | grep -q "\[1002:"; then
+    echo "AMD GPU detected"
+    sudo rakuos install rocm
+
+elif echo "$GPU" | grep -q "\[10de:"; then
+    echo "NVIDIA GPU detected"
+    sudo rakuos install xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-cuda-libs.i686 xorg-x11-drv-nvidia-cuda-libs.x86_64
+
 else
-    echo "No AMD GPU detected. Skipping ROCm install."
+    echo "No supported GPU detected"
 fi
 
 echo "Setting up Ollama..."
