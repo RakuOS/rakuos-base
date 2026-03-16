@@ -983,6 +983,7 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "com.google.chrome":              "google-chrome-stable",
     "com.google.chromedev":           "google-chrome-unstable",
     "com.google.chromebeta":          "google-chrome-beta",
+    "com.microsoft.Edge":             "microsoft-edge-stable",
     "org.gnome.evolution":            "evolution",
     "org.kde.dolphin":                "dolphin",
     "org.kde.konsole":                "konsole",
@@ -1004,10 +1005,8 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "com.obsproject.studio":          "obs-studio",
     "com.valvesoftware.steam":        "steam",
     "net.lutris.lutris":              "lutris",
-    "org.signal.signal":              "signal-desktop",
     "com.discordapp.discord":         "discord",
     "org.telegram.desktop":           "telegram-desktop",
-    "com.spotify.client":             "spotify-client",
     "org.kde.elisa":                  "elisa",
     "org.gnome.nautilus":             "nautilus",
     "org.gnome.gedit":                "gedit",
@@ -1016,6 +1015,8 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.gnome.rhythmbox":            "rhythmbox",
     "org.gnome.cheese":               "cheese",
     "org.gnome.shotwell":             "shotwell",
+    "info.cemu.Cemu":                 "cemu",
+    "io.github.ryubing.Ryujinx":      "ryujinx",
 }
 
 
