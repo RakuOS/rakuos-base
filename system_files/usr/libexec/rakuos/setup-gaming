@@ -18,7 +18,6 @@ rakuos install \
 systemctl enable --now lactd
 
 flatpak install -y flathub \
-    io.github.benjamimgois.goverlay \
     com.github.Matoking.protontricks \
     com.vysp3r.ProtonPlus
 
