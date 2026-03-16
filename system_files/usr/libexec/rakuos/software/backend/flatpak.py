@@ -450,7 +450,7 @@ def install_local_flatpak_stream(path: str):
     """Generator that installs a local .flatpak bundle file (system-wide via pkexec)."""
     try:
         proc = subprocess.Popen(
-            ["sudo", "flatpak", "install", "--bundle", "--noninteractive", "-y", path],
+            ["pkexec", "flatpak", "install", "--bundle", "--noninteractive", "-y", path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True

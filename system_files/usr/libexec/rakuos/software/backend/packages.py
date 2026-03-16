@@ -1148,7 +1148,7 @@ def install_local_rpm_stream(rpm_path: str):
     cmd = mgr + ["install", "-y", rpm_path]
     try:
         proc = subprocess.Popen(
-            ["sudo"] + cmd,
+            ["pkexec"] + cmd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
         )
         for line in proc.stdout:
