@@ -28,4 +28,9 @@ curl -fsSL https://ollama.com/install.sh | sudo sh
 cd /
 rm -rf "$TMPDIR"
 
+mkdir -p /usr/share/ollama
+chown -R ollama:ollama /usr/share/ollama
+
+systemctl restart ollama.service
+
 echo "Ollama setup complete."
