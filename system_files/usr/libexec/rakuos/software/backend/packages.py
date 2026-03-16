@@ -984,6 +984,7 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "com.google.chromedev":           "google-chrome-unstable",
     "com.google.chromebeta":          "google-chrome-beta",
     "com.microsoft.Edge":             "microsoft-edge-stable",
+    "com.visualstudio.code":          "code",
     "org.gnome.evolution":            "evolution",
     "org.kde.dolphin":                "dolphin",
     "org.kde.konsole":                "konsole",
@@ -1017,6 +1018,8 @@ _FLATPAK_TO_RPM: dict[str, str] = {
     "org.gnome.shotwell":             "shotwell",
     "info.cemu.Cemu":                 "cemu",
     "io.github.ryubing.Ryujinx":      "ryujinx",
+    "com.heroicgameslauncher.hgl":    "heroic-games-launcher-bin",
+    "io.github.Faugus.faugus-launcher":  "faugus-launcher",
 }
 
 
