@@ -12,7 +12,8 @@ rakuos install \
     mangohud \
     mangohud.i686 \
     vkBasalt \
-    vkBasalt.i686
+    vkBasalt.i686 \
+    steam-devices
 
 systemctl enable --now lactd
 

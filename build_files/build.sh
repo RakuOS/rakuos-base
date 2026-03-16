@@ -67,7 +67,6 @@ fwupd \
 python3-pyqt6 \
 python3-dbus \
 python3-gobject \
-steam-devices \
 nodejs \
 nodejs-npm \
 fuse \
