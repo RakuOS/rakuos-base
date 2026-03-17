@@ -87,8 +87,9 @@ cd /tmp
 git clone https://github.com/RakuOS/rakuos-software.git
 cd rakuos-software
 mkdir -p /usr/libexec/rakuos/software
-mv --force backend/* ui_gtk/* ui_qt/* /usr/libexec/rakuos/software/
-mv --force rakuos-software rakuos-webapp-launcher /usr/libexec/rakuos/software/
+cp -r backend ui_gtk ui_qt /usr/libexec/rakuos/software/
+cp rakuos-software /usr/libexec/rakuos/software/rakuos-software
+cp rakuos-webapp-launcher /usr/libexec/rakuos/software/rakuos-webapp-launcher
 
 # ── Register RakuOS Software Center as default handler for package types ──────
 MIMEAPPS="/usr/share/applications/mimeapps.list"
