@@ -142,29 +142,38 @@ cmd_check_flatpak() {
     echo "RakuOS: checking for Flatpak updates..." >&2
     flatpak update --appstream -y &>/dev/null || true
 
-    local updates
-    updates=$(flatpak remote-ls --updates 2>/dev/null) || true
+    # Query apps and runtimes separately so classification is always correct.
+    # --columns gives tab-separated output, preserving multi-word names.
+    local app_updates runtime_updates
+    app_updates=$(flatpak remote-ls --updates --app \
+        --columns=name,application,version 2>/dev/null) || true
+    runtime_updates=$(flatpak remote-ls --updates --runtime \
+        --columns=name,application,version 2>/dev/null) || true
 
-    if [[ -z "$updates" ]]; then
+    if [[ -z "$app_updates" && -z "$runtime_updates" ]]; then
         echo '{"updates": []}'
         exit 1
     fi
 
     local json='{"updates": ['
     local first=1
-    while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-        local name app_id version is_runtime
-        name=$(echo "$line"    | awk '{print $1}')
-        app_id=$(echo "$line"  | awk '{print $2}')
-        version=$(echo "$line" | awk '{print $3}')
-        is_runtime="false"
-        echo "$app_id" | grep -qi "runtime\|\.Sdk\|\.Platform\|\.Extension" \
-            && is_runtime="true"
+
+    while IFS=$'\t' read -r name app_id version; do
+        [[ -z "$app_id" ]] && continue
+        name="${name//\"/\\\"}"
         [[ $first -eq 0 ]] && json+=","
-        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":$is_runtime}"
+        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":false}"
         first=0
-    done <<< "$updates"
+    done <<< "$app_updates"
+
+    while IFS=$'\t' read -r name app_id version; do
+        [[ -z "$app_id" ]] && continue
+        name="${name//\"/\\\"}"
+        [[ $first -eq 0 ]] && json+=","
+        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":true}"
+        first=0
+    done <<< "$runtime_updates"
+
     json+="]}"
     echo "$json"
     exit 0
