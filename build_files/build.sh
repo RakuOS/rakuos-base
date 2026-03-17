@@ -92,9 +92,9 @@ mkdir -p /etc/xdg/autostart
 cp resources/webapps/*.json /usr/share/rakuos/webapps/
 cp resources/rakuos-software.desktop /usr/share/applications/rakuos-software.desktop
 cp resources/rakuos-software-tray.desktop /etc/xdg/autostart/rakuos-software-tray.desktop
-cp -r backend ui_gtk ui_qt /usr/libexec/rakuos/software/
-cp rakuos-software /usr/libexec/rakuos/software/rakuos-software
-cp rakuos-webapp-launcher /usr/libexec/rakuos/software/rakuos-webapp-launcher
+cp -r src/backend src/ui_gtk src/ui_qt /usr/libexec/rakuos/software/
+cp src/rakuos-software /usr/libexec/rakuos/software/rakuos-software
+cp src/rakuos-webapp-launcher /usr/libexec/rakuos/software/rakuos-webapp-launcher
 
 # ── Register RakuOS Software Center as default handler for package types ──────
 MIMEAPPS="/usr/share/applications/mimeapps.list"
