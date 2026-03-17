@@ -8,6 +8,85 @@ STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 LOCK_FILE="/run/rakuos-overlay.lock"
 
+IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
+OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
+
+# Merge any new [[packages]] entries from the saved image packages.toml into
+# the overlay's packages.toml.  Only adds entries missing from the overlay —
+# never removes or overwrites existing overlay entries, so user packages are safe.
+_merge_packages_toml() {
+    [[ -f "$IMAGE_PKGS_SAVE" ]] || { echo "RakuOS overlay sync: no image-packages.toml reference — skipping merge."; return 0; }
+    [[ -f "$OVERLAY_PKGS"    ]] || { echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."; return 0; }
+
+    python3 - "$IMAGE_PKGS_SAVE" "$OVERLAY_PKGS" "$PACKAGES_LIST" <<'PYEOF'
+import sys
+import os
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # Python < 3.11 fallback
+
+image_path   = sys.argv[1]
+overlay_path = sys.argv[2]
+pkglist_path = sys.argv[3]
+
+with open(image_path, "rb") as f:
+    image_data = tomllib.load(f)
+
+with open(overlay_path, "rb") as f:
+    overlay_data = tomllib.load(f)
+
+# Load user-requested packages from packages.list
+user_pkgs = set()
+if os.path.exists(pkglist_path):
+    with open(pkglist_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                user_pkgs.add(line)
+
+image_pkgs   = {p["name"]: p for p in image_data.get("packages", [])}
+overlay_pkgs = {p["name"]: p for p in overlay_data.get("packages", [])}
+
+# Build merged set:
+#   1. All packages from the new image (updated baseline, handles both
+#      additions and removals from the image side)
+#   2. Overlay-only packages that are either in packages.list or have
+#      reason="User" in dnf5's tracking — these are user-installed overlays
+#      and must be preserved regardless of what the image changed
+merged = dict(image_pkgs)
+for name, pkg in overlay_pkgs.items():
+    if name not in merged:
+        if name in user_pkgs or pkg.get("reason", "").lower() == "user":
+            merged[name] = pkg
+
+added   = [n for n in image_pkgs   if n not in overlay_pkgs]
+removed = [n for n in overlay_pkgs if n not in merged]
+
+if not added and not removed:
+    print("RakuOS overlay sync: packages.toml already up to date — nothing to merge.")
+    sys.exit(0)
+
+def _write_pkg(f, pkg):
+    f.write("[[packages]]\n")
+    for key, val in pkg.items():
+        if isinstance(val, str):
+            f.write(f'{key} = "{val}"\n')
+        elif isinstance(val, bool):
+            f.write(f'{key} = {"true" if val else "false"}\n')
+        else:
+            f.write(f'{key} = {val}\n')
+    f.write("\n")
+
+with open(overlay_path, "w") as f:
+    for pkg in merged.values():
+        _write_pkg(f, pkg)
+
+print(f"RakuOS overlay sync: packages.toml merged — +{len(added)} added, -{len(removed)} removed.")
+PYEOF
+}
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
@@ -71,7 +150,8 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
-    echo "RakuOS overlay sync: image updated — upgrading overlay packages..."
+    echo "RakuOS overlay sync: image updated — merging packages.toml changes and upgrading overlay packages..."
+    _merge_packages_toml
     dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"

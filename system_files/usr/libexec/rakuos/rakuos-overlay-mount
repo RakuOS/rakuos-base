@@ -66,6 +66,15 @@ if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     exit 0
 fi
 
+# Save image's packages.toml before overlay mounts — used as merge reference
+# when the image digest changes on next sync. This overwrites only our
+# reference copy in /var/lib/rakuos, never the overlay itself.
+IMAGE_PKGS_SRC="/usr/lib/sysimage/libdnf5/packages.toml"
+IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
+if [[ -f "$IMAGE_PKGS_SRC" ]]; then
+    cp "$IMAGE_PKGS_SRC" "$IMAGE_PKGS_SAVE"
+fi
+
 echo "RakuOS overlay: mounting persistent overlay..."
 mount -t overlay overlay \
     -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
