@@ -37,6 +37,18 @@ with open(image_path, "rb") as f:
 with open(overlay_path, "rb") as f:
     overlay_data = tomllib.load(f)
 
+# libdnf5 packages.toml uses [packages.NAME] table format, so tomllib
+# gives us {"packages": {"firefox": {"reason": "User"}, ...}}
+# Guard against both dict (normal) and list (hypothetical future format).
+def _to_dict(raw):
+    if isinstance(raw, dict):
+        return raw          # {name: {attrs}}
+    # [[packages]] array fallback: [{name: .., reason: ..}, ...]
+    return {p["name"]: {k: v for k, v in p.items() if k != "name"} for p in raw}
+
+image_pkgs   = _to_dict(image_data.get("packages", {}))
+overlay_pkgs = _to_dict(overlay_data.get("packages", {}))
+
 # Load user-requested packages from packages.list
 user_pkgs = set()
 if os.path.exists(pkglist_path):
@@ -46,20 +58,16 @@ if os.path.exists(pkglist_path):
             if line and not line.startswith("#"):
                 user_pkgs.add(line)
 
-image_pkgs   = {p["name"]: p for p in image_data.get("packages", [])}
-overlay_pkgs = {p["name"]: p for p in overlay_data.get("packages", [])}
-
 # Build merged set:
-#   1. All packages from the new image (updated baseline, handles both
+#   1. All packages from the new image (updated baseline — handles both
 #      additions and removals from the image side)
-#   2. Overlay-only packages that are either in packages.list or have
-#      reason="User" in dnf5's tracking — these are user-installed overlays
-#      and must be preserved regardless of what the image changed
+#   2. Overlay-only packages that are in packages.list or have reason="User"
+#      in dnf5's tracking — user-installed overlays must survive image changes
 merged = dict(image_pkgs)
-for name, pkg in overlay_pkgs.items():
+for name, attrs in overlay_pkgs.items():
     if name not in merged:
-        if name in user_pkgs or pkg.get("reason", "").lower() == "user":
-            merged[name] = pkg
+        if name in user_pkgs or attrs.get("reason", "").lower() == "user":
+            merged[name] = attrs
 
 added   = [n for n in image_pkgs   if n not in overlay_pkgs]
 removed = [n for n in overlay_pkgs if n not in merged]
@@ -68,20 +76,22 @@ if not added and not removed:
     print("RakuOS overlay sync: packages.toml already up to date — nothing to merge.")
     sys.exit(0)
 
-def _write_pkg(f, pkg):
-    f.write("[[packages]]\n")
-    for key, val in pkg.items():
+def _inline_table(attrs):
+    # Produce {key = "val", ...} inline TOML table
+    parts = []
+    for key, val in attrs.items():
         if isinstance(val, str):
-            f.write(f'{key} = "{val}"\n')
+            parts.append(f'{key} = "{val}"')
         elif isinstance(val, bool):
-            f.write(f'{key} = {"true" if val else "false"}\n')
+            parts.append(f'{key} = {"true" if val else "false"}')
         else:
-            f.write(f'{key} = {val}\n')
-    f.write("\n")
+            parts.append(f'{key} = {val}')
+    return "{" + ", ".join(parts) + "}"
 
 with open(overlay_path, "w") as f:
-    for pkg in merged.values():
-        _write_pkg(f, pkg)
+    f.write("[packages]\n")
+    for name, attrs in merged.items():
+        f.write(f'"{name}" = {_inline_table(attrs)}\n')
 
 print(f"RakuOS overlay sync: packages.toml merged — +{len(added)} added, -{len(removed)} removed.")
 PYEOF
