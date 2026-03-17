@@ -86,8 +86,9 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 cd /tmp
 git clone https://github.com/RakuOS/rakuos-software.git
 cd rakuos-software
-mkdir -p /usr/libexec/software
-mv backend ui_gtk ui_qt rakuos-software rakuos-webapp-launcher /usr/libexec/software/
+mkdir -p /usr/libexec/rakuos/software
+mv backend/* ui_gtk/* ui_qt/* /usr/libexec/rakuos/software/
+mv rakuos-software rakuos-webapp-launcher /usr/libexec/rakuos/software/
 
 # ── Register RakuOS Software Center as default handler for package types ──────
 MIMEAPPS="/usr/share/applications/mimeapps.list"
