@@ -145,11 +145,13 @@ async function createWindow() {
         `(KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`
     );
 
-    // Inject custom CSS after load
+    // Inject custom CSS as early as possible (dom-ready fires when HTML is
+    // parsed, before external resources — eliminates the flash of unstyled content)
     if (customCss) {
-        win.webContents.on('did-finish-load', () => {
-            win.webContents.insertCSS(customCss).catch(console.error);
-        });
+        const injectCss = () => win.webContents.insertCSS(customCss).catch(console.error);
+        win.webContents.on('dom-ready', injectCss);
+        // Re-inject on full navigations (multi-page sites)
+        win.webContents.on('did-navigate', injectCss);
     }
 
     win.webContents.on('did-fail-load', (event, code, desc, url) => {
