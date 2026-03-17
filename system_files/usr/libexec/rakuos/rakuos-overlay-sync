@@ -11,90 +11,78 @@ LOCK_FILE="/run/rakuos-overlay.lock"
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 
-# Merge any new [[packages]] entries from the saved image packages.toml into
-# the overlay's packages.toml.  Only adds entries missing from the overlay —
-# never removes or overwrites existing overlay entries, so user packages are safe.
+# Merge packages.toml changes from the saved image reference into the overlay's
+# copy.  Additions are appended; removals are deleted — the file is never fully
+# rewritten so libdnf5's strict toml++ parser always sees its own format.
 _merge_packages_toml() {
     [[ -f "$IMAGE_PKGS_SAVE" ]] || { echo "RakuOS overlay sync: no image-packages.toml reference — skipping merge."; return 0; }
     [[ -f "$OVERLAY_PKGS"    ]] || { echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."; return 0; }
 
-    python3 - "$IMAGE_PKGS_SAVE" "$OVERLAY_PKGS" "$PACKAGES_LIST" <<'PYEOF'
-import sys
-import os
+    # Extract quoted "name.arch" keys from each file, one per line, sorted.
+    # Lines look like: "name.arch" = {reason = "..."}
+    local img_keys_f ovl_keys_f
+    img_keys_f=$(mktemp)
+    ovl_keys_f=$(mktemp)
+    grep '^"' "$IMAGE_PKGS_SAVE" | sed 's/^\("[^"]*"\).*/\1/' | LC_ALL=C sort > "$img_keys_f"
+    grep '^"' "$OVERLAY_PKGS"    | sed 's/^\("[^"]*"\).*/\1/' | LC_ALL=C sort > "$ovl_keys_f"
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # Python < 3.11 fallback
+    # Additions: in new image but not in overlay
+    local added_keys
+    added_keys=$(comm -23 "$img_keys_f" "$ovl_keys_f")
 
-image_path   = sys.argv[1]
-overlay_path = sys.argv[2]
-pkglist_path = sys.argv[3]
+    # Candidates for removal: in overlay but not in new image
+    local maybe_remove
+    maybe_remove=$(comm -13 "$img_keys_f" "$ovl_keys_f")
+    rm -f "$img_keys_f" "$ovl_keys_f"
 
-with open(image_path, "rb") as f:
-    image_data = tomllib.load(f)
+    # Filter removals — keep if user-installed or dnf5 tracks as "User"
+    local to_remove=""
+    while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
+        local name base
+        name="${key:1:${#key}-2}"   # strip surrounding quotes → name.arch
+        base="${name%.*}"            # strip arch suffix → name
+        # Keep if in packages.list (check bare name and name.arch)
+        if [[ -f "$PACKAGES_LIST" ]]; then
+            grep -qxF "$base" "$PACKAGES_LIST" 2>/dev/null && continue
+            grep -qxF "$name" "$PACKAGES_LIST" 2>/dev/null && continue
+        fi
+        # Keep if dnf5 marked as User-installed
+        grep -F "${key} " "$OVERLAY_PKGS" 2>/dev/null | grep -qiF '"User"' && continue
+        to_remove+="${key}"$'\n'
+    done <<< "$maybe_remove"
 
-with open(overlay_path, "rb") as f:
-    overlay_data = tomllib.load(f)
+    [[ -z "$added_keys" && -z "$to_remove" ]] && {
+        echo "RakuOS overlay sync: packages.toml already up to date — nothing to merge."
+        return 0
+    }
 
-# libdnf5 packages.toml uses [packages.NAME] table format, so tomllib
-# gives us {"packages": {"firefox": {"reason": "User"}, ...}}
-# Guard against both dict (normal) and list (hypothetical future format).
-def _to_dict(raw):
-    if isinstance(raw, dict):
-        return raw          # {name: {attrs}}
-    # [[packages]] array fallback: [{name: .., reason: ..}, ...]
-    return {p["name"]: {k: v for k, v in p.items() if k != "name"} for p in raw}
+    local tmp n_added=0 n_removed=0
+    tmp=$(mktemp)
+    cp "$OVERLAY_PKGS" "$tmp"
 
-image_pkgs   = _to_dict(image_data.get("packages", {}))
-overlay_pkgs = _to_dict(overlay_data.get("packages", {}))
+    # Append new image entries (exact lines preserved — no TOML rewriting)
+    if [[ -n "$added_keys" ]]; then
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            grep -F "${key} " "$IMAGE_PKGS_SAVE" >> "$tmp" || true
+            (( n_added++ )) || true
+        done <<< "$added_keys"
+    fi
 
-# Load user-requested packages from packages.list
-user_pkgs = set()
-if os.path.exists(pkglist_path):
-    with open(pkglist_path) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                user_pkgs.add(line)
+    # Delete obsolete entries line-by-line using fixed-string match
+    if [[ -n "$to_remove" ]]; then
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            local tmp2
+            tmp2=$(mktemp)
+            grep -vF "${key} " "$tmp" > "$tmp2" && mv "$tmp2" "$tmp" || rm -f "$tmp2"
+            (( n_removed++ )) || true
+        done <<< "$to_remove"
+    fi
 
-# Build merged set:
-#   1. All packages from the new image (updated baseline — handles both
-#      additions and removals from the image side)
-#   2. Overlay-only packages that are in packages.list or have reason="User"
-#      in dnf5's tracking — user-installed overlays must survive image changes
-merged = dict(image_pkgs)
-for name, attrs in overlay_pkgs.items():
-    if name not in merged:
-        if name in user_pkgs or attrs.get("reason", "").lower() == "user":
-            merged[name] = attrs
-
-added   = [n for n in image_pkgs   if n not in overlay_pkgs]
-removed = [n for n in overlay_pkgs if n not in merged]
-
-if not added and not removed:
-    print("RakuOS overlay sync: packages.toml already up to date — nothing to merge.")
-    sys.exit(0)
-
-def _inline_table(attrs):
-    # Produce {key = "val", ...} inline TOML table
-    parts = []
-    for key, val in attrs.items():
-        if isinstance(val, str):
-            parts.append(f'{key} = "{val}"')
-        elif isinstance(val, bool):
-            parts.append(f'{key} = {"true" if val else "false"}')
-        else:
-            parts.append(f'{key} = {val}')
-    return "{" + ", ".join(parts) + "}"
-
-with open(overlay_path, "w") as f:
-    f.write("[packages]\n")
-    for name, attrs in merged.items():
-        f.write(f'"{name}" = {_inline_table(attrs)}\n')
-
-print(f"RakuOS overlay sync: packages.toml merged — +{len(added)} added, -{len(removed)} removed.")
-PYEOF
+    mv "$tmp" "$OVERLAY_PKGS"
+    echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
 }
 
 # Acquire lock so rakuos-base-protect allows our overlay writes
