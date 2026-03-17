@@ -82,6 +82,13 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
+# Install RakuOS Software
+cd /tmp
+git clone https://github.com/RakuOS/rakuos-software.git
+cd rakuos-software
+mkdir -p /usr/libexec/software
+mv backend ui_gtk ui_qt rakuos-software rakuos-webapp-launcher /usr/libexec/software/
+
 # ── Register RakuOS Software Center as default handler for package types ──────
 MIMEAPPS="/usr/share/applications/mimeapps.list"
 
