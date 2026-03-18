@@ -88,7 +88,11 @@ git clone https://github.com/RakuOS/rakuos-software.git
 cd rakuos-software
 mkdir -p /usr/libexec/rakuos/software
 mkdir -p /usr/share/rakuos/webapps
+mkdir -p /usr/share/rakuos/appstream/data
+mkdir -p /usr/share/rakuos/appstream/icons
 mkdir -p /etc/xdg/autostart
+cp resources/appstream/data/* /usr/share/rakuos/appstream/data/
+cp resources/appstream/icons/* /usr/share/rakuos/appstream/icons/
 cp resources/webapps/*.json /usr/share/rakuos/webapps/
 cp resources/rakuos-software.desktop /usr/share/applications/rakuos-software.desktop
 cp resources/rakuos-software-tray.desktop /etc/xdg/autostart/rakuos-software-tray.desktop
