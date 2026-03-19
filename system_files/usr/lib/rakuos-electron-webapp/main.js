@@ -5,16 +5,9 @@
  * Uses castlabs Electron (ECS) with Widevine fully wired up.
  */
 
-const { app, BrowserWindow, components, nativeImage, protocol } = require('electron');
+const { app, BrowserWindow, components, nativeImage } = require('electron');
 const path = require('path');
 const fs   = require('fs');
-
-// Register localfile:// as a privileged scheme so fetch() can read it from
-// the renderer — must happen synchronously before app.whenReady()
-protocol.registerSchemesAsPrivileged([{
-    scheme: 'localfile',
-    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
-}]);
 
 console.log('[rakuos-webapp] process.argv:', process.argv);
 
@@ -153,90 +146,103 @@ async function createWindow() {
         },
     });
 
-    // If a local file was passed, register localfile:// protocol on this window's
-    // session so the renderer can fetch the file data via fetch('localfile://file')
+    // If a local file was passed, read it in the main process and inject as base64
+    // so the renderer can reconstruct a File object without any protocol plumbing.
     if (fileArg) {
         const fileExt  = path.extname(fileArg).toLowerCase();
         const fileName = path.basename(fileArg);
         const mimeType = MIME_TYPES[fileExt] || 'application/octet-stream';
 
-        win.webContents.session.protocol.registerBufferProtocol('localfile', (request, respond) => {
-            try {
-                const data = fs.readFileSync(fileArg);
-                respond({
-                    mimeType,
-                    data,
-                    headers: { 'Access-Control-Allow-Origin': '*' },
-                });
-            } catch (e) {
-                console.error('[rakuos-webapp] localfile read error:', e);
-                respond({ error: -2 });
-            }
-        });
+        let fileBase64 = '';
+        try {
+            fileBase64 = fs.readFileSync(fileArg).toString('base64');
+            console.log(`[rakuos-webapp] Loaded file for injection: ${fileName} (${fileBase64.length} b64 chars)`);
+        } catch (e) {
+            console.error('[rakuos-webapp] Failed to read file arg:', e);
+        }
 
-        // Override window.showOpenFilePicker on dom-ready so it returns our file
-        // instead of showing the OS file dialog
-        const injectFileOverride = () => {
-            const safeFileName = fileName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            const safeMime     = mimeType.replace(/"/g, '\\"');
-            win.webContents.executeJavaScript(`
-                (function() {
-                    if (window.__rakuos_file_injected) return;
-                    window.__rakuos_file_injected = true;
-                    window.showOpenFilePicker = async function() {
-                        const resp = await fetch('localfile://file');
-                        const buf  = await resp.arrayBuffer();
-                        const file = new File([buf], "${safeFileName}", { type: "${safeMime}" });
-                        return [{
-                            kind: 'file',
-                            name: "${safeFileName}",
-                            getFile:           async () => file,
-                            isSameEntry:       async () => false,
-                            queryPermission:   async () => 'granted',
-                            requestPermission: async () => 'granted',
-                        }];
-                    };
-                    console.log('[rakuos-webapp] showOpenFilePicker overridden for: ${safeFileName}');
-                })();
-            `).catch(console.error);
-        };
-
-        win.webContents.on('dom-ready', injectFileOverride);
-        win.webContents.on('did-navigate', injectFileOverride);
-
-        // Auto-click the upload button once the page finishes loading
-        win.webContents.on('did-finish-load', () => {
-            setTimeout(() => {
+        if (fileBase64) {
+            // Override window.showOpenFilePicker on every dom-ready / navigation so
+            // it returns our file instead of showing the OS file dialog.
+            const injectFileOverride = () => {
+                const safeFileName = fileName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                const safeMime     = mimeType.replace(/"/g, '\\"');
                 win.webContents.executeJavaScript(`
                     (function() {
-                        // Try known upload button selectors (most specific first)
-                        const selectors = [
-                            "button[data-testid='0301']",   // Microsoft Word/Excel/PPT
-                            "button[aria-label*='pload']",
-                            "input[type='file']",
-                        ];
-                        for (const sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el) {
-                                console.log('[rakuos-webapp] auto-clicking upload:', sel);
-                                el.click();
-                                return;
+                        if (window.__rakuos_file_injected) return;
+                        window.__rakuos_file_injected = true;
+
+                        const _b64 = "${fileBase64}";
+                        function _buildFile() {
+                            try {
+                                const bin  = atob(_b64);
+                                const u8   = new Uint8Array(bin.length);
+                                for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+                                return new File([u8], "${safeFileName}", { type: "${safeMime}" });
+                            } catch(e) {
+                                console.error('[rakuos-webapp] base64 decode error:', e);
+                                return null;
                             }
                         }
-                        // Generic text search
-                        for (const btn of document.querySelectorAll('button, [role="button"]')) {
-                            const t = (btn.innerText || btn.textContent || '').toLowerCase();
-                            if (t.includes('upload') || t.includes('open file')) {
-                                console.log('[rakuos-webapp] auto-clicking upload by text:', t.trim());
-                                btn.click();
-                                return;
-                            }
-                        }
-                        console.log('[rakuos-webapp] no upload button found — user must click manually');
+
+                        window.showOpenFilePicker = async function() {
+                            const file = _buildFile();
+                            if (!file) throw new DOMException('File build failed', 'AbortError');
+                            console.log('[rakuos-webapp] showOpenFilePicker returning injected file:', file.name, file.size);
+                            return [{
+                                kind:              'file',
+                                name:              "${safeFileName}",
+                                getFile:           async () => file,
+                                isSameEntry:       async () => false,
+                                queryPermission:   async () => 'granted',
+                                requestPermission: async () => 'granted',
+                                createWritable:    async () => ({
+                                    write:  async () => {},
+                                    close:  async () => {},
+                                    abort:  async () => {},
+                                }),
+                            }];
+                        };
+                        console.log('[rakuos-webapp] showOpenFilePicker overridden for: ${safeFileName}');
                     })();
                 `).catch(console.error);
-            }, 1500);
-        });
+            };
+
+            win.webContents.on('dom-ready', injectFileOverride);
+            win.webContents.on('did-navigate', injectFileOverride);
+
+            // Auto-click the upload button once the page finishes loading
+            win.webContents.on('did-finish-load', () => {
+                setTimeout(() => {
+                    win.webContents.executeJavaScript(`
+                        (function() {
+                            const selectors = [
+                                "button[data-testid='0301']",   // Microsoft Word/Excel/PPT upload
+                                "button[aria-label*='pload']",
+                                "input[type='file']",
+                            ];
+                            for (const sel of selectors) {
+                                const el = document.querySelector(sel);
+                                if (el) {
+                                    console.log('[rakuos-webapp] auto-clicking upload:', sel);
+                                    el.click();
+                                    return;
+                                }
+                            }
+                            for (const btn of document.querySelectorAll('button, [role="button"]')) {
+                                const t = (btn.innerText || btn.textContent || '').toLowerCase();
+                                if (t.includes('upload') || t.includes('open file')) {
+                                    console.log('[rakuos-webapp] auto-clicking upload by text:', t.trim());
+                                    btn.click();
+                                    return;
+                                }
+                            }
+                            console.log('[rakuos-webapp] no upload button found — user must click manually');
+                        })();
+                    `).catch(console.error);
+                }, 1500);
+            });
+        }
     }
 
     // Wayland: set app_id so compositor uses the right icon
@@ -271,7 +277,7 @@ async function createWindow() {
         win.webContents.on('did-navigate', injectCss);
     }
 
-    win.webContents.on('did-fail-load', (event, code, desc, url) => {
+    win.webContents.on('did-fail-load', (_event, code, desc, url) => {
         console.error(`[rakuos-webapp] Load failed: ${code} ${desc} — ${url}`);
     });
 
