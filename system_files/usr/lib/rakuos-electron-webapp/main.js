@@ -1,26 +1,51 @@
 /**
  * rakuos-webapp — Electron main process
  *
- * Usage: electron /usr/lib/rakuos-electron-webapp/ <url> <n> [custom_css]
+ * Usage: electron /usr/lib/rakuos-electron-webapp/ <url> <name> [custom_css] [session_group] [file]
  * Uses castlabs Electron (ECS) with Widevine fully wired up.
  */
 
-const { app, BrowserWindow, components, nativeImage } = require('electron');
+const { app, BrowserWindow, components, nativeImage, protocol } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 
+// Register localfile:// as a privileged scheme so fetch() can read it from
+// the renderer — must happen synchronously before app.whenReady()
+protocol.registerSchemesAsPrivileged([{
+    scheme: 'localfile',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+}]);
+
 console.log('[rakuos-webapp] process.argv:', process.argv);
+
+// MIME type map for local file open
+const MIME_TYPES = {
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc':  'application/msword',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls':  'application/vnd.ms-excel',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.ppt':  'application/vnd.ms-powerpoint',
+    '.odt':  'application/vnd.oasis.opendocument.text',
+    '.ods':  'application/vnd.oasis.opendocument.spreadsheet',
+    '.odp':  'application/vnd.oasis.opendocument.presentation',
+    '.pdf':  'application/pdf',
+    '.txt':  'text/plain',
+    '.csv':  'text/csv',
+};
 
 // Find the first http(s) URL in argv — immune to flag ordering
 function parseArgs() {
     const argv = process.argv;
     for (let i = 1; i < argv.length; i++) {
         if (argv[i].startsWith('http://') || argv[i].startsWith('https://')) {
+            const fileArg = argv[i + 4] || '';
             return {
                 url:          argv[i],
                 name:         argv[i + 1] || 'Web App',
                 css:          argv[i + 2] || '',
                 sessionGroup: argv[i + 3] || '',
+                fileArg:      fileArg && fs.existsSync(fileArg) ? fileArg : '',
             };
         }
     }
@@ -32,8 +57,8 @@ function parseArgs() {
 const parsed = parseArgs();
 if (!parsed) process.exit(1);
 
-const { url: targetUrl, name: appName, css: customCss, sessionGroup } = parsed;
-console.log('[rakuos-webapp] Launching:', targetUrl, '|', appName);
+const { url: targetUrl, name: appName, css: customCss, sessionGroup, fileArg } = parsed;
+console.log('[rakuos-webapp] Launching:', targetUrl, '|', appName, fileArg ? `| file: ${fileArg}` : '');
 
 // Sanitise name → safe id
 const appId = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -127,6 +152,92 @@ async function createWindow() {
             partition:        `persist:${sessionGroup || appId}`,
         },
     });
+
+    // If a local file was passed, register localfile:// protocol on this window's
+    // session so the renderer can fetch the file data via fetch('localfile://file')
+    if (fileArg) {
+        const fileExt  = path.extname(fileArg).toLowerCase();
+        const fileName = path.basename(fileArg);
+        const mimeType = MIME_TYPES[fileExt] || 'application/octet-stream';
+
+        win.webContents.session.protocol.registerBufferProtocol('localfile', (request, respond) => {
+            try {
+                const data = fs.readFileSync(fileArg);
+                respond({
+                    mimeType,
+                    data,
+                    headers: { 'Access-Control-Allow-Origin': '*' },
+                });
+            } catch (e) {
+                console.error('[rakuos-webapp] localfile read error:', e);
+                respond({ error: -2 });
+            }
+        });
+
+        // Override window.showOpenFilePicker on dom-ready so it returns our file
+        // instead of showing the OS file dialog
+        const injectFileOverride = () => {
+            const safeFileName = fileName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const safeMime     = mimeType.replace(/"/g, '\\"');
+            win.webContents.executeJavaScript(`
+                (function() {
+                    if (window.__rakuos_file_injected) return;
+                    window.__rakuos_file_injected = true;
+                    window.showOpenFilePicker = async function() {
+                        const resp = await fetch('localfile://file');
+                        const buf  = await resp.arrayBuffer();
+                        const file = new File([buf], "${safeFileName}", { type: "${safeMime}" });
+                        return [{
+                            kind: 'file',
+                            name: "${safeFileName}",
+                            getFile:           async () => file,
+                            isSameEntry:       async () => false,
+                            queryPermission:   async () => 'granted',
+                            requestPermission: async () => 'granted',
+                        }];
+                    };
+                    console.log('[rakuos-webapp] showOpenFilePicker overridden for: ${safeFileName}');
+                })();
+            `).catch(console.error);
+        };
+
+        win.webContents.on('dom-ready', injectFileOverride);
+        win.webContents.on('did-navigate', injectFileOverride);
+
+        // Auto-click the upload button once the page finishes loading
+        win.webContents.on('did-finish-load', () => {
+            setTimeout(() => {
+                win.webContents.executeJavaScript(`
+                    (function() {
+                        // Try known upload button selectors (most specific first)
+                        const selectors = [
+                            "button[data-testid='0301']",   // Microsoft Word/Excel/PPT
+                            "button[aria-label*='pload']",
+                            "input[type='file']",
+                        ];
+                        for (const sel of selectors) {
+                            const el = document.querySelector(sel);
+                            if (el) {
+                                console.log('[rakuos-webapp] auto-clicking upload:', sel);
+                                el.click();
+                                return;
+                            }
+                        }
+                        // Generic text search
+                        for (const btn of document.querySelectorAll('button, [role="button"]')) {
+                            const t = (btn.innerText || btn.textContent || '').toLowerCase();
+                            if (t.includes('upload') || t.includes('open file')) {
+                                console.log('[rakuos-webapp] auto-clicking upload by text:', t.trim());
+                                btn.click();
+                                return;
+                            }
+                        }
+                        console.log('[rakuos-webapp] no upload button found — user must click manually');
+                    })();
+                `).catch(console.error);
+            }, 1500);
+        });
+    }
 
     // Wayland: set app_id so compositor uses the right icon
     if (process.platform === 'linux') {
