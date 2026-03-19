@@ -1,7 +1,7 @@
 [Unit]
 Description=RakuOS Overlay Sync
 Documentation=https://rakuos.org
-After=network-online.target systemd-resolved.service rakuos-overlay-services.service
+After=network-online.target systemd-resolved.service rakuos-overlay-mount.service
 Wants=network-online.target systemd-resolved.service
 ConditionPathExists=/var/lib/rakuos/packages.list
 
