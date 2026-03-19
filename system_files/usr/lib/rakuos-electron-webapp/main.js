@@ -17,9 +17,10 @@ function parseArgs() {
     for (let i = 1; i < argv.length; i++) {
         if (argv[i].startsWith('http://') || argv[i].startsWith('https://')) {
             return {
-                url:  argv[i],
-                name: argv[i + 1] || 'Web App',
-                css:  argv[i + 2] || '',
+                url:          argv[i],
+                name:         argv[i + 1] || 'Web App',
+                css:          argv[i + 2] || '',
+                sessionGroup: argv[i + 3] || '',
             };
         }
     }
@@ -31,7 +32,7 @@ function parseArgs() {
 const parsed = parseArgs();
 if (!parsed) process.exit(1);
 
-const { url: targetUrl, name: appName, css: customCss } = parsed;
+const { url: targetUrl, name: appName, css: customCss, sessionGroup } = parsed;
 console.log('[rakuos-webapp] Launching:', targetUrl, '|', appName);
 
 // Sanitise name → safe id
@@ -119,6 +120,8 @@ async function createWindow() {
             contextIsolation: false,
             nodeIntegration:  false,
             webSecurity:      true,
+            // Share session (cookies, storage) across suite members; standalone apps get their own
+            partition:        `persist:${sessionGroup || appId}`,
         },
     });
 
