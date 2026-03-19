@@ -38,17 +38,20 @@ console.log('[rakuos-webapp] Launching:', targetUrl, '|', appName);
 // Sanitise name → safe id
 const appId = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-// Per-app isolated data dir
+// Suite members share a userData dir (keyed on sessionGroup) so Electron stores
+// cookies/localStorage in the same Partitions sub-directory — giving them a
+// truly shared session.  Standalone apps use their own appId-keyed dir.
+const groupId = sessionGroup || appId;
 const dataDir = path.join(
     app.getPath('home'),
-    '.local', 'share', 'rakuos', 'webapps', 'electron-data', appId
+    '.local', 'share', 'rakuos', 'webapps', 'electron-data', groupId
 );
 fs.mkdirSync(dataDir, { recursive: true });
 app.setPath('userData', dataDir);
 app.setName(appName);  // use real app name so taskbar shows it correctly
 
-// Window size persistence — save/load from per-app state file
-const stateFile = path.join(dataDir, 'window-state.json');
+// Window size persistence — per-app file inside the (possibly shared) dataDir
+const stateFile = path.join(dataDir, `window-state-${appId}.json`);
 
 function loadWindowState() {
     try {
