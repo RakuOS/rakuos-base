@@ -124,4 +124,4 @@ Keywords[fr]=installer;supprimer;logiciels;paquets;
 Keywords[ru]=установить;удалить;программы;пакеты;
 Keywords[zh_CN]=安装;卸载;软件;软件包;
 StartupNotify=true
-StartupWMClass=rakuos-software
+StartupWMClass=org.rakuos.Software
