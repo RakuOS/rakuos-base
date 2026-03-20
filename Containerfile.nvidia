@@ -8,7 +8,6 @@ COPY build_files /
 FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION}
 
 #RUN rm /opt && ln -s -T /var/opt /opt
-RUN mv /usr/local /var/usr_local && ln -s -T /var/usr_local /usr/local
 RUN mkdir -p /var/nix && ln -s /var/nix /nix
 COPY system_files /
 
