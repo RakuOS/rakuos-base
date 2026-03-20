@@ -19,6 +19,18 @@ EXCLUSION_PREFIXES=(
     "/usr/share/licenses"
     "/usr/lib/.build-id"
     "/usr/lib64/.build-id"
+    "/usr/lib/python3.14/site-packages/tuned/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/admin/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/daemon/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/exports/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/hardware/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/monitors/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/plugins/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/ppd/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/profiles/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/storage/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/units/__pycache__"
+    "/usr/lib/python3.14/site-packages/tuned/utils/__pycache__"
 )
 
 
