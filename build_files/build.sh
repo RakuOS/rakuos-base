@@ -97,6 +97,8 @@ cp resources/appstream/flatpak-to-rpm.json /usr/share/rakuos/appstream/flatpak-t
 cp resources/appstream/data/* /usr/share/rakuos/appstream/data/
 cp resources/appstream/icons/* /usr/share/rakuos/appstream/icons/
 cp resources/webapps/*.json /usr/share/rakuos/webapps/
+cp resources/rakuos-webapp-launcher /usr/bin/rakuos-webapp-launcher
+cp resources/rakuos-software /usr/bin/rakuos-software
 cp resources/rakuos-software.desktop /usr/share/applications/rakuos-software.desktop
 cp resources/rakuos-software-tray.desktop /etc/xdg/autostart/rakuos-software-tray.desktop
 cp -r src/backend src/ui_gtk src/ui_qt /usr/libexec/rakuos/software/
