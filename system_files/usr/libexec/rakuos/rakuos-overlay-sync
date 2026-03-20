@@ -11,12 +11,36 @@ LOCK_FILE="/run/rakuos-overlay.lock"
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 
+# Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
+# so dnf5 doesn't fail with "error opening file" on first run.
+_ensure_packages_toml() {
+    # Check via the overlay-mounted path — covers both lower and upper layers.
+    if [[ ! -f "/usr/lib/sysimage/libdnf5/packages.toml" ]]; then
+        mkdir -p "$(dirname "$OVERLAY_PKGS")"
+        touch "$OVERLAY_PKGS"
+        echo "RakuOS overlay sync: created empty packages.toml for dnf5."
+    fi
+}
+
 # Merge packages.toml changes from the saved image reference into the overlay's
 # copy.  Additions are appended; removals are deleted — the file is never fully
 # rewritten so libdnf5's strict toml++ parser always sees its own format.
 _merge_packages_toml() {
     [[ -f "$IMAGE_PKGS_SAVE" ]] || { echo "RakuOS overlay sync: no image-packages.toml reference — skipping merge."; return 0; }
-    [[ -f "$OVERLAY_PKGS"    ]] || { echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."; return 0; }
+
+    # If the file only lives in the lower layer (image), promote it to the upper
+    # so dnf5 can write to it and so the merge has a writable copy to update.
+    if [[ ! -f "$OVERLAY_PKGS" ]]; then
+        local mounted_path="/usr/lib/sysimage/libdnf5/packages.toml"
+        if [[ -f "$mounted_path" ]]; then
+            mkdir -p "$(dirname "$OVERLAY_PKGS")"
+            cp "$mounted_path" "$OVERLAY_PKGS"
+            echo "RakuOS overlay sync: promoted packages.toml from image lower layer to overlay upper."
+        else
+            echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."
+            return 0
+        fi
+    fi
 
     # Extract quoted "name.arch" keys from each file, one per line, sorted.
     # Lines look like: "name.arch" = {reason = "..."}
@@ -142,6 +166,7 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
+    _ensure_packages_toml
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
@@ -157,6 +182,7 @@ elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
+    _ensure_packages_toml
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."
