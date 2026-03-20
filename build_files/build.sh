@@ -92,6 +92,8 @@ mkdir -p /usr/share/rakuos/webapps
 mkdir -p /usr/share/rakuos/appstream/data
 mkdir -p /usr/share/rakuos/appstream/icons
 mkdir -p /etc/xdg/autostart
+cp resources/appstream/appstream-overrides.json /usr/share/rakuos/appstream/appstream-overrides.json
+cp resources/appstream/flatpak-to-rpm.json /usr/share/rakuos/appstream/flatpak-to-rpm.json
 cp resources/appstream/data/* /usr/share/rakuos/appstream/data/
 cp resources/appstream/icons/* /usr/share/rakuos/appstream/icons/
 cp resources/webapps/*.json /usr/share/rakuos/webapps/
