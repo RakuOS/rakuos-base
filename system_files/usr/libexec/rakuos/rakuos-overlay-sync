@@ -18,6 +18,7 @@ _ensure_packages_toml() {
     if [[ ! -f "/usr/lib/sysimage/libdnf5/packages.toml" ]]; then
         mkdir -p "$(dirname "$OVERLAY_PKGS")"
         touch "$OVERLAY_PKGS"
+        chmod 644 "$OVERLAY_PKGS"
         echo "RakuOS overlay sync: created empty packages.toml for dnf5."
     fi
 }
@@ -35,6 +36,7 @@ _merge_packages_toml() {
         if [[ -f "$mounted_path" ]]; then
             mkdir -p "$(dirname "$OVERLAY_PKGS")"
             cp "$mounted_path" "$OVERLAY_PKGS"
+            chmod 644 "$OVERLAY_PKGS"
             echo "RakuOS overlay sync: promoted packages.toml from image lower layer to overlay upper."
         else
             echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."
@@ -105,6 +107,7 @@ _merge_packages_toml() {
         done <<< "$to_remove"
     fi
 
+    chmod 644 "$tmp"
     mv "$tmp" "$OVERLAY_PKGS"
     echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
 }
