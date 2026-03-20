@@ -59,6 +59,8 @@ sqlite3 \
 openssl \
 libnotify \
 inotify-tools \
+libayatana-appindicator-gtk2-sharp \
+libayatana-appindicator-gtk3-sharp \
 podman-compose \
 python3-pip \
 appstream \
