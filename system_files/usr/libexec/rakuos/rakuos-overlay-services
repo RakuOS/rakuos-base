@@ -11,6 +11,9 @@ if [[ ! -d "$SERVICE_DIR" ]]; then
     exit 0
 fi
 
+echo "Reload udev..."
+udevadm control --reload-rules && udevadm trigger
+
 echo "RakuOS overlay services: running daemon-reload..."
 systemctl daemon-reload
 
@@ -43,8 +46,5 @@ while IFS= read -r -d '' service_file; do
         || echo "RakuOS overlay services: WARNING — failed to start $service"
 
 done < <(find "$SERVICE_DIR" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
-
-echo "Reload udev..."
-udevadm control --reload-rules && udevadm trigger
 
 echo "RakuOS overlay services: done."
