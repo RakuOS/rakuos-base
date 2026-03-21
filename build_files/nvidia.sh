@@ -3,7 +3,7 @@
 set -ouex pipefail
 
 # Enable NVIDIA repo
-sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/rpmfusion-nonfree-nvidia-driver.repo
+#sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/rpmfusion-nonfree-nvidia-driver.repo
 
 # Install NVIDIA stack
 dnf5 install -y \
