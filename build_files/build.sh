@@ -56,6 +56,7 @@ podman \
 distrobox \
 xpadneo \
 mokutil \
+lm_sensors \
 sqlite3 \
 openssl \
 libnotify \
