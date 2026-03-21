@@ -12,14 +12,12 @@ rakuos install \
     mangohud \
     mangohud.i686 \
     protonplus \
+    protontricks \
     vkBasalt \
     vkBasalt.i686 \
     steam-devices
 
 systemctl enable --now lactd
-
-flatpak install -y flathub \
-    com.github.Matoking.protontricks
 
 echo ""
 echo "Gaming setup complete!"
