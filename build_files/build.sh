@@ -63,6 +63,7 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
+dnf5 -y install mesa-va-drivers.i686
 dnf5 -y upgrade --best 'mesa-*'
 #dnf5 -y swap mesa-va-drivers-freeworld mesa-va-drivers
 #dnf5 -y swap mesa-va-drivers-freeworld.i686 mesa-va-drivers.i686
