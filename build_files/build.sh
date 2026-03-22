@@ -64,14 +64,7 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
 dnf5 -y install --best \
-    mesa-dri-drivers mesa-filesystem mesa-libEGL mesa-libGL \
-    mesa-libgbm mesa-libOpenCL mesa-libxatracker mesa-compat-libxatracker \
-    mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers \
-    mesa-dxil mesa-dxil-libs \
-    mesa-dri-drivers.i686 mesa-filesystem.i686 mesa-libEGL.i686 mesa-libGL.i686 \
-    mesa-libgbm.i686 mesa-libOpenCL.i686 \
-    mesa-va-drivers.i686 mesa-vdpau-drivers.i686 mesa-vulkan-drivers.i686 \
-    mesa-dxil.i686 mesa-dxil-libs.i686
+    mesa-dri-drivers.i686
 dnf5 -y upgrade --best 'mesa-*'
 
 #dnf5 -y swap mesa-va-drivers-freeworld mesa-va-drivers
