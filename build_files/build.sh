@@ -41,11 +41,11 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
-dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
+dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
-dnf5 -y swap mesa-va-drivers mesa-va-drivers-freeworld
+dnf5 -y swap mesa-va-drivers-freeworld mesa-va-drivers
 
-dnf5 -y swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
+dnf5 -y swap mesa-va-drivers-freeworld.i686 mesa-va-drivers.i686
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
