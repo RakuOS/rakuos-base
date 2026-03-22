@@ -16,6 +16,10 @@ dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
+rpm --import https://repos.fyralabs.com/terra$releasever/key.asc
+rpm --import https://repos.fyralabs.com/terra$releasever-mesa/key.asc
+rpm --import https://repos.fyralabs.com/terra$releasever-multimedia/key.asc
+rpm --import https://repos.fyralabs.com/terra$releasever-nvidia/key.asc
 dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
 dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
 dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
