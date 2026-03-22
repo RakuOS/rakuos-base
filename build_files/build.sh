@@ -57,6 +57,7 @@ scx-tools \
 gamemode \
 gamemode.i686 \
 pulseaudio-utils \
+dkms \
 git \
 flatpak \
 libxcrypt-compat \
