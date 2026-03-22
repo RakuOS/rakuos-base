@@ -20,10 +20,8 @@ dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/te
 dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
 dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
 dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
-
-dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="nerd-fonts topgrade scx-tools scx-scheds steam python3-protobuf xpadneo* zlib-devel"
-dnf5 -y config-manager setopt "*rpmfusion*".priority=5 "*rpmfusion*".exclude="mesa-*"
-dnf5 -y config-manager setopt "*fedora*".exclude="mesa-*"
+# Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
+sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
 # VS Code
 rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
