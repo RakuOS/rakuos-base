@@ -47,6 +47,9 @@ dnf5 -y swap mesa-va-drivers mesa-va-drivers-freeworld
 
 dnf5 -y swap mesa-va-drivers.i686 mesa-va-drivers-freeworld.i686
 
+# Determine the installed kernel version
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+
 # install packages
 dnf5 -y install ananicy-cpp \
 cachyos-ananicy-rules \
@@ -58,6 +61,12 @@ gamemode \
 gamemode.i686 \
 pulseaudio-utils \
 dkms \
+kernel-cachyos-devel-${QUALIFIED_KERNEL} \
+gcc \
+make \
+perl \
+elfutils-libelf-devel \
+openssl-devel \
 git \
 flatpak \
 libxcrypt-compat \
@@ -212,8 +221,6 @@ KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-c
 akmods --force --kernels "$KVER"
 
 #Build initramfs
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # Generate module dependencies
 depmod "$QUALIFIED_KERNEL"

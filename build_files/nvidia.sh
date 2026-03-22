@@ -5,20 +5,22 @@ set -ouex pipefail
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
-# Install NVIDIA stack + kernel devel headers needed for DKMS build
-# --setopt=tsflags=noscripts skips systemd scriptlets that fail in containers
+# Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5 install -y --setopt=tsflags=noscripts \
     dkms-nvidia \
     nvidia-modprobe \
     nvidia-driver \
     nvidia-settings \
     nvidia-persistenced \
-    libva-nvidia-driver \
-    kernel-cachyos-devel-${QUALIFIED_KERNEL}
+    libva-nvidia-driver
 
 # Build DKMS module for the installed kernel
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force
+dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+    echo "DKMS build failed — make.log:"
+    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
+    exit 1
+}
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
