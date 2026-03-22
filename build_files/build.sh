@@ -21,7 +21,7 @@ dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyra
 dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
 
 dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="nerd-fonts topgrade scx-tools scx-scheds steam python3-protobuf zlib-devel"
-dnf5 -y config-manager setopt "*rpmfusion*".priority=5 "*rpmfusion*".exclude="mesa-* akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-settings nvidia-persistenced nvidia-modprobe"
+dnf5 -y config-manager setopt "*rpmfusion*".priority=5 "*rpmfusion*".exclude="akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-settings nvidia-persistenced nvidia-modprobe"
 #dnf5 -y config-manager setopt "*fedora*".exclude="mesa-*"
 
 # VS Code
