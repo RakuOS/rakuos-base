@@ -109,10 +109,11 @@ cmd_check() {
             # Strip arch suffix: firefox.x86_64 -> firefox
             name=$(echo "$name_arch" | sed 's/\.[a-z_0-9]*$//')
             [[ -z "$name" || -z "$version" ]] && continue
+            current_version=$(rpm -q --qf '%{VERSION}-%{RELEASE}' "$name" 2>/dev/null || echo "")
             gui="false"
             is_gui_package "$name" && gui="true"
             [[ $first -eq 0 ]] && json+=","
-            json+="{\"name\":\"$name\",\"version\":\"$version\",\"repo\":\"$repo\",\"gui\":$gui}"
+            json+="{\"name\":\"$name\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"repo\":\"$repo\",\"gui\":$gui}"
             first=0
         done <<< "$check_output"
         json+="]}"
@@ -166,16 +167,18 @@ cmd_check_flatpak() {
     while IFS=$'\t' read -r name app_id version; do
         [[ -z "$app_id" ]] && continue
         name="${name//\"/\\\"}"
+        current_version=$(flatpak info --show-version "$app_id" 2>/dev/null || echo "")
         [[ $first -eq 0 ]] && json+=","
-        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":false}"
+        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":false}"
         first=0
     done <<< "$app_updates"
 
     while IFS=$'\t' read -r name app_id version; do
         [[ -z "$app_id" ]] && continue
         name="${name//\"/\\\"}"
+        current_version=$(flatpak info --show-version "$app_id" 2>/dev/null || echo "")
         [[ $first -eq 0 ]] && json+=","
-        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"runtime\":true}"
+        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":true}"
         first=0
     done <<< "$runtime_updates"
 
