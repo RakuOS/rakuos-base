@@ -6,7 +6,8 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # Install NVIDIA stack + kernel devel headers needed for DKMS build
-dnf5 install -y \
+# --setopt=tsflags=noscripts skips systemd scriptlets that fail in containers
+dnf5 install -y --setopt=tsflags=noscripts \
     dkms-nvidia \
     nvidia-modprobe \
     nvidia-driver \
