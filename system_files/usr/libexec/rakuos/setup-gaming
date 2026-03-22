@@ -6,7 +6,7 @@ echo "Setting up gaming for RakuOS..."
 rakuos install \
     steam \
     lutris \
-    heroic-games-launcher-bin \
+    heroic-games-launcher \
     lact \
     goverlay \
     mangohud \
