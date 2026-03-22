@@ -7,12 +7,7 @@ set -ouex pipefail
 
 # Install NVIDIA stack
 dnf5 install -y \
-    akmod-nvidia \
-    xorg-x11-drv-nvidia \
-    xorg-x11-drv-nvidia-libs \
-    xorg-x11-drv-nvidia-libs.i686 \
-    xorg-x11-drv-nvidia-cuda \
-    xorg-x11-drv-nvidia-power
+    nvidia-driver
 
 #build akmods and update initramfs with nvidia drivers included
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
