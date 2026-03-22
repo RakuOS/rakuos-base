@@ -7,7 +7,14 @@ set -ouex pipefail
 
 # Install NVIDIA stack
 dnf5 install -y \
-    nvidia-driver
+    nvidia-kmod \
+    nvidia-kmod-common \
+    nvidia-modprobe \
+    nvidia-driver \
+    nvidia-settings \
+    nvidia-persistenced \
+    nvidia-settings \
+    libva-nvidia-driver
 
 #build akmods and update initramfs with nvidia drivers included
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
