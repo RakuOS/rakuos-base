@@ -62,11 +62,10 @@ libxcrypt-compat \
 rsync \
 podman \
 distrobox \
-xpadneo \
 akmod-xpadneo \
-xone \
+akmod-xone \
 xone-firmware \
-xpad-noone \
+akmod-xpad-noone \
 mokutil \
 lm_sensors \
 sqlite3 \
