@@ -63,6 +63,7 @@ rsync \
 podman \
 distrobox \
 xpadneo \
+akmod-xpadneo \
 xone \
 xone-firmware \
 xpad-noone \
