@@ -28,7 +28,8 @@ systemctl enable nvidia-hibernate.service \
     nvidia-powerd.service \
     nvidia-resume.service \
     nvidia-suspend.service \
-    nvidia-suspend-then-hibernate.service
+    nvidia-suspend-then-hibernate.service \
+    nvidia-persistenced.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
