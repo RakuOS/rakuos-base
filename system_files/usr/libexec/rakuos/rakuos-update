@@ -167,7 +167,7 @@ cmd_check_flatpak() {
     while IFS=$'\t' read -r name app_id version; do
         [[ -z "$app_id" ]] && continue
         name="${name//\"/\\\"}"
-        current_version=$(flatpak info --show-version "$app_id" 2>/dev/null || echo "")
+        current_version=$(flatpak info "$app_id" 2>/dev/null | awk '/Version:/{print $2}')
         [[ $first -eq 0 ]] && json+=","
         json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":false}"
         first=0
@@ -176,7 +176,7 @@ cmd_check_flatpak() {
     while IFS=$'\t' read -r name app_id version; do
         [[ -z "$app_id" ]] && continue
         name="${name//\"/\\\"}"
-        current_version=$(flatpak info --show-version "$app_id" 2>/dev/null || echo "")
+        current_version=$(flatpak info "$app_id" 2>/dev/null | awk '/Version:/{print $2}')
         [[ $first -eq 0 ]] && json+=","
         json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":true}"
         first=0
