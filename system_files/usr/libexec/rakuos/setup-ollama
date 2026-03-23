@@ -11,7 +11,7 @@ if echo "$GPU" | grep -q "\[1002:"; then
 
 elif echo "$GPU" | grep -q "\[10de:"; then
     echo "NVIDIA GPU detected"
-    sudo rakuos install xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-cuda-libs.i686 xorg-x11-drv-nvidia-cuda-libs.x86_64
+    sudo rakuos install cuda
 
 else
     echo "No supported GPU detected"
