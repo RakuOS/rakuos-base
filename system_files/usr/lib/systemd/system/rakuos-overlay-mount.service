@@ -4,7 +4,6 @@ Documentation=https://rakuos.org
 DefaultDependencies=no
 After=local-fs.target
 Before=sysinit.target
-ConditionPathExists=/var/lib/rakuos/overlay/upper
 
 [Service]
 Type=oneshot
