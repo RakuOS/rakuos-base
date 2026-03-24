@@ -85,8 +85,14 @@ gamemode.i686 \
 pulseaudio-utils \
 dkms \
 kernel-cachyos-devel-${QUALIFIED_KERNEL} \
+rust \
+cargo \
 gcc \
 make \
+gtk4-devel \
+libadwaita-devel \
+qt6-qtbase-devel \
+qt6-qtdeclarative-devel \
 perl \
 elfutils-libelf-devel \
 openssl-devel \
