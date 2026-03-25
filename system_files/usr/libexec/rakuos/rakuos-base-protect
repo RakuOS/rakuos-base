@@ -19,18 +19,13 @@ EXCLUSION_PREFIXES=(
     "/usr/share/licenses"
     "/usr/lib/.build-id"
     "/usr/lib64/.build-id"
-    "/usr/lib/python3.14/site-packages/tuned/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/admin/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/daemon/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/exports/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/hardware/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/monitors/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/plugins/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/ppd/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/profiles/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/storage/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/units/__pycache__"
-    "/usr/lib/python3.14/site-packages/tuned/utils/__pycache__"
+)
+
+# Glob patterns for exclusions that require wildcard matching
+EXCLUSION_GLOBS=(
+    "/usr/lib/python*/__pycache__/*"
+    "/usr/lib/python*/site-packages/*/__pycache__/*"
+    "/usr/lib/python*/site-packages/*/*/__pycache__/*"
 )
 
 
@@ -128,6 +123,12 @@ handle_event() {
     # Allow paths under excluded prefixes (RPM db, runtime writable dirs)
     for prefix in "${EXCLUSION_PREFIXES[@]}"; do
         [[ "$base_path" == "$prefix"* ]] && return 0
+    done
+
+    # Allow paths matching wildcard glob patterns (e.g. __pycache__ dirs)
+    for glob in "${EXCLUSION_GLOBS[@]}"; do
+        # shellcheck disable=SC2254
+        case "$base_path" in $glob) return 0 ;; esac
     done
     
     # Allow explicitly excluded files that are legitimately writable at runtime
