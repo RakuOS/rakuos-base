@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-if [[ "$XDG_CURRENT_DESKTOP" == *"GNOME"* ]]; then
-    exec /usr/libexec/rakuos/rakuos-welcome-gtk "$@"
-else
-    exec /usr/libexec/rakuos/rakuos-welcome-qt "$@"
-fi
