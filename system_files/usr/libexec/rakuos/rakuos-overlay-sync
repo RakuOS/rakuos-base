@@ -112,9 +112,27 @@ _merge_packages_toml() {
     echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
 }
 
+# Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
+_import_terra_keys() {
+    local fedora_version
+    fedora_version=$(. /etc/os-release && echo "$VERSION_ID")
+    if [[ -z "$fedora_version" ]]; then
+        echo "RakuOS overlay sync: could not determine Fedora version — skipping Terra key import."
+        return 0
+    fi
+    echo "RakuOS overlay sync: importing Terra GPG keys for Fedora ${fedora_version}..."
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}/key.asc" || true
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-mesa/key.asc" || true
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-multimedia/key.asc" || true
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
+    echo "RakuOS overlay sync: Terra key import complete."
+}
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
+
+_import_terra_keys
 
 # Read packages into array, skip empty lines and comments
 mapfile -t PACKAGES < <(
