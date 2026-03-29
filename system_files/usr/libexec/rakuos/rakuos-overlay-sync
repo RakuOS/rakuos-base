@@ -124,7 +124,7 @@ _import_terra_keys() {
     rpm --import "https://repos.fyralabs.com/terra${fedora_version}/key.asc" || true
     rpm --import "https://repos.fyralabs.com/terra${fedora_version}-mesa/key.asc" || true
     rpm --import "https://repos.fyralabs.com/terra${fedora_version}-multimedia/key.asc" || true
-    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
+    #rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
     echo "RakuOS overlay sync: Terra key import complete."
 }
 

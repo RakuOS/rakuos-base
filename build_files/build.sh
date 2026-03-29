@@ -17,14 +17,15 @@ dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
+dnf5 -y config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-nvidia.repo
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
+#rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
 dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
 dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
 dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
-dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
+#dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
