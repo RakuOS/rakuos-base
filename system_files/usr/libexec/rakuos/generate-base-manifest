@@ -17,7 +17,9 @@ echo "Manifest generated: $TOTAL files → $MANIFEST_FILE"
 
 echo "Generating RakuOS base package list..."
 # Include arch so x86_64 packages are excluded but i686 (32-bit) equivalents are not
-rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}.%{ARCH}\n' | sort -u > "$BASE_PACKAGES_FILE"
+rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}.%{ARCH}\n' \
+  | grep -v '^python3-icoextract\.' \
+  | sort -u > "$BASE_PACKAGES_FILE"
 PKG_TOTAL=$(wc -l < "$BASE_PACKAGES_FILE")
 echo "Base package list generated: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
 
