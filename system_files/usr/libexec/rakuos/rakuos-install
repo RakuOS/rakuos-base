@@ -93,7 +93,7 @@ if ! findmnt /usr | grep -q overlay; then
 fi
 
 # Install into overlay — excludes base packages from dep resolution
-dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${TO_INSTALL_ARGS[@]}"
+dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" "${TO_INSTALL_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do

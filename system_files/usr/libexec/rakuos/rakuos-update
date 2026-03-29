@@ -140,7 +140,7 @@ cmd_upgrade() {
     local -a pkg_array
     mapfile -t pkg_array <<< "$overlay_pkgs"
 
-    dnf upgrade -y "${pkg_array[@]}"
+    dnf upgrade -y --refresh "${pkg_array[@]}"
     echo "RakuOS: overlay package upgrade complete."
 }
 
