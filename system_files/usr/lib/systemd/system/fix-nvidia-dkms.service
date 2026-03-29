@@ -1,0 +1,10 @@
+[Unit]
+Description=Fix NVIDIA DKMS source symlinks
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/fix-nvidia-dkms
+
+[Install]
+WantedBy=multi-user.target

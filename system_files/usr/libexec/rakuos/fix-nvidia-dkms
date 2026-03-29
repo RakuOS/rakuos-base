@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DKMS_DIR="/var/lib/dkms/nvidia"
+SRC_BASE="/usr/src"
+
+# Find installed nvidia source dirs
+for src in "$SRC_BASE"/nvidia-*; do
+    [ -d "$src" ] || continue
+
+    version=$(basename "$src" | sed 's/^nvidia-//')
+    target_dir="$DKMS_DIR/$version"
+
+    mkdir -p "$target_dir"
+
+    # Fix or create symlink
+    ln -sfn "$src" "$target_dir/source"
+done
+
+# Optional: clean up broken versions
+for dir in "$DKMS_DIR"/*; do
+    [ -d "$dir" ] || continue
+
+    if [ ! -e "$dir/source" ]; then
+        echo "Removing stale DKMS entry: $dir"
+        rm -rf "$dir"
+    fi
+done
