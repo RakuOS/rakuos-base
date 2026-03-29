@@ -1,39 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DKMS_DIR="/var/lib/dkms/nvidia"
+DKMS_BASE="/var/lib/dkms/nvidia"
 SRC_BASE="/usr/src"
 
-# Detect currently installed NVIDIA version from /usr/src
-current_src=$(ls -d "$SRC_BASE"/nvidia-* 2>/dev/null | sort -V | tail -n1 || true)
+# Get installed NVIDIA version from RPM (authoritative)
+NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia 2>/dev/null || true)
 
-if [ -z "${current_src:-}" ]; then
-    echo "No NVIDIA source found in /usr/src"
+if [ -z "${NVIDIA_VER:-}" ]; then
+    echo "dkms-nvidia not installed, skipping"
     exit 0
 fi
 
-current_version=$(basename "$current_src" | sed 's/^nvidia-//')
-target_dir="$DKMS_DIR/$current_version"
+SRC_PATH="$SRC_BASE/nvidia-$NVIDIA_VER"
+TARGET_DIR="$DKMS_BASE/$NVIDIA_VER"
 
-echo "Current NVIDIA version: $current_version"
+echo "Ensuring DKMS state for NVIDIA $NVIDIA_VER"
 
-# Ensure DKMS base dir exists
-mkdir -p "$DKMS_DIR"
+# If source doesn't exist, bail (image is broken or mismatch)
+if [ ! -d "$SRC_PATH" ]; then
+    echo "Missing source: $SRC_PATH"
+    exit 1
+fi
 
-# 🔥 Remove ALL old versions
-for dir in "$DKMS_DIR"/*; do
+# Ensure base dir exists
+mkdir -p "$DKMS_BASE"
+
+# 🔥 Remove ALL other versions (authoritative reset)
+for dir in "$DKMS_BASE"/*; do
     [ -d "$dir" ] || continue
 
-    if [ "$(basename "$dir")" != "$current_version" ]; then
-        echo "Removing old DKMS entry: $dir"
+    if [ "$(basename "$dir")" != "$NVIDIA_VER" ]; then
+        echo "Removing stale DKMS version: $dir"
         rm -rf "$dir"
     fi
 done
 
-# ✅ Recreate correct structure
-mkdir -p "$target_dir"
+# Recreate correct structure
+mkdir -p "$TARGET_DIR"
 
-# 🔗 Fix symlink (force overwrite)
-ln -sfn "$current_src" "$target_dir/source"
+# 🔗 Fix symlink
+ln -sfn "$SRC_PATH" "$TARGET_DIR/source"
 
-echo "Symlink set: $target_dir/source -> $current_src"
+echo "Linked: $TARGET_DIR/source -> $SRC_PATH"
