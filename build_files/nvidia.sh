@@ -20,12 +20,12 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 }
 
 # Enable NVIDIA power management services
-# systemctl enable nvidia-hibernate.service \
-#     nvidia-powerd.service \
-#     nvidia-resume.service \
-#     nvidia-suspend.service \
-#     nvidia-suspend-then-hibernate.service \
-#     nvidia-persistenced.service
+systemctl enable nvidia-hibernate.service \
+    nvidia-powerd.service \
+    nvidia-resume.service \
+    nvidia-suspend.service \
+    nvidia-suspend-then-hibernate.service \
+    nvidia-persistenced.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
