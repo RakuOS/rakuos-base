@@ -23,8 +23,8 @@ if [[ -f "$RESET_MARKER" ]]; then
 
     # Reset RPM database to base image state
     echo "RakuOS overlay: resetting RPM database to base image state..."
-    rm -rf /var/lib/rpm/
-    rsync -a --delete /usr/share/rpm/ /var/lib/rpm/
+    #rm -rf /var/lib/rpm/
+    #rsync -a --delete /usr/share/rpm/ /var/lib/rpm/
 
     # Remove marker — reset complete
     rm -f "$RESET_MARKER"
