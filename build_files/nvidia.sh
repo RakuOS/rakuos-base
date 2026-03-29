@@ -6,7 +6,7 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5 install -y \
+dnf5 install -y --setopt=tsflags=noscripts \
     dkms-nvidia \
     nvidia-driver
 
