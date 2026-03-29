@@ -11,7 +11,7 @@ if echo "$GPU" | grep -q "\[1002:"; then
 
 elif echo "$GPU" | grep -q "\[10de:"; then
     echo "NVIDIA GPU detected"
-    sudo rakuos install cuda nvidia-driver-cuda
+    sudo rakuos install nvidia-driver-cuda nvidia-driver-cuda-libs
 
 else
     echo "No supported GPU detected"
