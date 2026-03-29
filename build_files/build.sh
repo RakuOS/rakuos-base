@@ -113,6 +113,7 @@ libnotify \
 inotify-tools \
 podman-compose \
 python3-pip \
+python3-icoextract \
 appstream \
 appstream-data \
 fwupd \
