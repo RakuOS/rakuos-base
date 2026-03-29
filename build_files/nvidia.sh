@@ -8,7 +8,8 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5 install -y --setopt=tsflags=noscripts \
     dkms-nvidia \
-    nvidia-driver
+    nvidia-driver \
+    nvidia-persistenced
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
@@ -20,11 +21,7 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 }
 
 # Enable NVIDIA power management services
-systemctl enable nvidia-hibernate.service \
-    nvidia-powerd.service \
-    nvidia-resume.service \
-    nvidia-suspend.service \
-    nvidia-suspend-then-hibernate.service \
+systemctl enable nvidia-powerd.service \
     nvidia-persistenced.service
 
 # Generate module dependencies
