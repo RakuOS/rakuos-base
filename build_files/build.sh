@@ -118,7 +118,6 @@ python3-setuptools \
 appstream \
 appstream-data \
 fwupd \
-python3-pyqt6 \
 python3-dbus \
 python3-gobject \
 nodejs \
@@ -131,7 +130,7 @@ unzip \
 glibc-langpack-en
 
 ## Remove packages
-dnf5 -y remove firefox*
+dnf5 -y remove firefox* nss
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
