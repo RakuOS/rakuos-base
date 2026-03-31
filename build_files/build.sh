@@ -136,46 +136,6 @@ dnf5 -y remove firefox*
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# Install RakuOS Software
-cd /tmp
-git clone https://github.com/RakuOS/rakuos-software.git
-cd rakuos-software
-mkdir -p /usr/libexec/rakuos/software
-mkdir -p /usr/share/rakuos/webapps
-mkdir -p /usr/share/rakuos/appstream/data
-mkdir -p /usr/share/rakuos/appstream/icons
-mkdir -p /etc/xdg/autostart
-cp resources/appstream/appstream-overrides.json /usr/share/rakuos/appstream/appstream-overrides.json
-cp resources/appstream/flatpak-to-rpm.json /usr/share/rakuos/appstream/flatpak-to-rpm.json
-cp resources/appstream/data/* /usr/share/rakuos/appstream/data/
-cp resources/appstream/icons/* /usr/share/rakuos/appstream/icons/
-cp resources/webapps/*.json /usr/share/rakuos/webapps/
-cp resources/rakuos-webapp-launcher /usr/bin/rakuos-webapp-launcher
-cp resources/rakuos-software /usr/bin/rakuos-software
-cp resources/rakuos-software.desktop /usr/share/applications/rakuos-software.desktop
-cp resources/rakuos-software-tray.desktop /etc/xdg/autostart/rakuos-software-tray.desktop
-cp -r src/backend src/ui_gtk src/ui_qt /usr/libexec/rakuos/software/
-cp src/rakuos-software /usr/libexec/rakuos/software/rakuos-software
-cp src/rakuos-webapp-launcher /usr/libexec/rakuos/software/rakuos-webapp-launcher
-
-# ── Register RakuOS Software Center as default handler for package types ──────
-MIMEAPPS="/usr/share/applications/mimeapps.list"
-
-# Ensure sections exist then append entries if not already present
-for section in "Default Applications" "Added Associations"; do
-    if ! grep -q "^\[${section}\]" "$MIMEAPPS"; then
-        printf '\n[%s]\n' "$section" >> "$MIMEAPPS"
-    fi
-    for mime in \
-        "application/vnd.appimage=rakuos-software.desktop" \
-        "application/x-rpm=rakuos-software.desktop" \
-        "application/vnd.flatpak=rakuos-software.desktop" \
-        "application/vnd.flatpak.ref=rakuos-software.desktop"; do
-        if ! grep -q "^${mime}$" "$MIMEAPPS"; then
-            sed -i "/^\[${section}\]/a ${mime}" "$MIMEAPPS"
-        fi
-    done
-done
 
 # -----------------------------
 # castlabs Electron for RakuOS WebApps (includes Widevine hooks)
