@@ -11,14 +11,39 @@ RAKUOS_DNF_CONF="$MANIFEST_DIR/dnf.conf"
 mkdir -p "$MANIFEST_DIR"
 
 echo "Generating RakuOS base file manifest..."
+
+# Full /usr file list
 find /usr \( -type f -o -type l \) | sort > "$MANIFEST_FILE"
+
+echo "Collecting files from allowed packages (python3-icoextract, nss*)..."
+
+# Get allowed package names (no arch suffix)
+ALLOWED_PKGS=$(rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}\n' \
+  | grep -E '^(python3-icoextract|nss.*)$' \
+  | sort -u)
+
+# Collect all files owned by those packages
+TMP_EXCLUDE_FILES=$(mktemp)
+
+for pkg in $ALLOWED_PKGS; do
+  rpm --dbpath /usr/lib/sysimage/rpm -ql "$pkg" 2>/dev/null || true
+done | sort -u > "$TMP_EXCLUDE_FILES"
+
+echo "Filtering manifest (removing allowed package files)..."
+
+# Remove those files from manifest
+grep -F -v -f "$TMP_EXCLUDE_FILES" "$MANIFEST_FILE" > "${MANIFEST_FILE}.filtered"
+mv "${MANIFEST_FILE}.filtered" "$MANIFEST_FILE"
+
+rm -f "$TMP_EXCLUDE_FILES"
+
 TOTAL=$(wc -l < "$MANIFEST_FILE")
-echo "Manifest generated: $TOTAL files → $MANIFEST_FILE"
+echo "Filtered manifest generated: $TOTAL files → $MANIFEST_FILE"
 
 echo "Generating RakuOS base package list..."
 # Include arch so x86_64 packages are excluded but i686 (32-bit) equivalents are not
 rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}.%{ARCH}\n' \
-  | grep -v '^python3-icoextract\.' \
+  | grep -Ev '^(python3-icoextract|nss.*)\.' \
   | sort -u > "$BASE_PACKAGES_FILE"
 PKG_TOTAL=$(wc -l < "$BASE_PACKAGES_FILE")
 echo "Base package list generated: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
