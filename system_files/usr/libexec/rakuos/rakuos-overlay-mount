@@ -14,9 +14,9 @@ PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 _PLY_LAST_MSG=""
 plymsg() {
     plymouth --ping 2>/dev/null || return 0
-    [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message "$_PLY_LAST_MSG" 2>/dev/null || true
+    [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
     _PLY_LAST_MSG="$*"
-    plymouth display-message "$*" 2>/dev/null || true
+    plymouth display-message --text="$*" 2>/dev/null || true
 }
 
 # ── Reset requested on last boot ──────────────────────────────────────────────
