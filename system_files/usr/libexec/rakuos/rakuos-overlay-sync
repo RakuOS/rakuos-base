@@ -246,6 +246,22 @@ _rebuild_overlay_rpmdb() {
     echo "RakuOS overlay sync: RPM db rebuilt — registered: $registered, handed to base: $skipped, failed: $failed."
 }
 
+# Seed the overlay upper dir's RPM database from the base image before a fresh
+# install.  Prefer the saved snapshot (available after a normal boot); fall back
+# to /usr/share/rpm directly (accessible when overlay is freshly mounted empty).
+_seed_overlay_rpmdb() {
+    echo "RakuOS overlay sync: seeding overlay RPM database from base image..."
+    local source_db
+    if [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] && [[ -n "$(ls -A "$BASE_RPM_DB_SNAPSHOT" 2>/dev/null)" ]]; then
+        source_db="$BASE_RPM_DB_SNAPSHOT"
+    else
+        source_db="/usr/share/rpm"
+    fi
+    mkdir -p "$OVERLAY_RPM_DB_PATH"
+    cp -a "$source_db/." "$OVERLAY_RPM_DB_PATH/"
+    echo "RakuOS overlay sync: overlay RPM database seeded from $source_db."
+}
+
 # Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
 _import_terra_keys() {
     local fedora_version
@@ -324,6 +340,7 @@ fi
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
     plymsg "RakuOS: Installing overlay packages — this may take a few minutes..."
+    _seed_overlay_rpmdb
     _ensure_packages_toml
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
