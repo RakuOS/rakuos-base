@@ -19,7 +19,7 @@ echo "Collecting files from allowed packages (python3-icoextract, nss*)..."
 
 # Get allowed package names (no arch suffix)
 ALLOWED_PKGS=$(rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}\n' \
-  | grep -E '^(python3-icoextract|nss.*)$' \
+  | grep -E '^(python3-icoextract|nss.*|nspr.*)$' \
   | sort -u)
 
 # Collect all files owned by those packages
@@ -43,7 +43,7 @@ echo "Filtered manifest generated: $TOTAL files → $MANIFEST_FILE"
 echo "Generating RakuOS base package list..."
 # Include arch so x86_64 packages are excluded but i686 (32-bit) equivalents are not
 rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}.%{ARCH}\n' \
-  | grep -Ev '^(python3-icoextract|nss.*)\.' \
+  | grep -Ev '^(python3-icoextract|nss.*|nspr.*)\.' \
   | sort -u > "$BASE_PACKAGES_FILE"
 PKG_TOTAL=$(wc -l < "$BASE_PACKAGES_FILE")
 echo "Base package list generated: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
