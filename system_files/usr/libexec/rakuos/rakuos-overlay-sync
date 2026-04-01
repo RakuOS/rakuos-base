@@ -84,11 +84,11 @@ _merge_packages_toml() {
 
     # Additions: in new image but not in overlay
     local added_keys
-    added_keys=$(comm -23 "$img_keys_f" "$ovl_keys_f")
+    added_keys=$(LC_ALL=C comm -23 "$img_keys_f" "$ovl_keys_f")
 
     # Candidates for removal: in overlay but not in new image
     local maybe_remove
-    maybe_remove=$(comm -13 "$img_keys_f" "$ovl_keys_f")
+    maybe_remove=$(LC_ALL=C comm -13 "$img_keys_f" "$ovl_keys_f")
     rm -f "$img_keys_f" "$ovl_keys_f"
 
     # Filter removals — keep if user-installed or dnf5 tracks as "User"
