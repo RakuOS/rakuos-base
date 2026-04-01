@@ -2,8 +2,9 @@
 set -euo pipefail
 
 INSTALLROOT="/var/lib/rakuos/packages"
-RPMDB_DUMP="/usr/share/rakuos/base-rpmdb.dump"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+PKGROOT_TRACK="/var/lib/rakuos/pkgroot-packages.txt"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
@@ -27,22 +28,25 @@ _dnf() {
               --setopt=reposdir=/etc/yum.repos.d \
               --releasever "$FEDORA_VER" \
               --setopt=best=False \
+              --setopt=keepcache=True \
+              --setopt=cachedir="$PKG_CACHE_DIR" \
               "$@"
 }
 
 # ── Init installroot RPM db if needed ────────────────────────────────────────
+# Mirrors Fedora's layout: actual db at usr/share/rpm, symlink from
+# usr/lib/sysimage/rpm → ../../share/rpm.  Seeds from live image db.
 _init_installroot() {
-    local rpm_db="$INSTALLROOT/usr/lib/sysimage/rpm"
+    local rpm_db="$INSTALLROOT/usr/share/rpm"
     if [[ ! -d "$rpm_db" ]] || [[ -z "$(ls -A "$rpm_db" 2>/dev/null)" ]]; then
-        echo "RakuOS: initializing package installroot..."
+        echo "RakuOS: seeding installroot RPM database from base image..."
         mkdir -p "$rpm_db"
-        if [[ -f "$RPMDB_DUMP" ]]; then
-            rpm --root "$INSTALLROOT" --importdb < "$RPMDB_DUMP"
-            echo "RakuOS: installroot RPM database seeded from base image."
-        else
-            echo "WARNING: No base RPM db dump found at $RPMDB_DUMP — base packages may be reinstalled."
-        fi
-        # Import Terra GPG keys into installroot RPM db
+        cp -a /usr/share/rpm/. "$rpm_db/"
+        # Mirror Fedora symlink: usr/lib/sysimage/rpm → ../../share/rpm
+        mkdir -p "$INSTALLROOT/usr/lib/sysimage"
+        ln -sfn ../../share/rpm "$INSTALLROOT/usr/lib/sysimage/rpm"
+        echo "RakuOS: installroot RPM database seeded."
+        # Import Terra GPG keys if not already present in the image db
         rpm --root "$INSTALLROOT" --import \
             "https://repos.fyralabs.com/terra${FEDORA_VER}/key.asc" 2>/dev/null || true
         rpm --root "$INSTALLROOT" --import \
@@ -50,6 +54,18 @@ _init_installroot() {
         rpm --root "$INSTALLROOT" --import \
             "https://repos.fyralabs.com/terra${FEDORA_VER}-multimedia/key.asc" 2>/dev/null || true
     fi
+}
+
+# ── Track installed user packages + deps in the installroot ──────────────────
+# Records every package present in the installroot db that is NOT in the base
+# image db.  Used by pkgroot-sync to know which packages to re-register after
+# an image update without touching base packages.
+_update_pkgroot_tracking() {
+    mkdir -p /var/lib/rakuos
+    comm -23 \
+        <(rpm --root "$INSTALLROOT" -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+        <(rpm --dbpath /usr/share/rpm  -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+        > "$PKGROOT_TRACK" 2>/dev/null || true
 }
 
 # ── Normalise arguments ───────────────────────────────────────────────────────
@@ -168,6 +184,7 @@ fi
 if [[ -d "$INSTALLROOT/usr/share/icons" ]]; then
     gtk-update-icon-cache -f -t "$INSTALLROOT/usr/share/icons/hicolor" 2>/dev/null || true
 fi
+_update_pkgroot_tracking
 
 # Add canonical package names to packages.list
 if [[ -s "$PACKAGES_LIST" ]]; then

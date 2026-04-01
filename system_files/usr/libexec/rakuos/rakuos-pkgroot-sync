@@ -6,8 +6,9 @@
 set -euo pipefail
 
 INSTALLROOT="/var/lib/rakuos/packages"
-RPMDB_DUMP="/usr/share/rakuos/base-rpmdb.dump"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+PKGROOT_TRACK="/var/lib/rakuos/pkgroot-packages.txt"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 
@@ -18,20 +19,22 @@ _dnf() {
               --setopt=reposdir=/etc/yum.repos.d \
               --releasever "$FEDORA_VER" \
               --setopt=best=False \
+              --setopt=keepcache=True \
+              --setopt=cachedir="$PKG_CACHE_DIR" \
               "$@"
 }
 
-# Seed installroot RPM db from the base image dump, then import Terra GPG keys
+# Seed installroot RPM db from the live image db at /usr/share/rpm.
+# Mirrors Fedora's layout: actual db at usr/share/rpm, symlink from
+# usr/lib/sysimage/rpm → ../../share/rpm.
 _init_installroot() {
-    echo "RakuOS sync: initializing installroot RPM database..."
-    mkdir -p "$INSTALLROOT/usr/lib/sysimage/rpm"
-    if [[ -f "$RPMDB_DUMP" ]]; then
-        rpm --root "$INSTALLROOT" --importdb < "$RPMDB_DUMP"
-        echo "RakuOS sync: installroot RPM db seeded from base image."
-    else
-        echo "WARNING: $RPMDB_DUMP not found — base packages may be reinstalled."
-    fi
-    # Import Terra GPG keys so dnf5 accepts Terra repo packages
+    echo "RakuOS sync: seeding installroot RPM database from base image..."
+    mkdir -p "$INSTALLROOT/usr/share/rpm"
+    cp -a /usr/share/rpm/. "$INSTALLROOT/usr/share/rpm/"
+    mkdir -p "$INSTALLROOT/usr/lib/sysimage"
+    ln -sfn ../../share/rpm "$INSTALLROOT/usr/lib/sysimage/rpm"
+    echo "RakuOS sync: installroot RPM db seeded."
+    # Import Terra GPG keys if not already present
     rpm --root "$INSTALLROOT" --import \
         "https://repos.fyralabs.com/terra${FEDORA_VER}/key.asc" 2>/dev/null || true
     rpm --root "$INSTALLROOT" --import \
@@ -40,13 +43,66 @@ _init_installroot() {
         "https://repos.fyralabs.com/terra${FEDORA_VER}-multimedia/key.asc" 2>/dev/null || true
 }
 
-# Re-seed the installroot RPM db when the image digest changes.
-# Wipes only the RPM database entries (not installed package files) so dnf5
-# sees the new base package set, then reinstalls user packages on top.
-_reseed_installroot() {
-    echo "RakuOS sync: image updated — re-seeding installroot RPM database..."
-    rm -rf "$INSTALLROOT/usr/lib/sysimage/rpm"
-    _init_installroot
+# On image update: refresh base db records from the new image, then re-register
+# user packages from the local RPM cache (no network needed for unchanged pkgs).
+# Only packages missing from cache fall back to a dnf download.
+_refresh_base_db() {
+    echo "RakuOS sync: image updated — merging user packages into refreshed base db..."
+
+    # Step 1: snapshot NEVRA of every user package before wiping the db
+    declare -A pkg_nevra
+    if [[ -f "$PKGROOT_TRACK" ]] && [[ -s "$PKGROOT_TRACK" ]]; then
+        while IFS= read -r pkg; do
+            local nevra
+            nevra=$(rpm --root "$INSTALLROOT" -q \
+                        --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' \
+                        "$pkg" 2>/dev/null) || continue
+            [[ -n "$nevra" ]] && pkg_nevra["$pkg"]="$nevra"
+        done < "$PKGROOT_TRACK"
+    fi
+
+    # Step 2: replace db with current image db (base records now up-to-date)
+    rm -rf "$INSTALLROOT/usr/share/rpm"
+    mkdir -p "$INSTALLROOT/usr/share/rpm"
+    cp -a /usr/share/rpm/. "$INSTALLROOT/usr/share/rpm/"
+    mkdir -p "$INSTALLROOT/usr/lib/sysimage"
+    ln -sfn ../../share/rpm "$INSTALLROOT/usr/lib/sysimage/rpm"
+
+    # Step 3: re-register each user package from the local RPM cache
+    # rpm --justdb -i writes only the db record — no filesystem changes
+    local not_cached=()
+    for pkg in "${!pkg_nevra[@]}"; do
+        local nevra="${pkg_nevra[$pkg]}"
+        local cached
+        cached=$(find "$PKG_CACHE_DIR" -name "${nevra}.rpm" 2>/dev/null | head -1)
+        if [[ -n "$cached" ]]; then
+            rpm --root "$INSTALLROOT" --justdb -i "$cached" 2>/dev/null \
+                || not_cached+=("$pkg")
+        else
+            not_cached+=("$pkg")
+        fi
+    done
+
+    # Rebuild db indexes after batch --justdb inserts
+    rpm --root "$INSTALLROOT" --rebuilddb 2>/dev/null || true
+
+    # Step 4: fallback — re-download anything not in cache
+    if [[ "${#not_cached[@]}" -gt 0 ]]; then
+        echo "RakuOS sync: ${#not_cached[@]} package(s) not in cache — downloading..."
+        _dnf install -y --setopt=best=False "${not_cached[@]}"
+    fi
+
+    echo "RakuOS sync: base db refreshed, user packages re-registered."
+}
+
+# Record every package in the installroot db that isn't in the base image db.
+# Covers user-installed packages AND all their pulled-in dependencies.
+_update_pkgroot_tracking() {
+    mkdir -p /var/lib/rakuos
+    comm -23 \
+        <(rpm --root "$INSTALLROOT" -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+        <(rpm --dbpath /usr/share/rpm  -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+        > "$PKGROOT_TRACK" 2>/dev/null || true
 }
 
 # Read packages into array, strip comments and blank lines
@@ -75,9 +131,10 @@ fi
 SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
 
 # Is the installroot RPM db present and non-empty?
+# Check the real path (usr/share/rpm); usr/lib/sysimage/rpm is a symlink to it.
 INSTALLROOT_READY=false
-if [[ -d "$INSTALLROOT/usr/lib/sysimage/rpm" ]] \
-    && [[ -n "$(ls -A "$INSTALLROOT/usr/lib/sysimage/rpm" 2>/dev/null)" ]]; then
+if [[ -d "$INSTALLROOT/usr/share/rpm" ]] \
+    && [[ -n "$(ls -A "$INSTALLROOT/usr/share/rpm" 2>/dev/null)" ]]; then
     INSTALLROOT_READY=true
 fi
 
@@ -89,27 +146,28 @@ if [[ "$INSTALLROOT_READY" == "false" ]] || [[ -z "$SAVED_DIGEST" ]]; then
     mkdir -p "$INSTALLROOT"
     _init_installroot
     _dnf install -y --setopt=best=False "${PACKAGES[@]}"
-    # Mark all as user-installed
     for pkg in "${PACKAGES[@]}"; do
         _dnf mark user "$pkg" 2>/dev/null || true
     done
+    _update_pkgroot_tracking
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     echo "RakuOS sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
-    # Image updated — reseed RPM db so dnf5 sees new base, then upgrade/reinstall
-    echo "RakuOS sync: image updated — reseeding and upgrading overlay packages..."
-    _reseed_installroot
-    _dnf install -y --setopt=best=False "${PACKAGES[@]}"
+    # Image updated — refresh base db and re-register user packages from cache.
+    # _refresh_base_db handles the full merge + cache-miss fallback.
+    _refresh_base_db
+    _update_pkgroot_tracking
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
-    echo "RakuOS sync: image upgrade sync complete."
+    echo "RakuOS sync: image update sync complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     # Package list changed — sync
     echo "RakuOS sync: package changes detected — syncing..."
     _dnf install -y --setopt=best=False "${PACKAGES[@]}"
+    _update_pkgroot_tracking
     rm -f "$DIRTY_FILE"
     echo "RakuOS sync: sync complete."
 

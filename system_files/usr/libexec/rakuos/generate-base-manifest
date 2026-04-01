@@ -47,8 +47,4 @@ rpm --dbpath /usr/lib/sysimage/rpm -qa --qf '%{NAME}.%{ARCH}\n' \
 PKG_TOTAL=$(wc -l < "$BASE_PACKAGES_FILE")
 echo "Base package list generated: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
 
-echo "Exporting base RPM database for installroot seeding..."
-rpm --exportdb > "$MANIFEST_DIR/base-rpmdb.dump"
-echo "Base RPM database exported → $MANIFEST_DIR/base-rpmdb.dump"
-
 echo "RakuOS base manifest generation complete."

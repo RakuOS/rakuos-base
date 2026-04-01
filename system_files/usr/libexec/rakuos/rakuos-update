@@ -14,6 +14,7 @@ set -euo pipefail
 
 INSTALLROOT="/var/lib/rakuos/packages"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 COMMAND="${1:-upgrade}"
 FEDORA_VER=$(. /etc/os-release && echo "$VERSION_ID")
 
@@ -26,6 +27,8 @@ dnf() {
               --setopt=reposdir=/etc/yum.repos.d \
               --releasever "$FEDORA_VER" \
               --setopt=best=False \
+              --setopt=keepcache=True \
+              --setopt=cachedir="$PKG_CACHE_DIR" \
               "$@"
 }
 

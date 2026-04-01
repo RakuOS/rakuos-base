@@ -7,6 +7,8 @@ set -euo pipefail
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DEFAULT_PACKAGES_LIST="/usr/share/rakuos/packages.list"
 INSTALLROOT="/var/lib/rakuos/packages"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
+PKGROOT_TRACK="/var/lib/rakuos/pkgroot-packages.txt"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
@@ -15,10 +17,10 @@ RESET_MARKER="/var/lib/rakuos/overlay.reset"
 if [[ -f "$RESET_MARKER" ]]; then
     echo "RakuOS: reset marker found — wiping package installroot..."
 
-    # Wipe installroot and state
+    # Wipe installroot, cache, and all state — everything gets rebuilt fresh
     rm -rf "${INSTALLROOT:?}"
-    rm -f "$STATE_FILE"
-    rm -f "$PACKAGES_LIST"
+    rm -rf "${PKG_CACHE_DIR:?}"
+    rm -f "$STATE_FILE" "$PACKAGES_LIST" "$PKGROOT_TRACK" "$DIRTY_FILE"
 
     rm -f "$RESET_MARKER"
     echo "RakuOS: reset complete. Starting with clean base."

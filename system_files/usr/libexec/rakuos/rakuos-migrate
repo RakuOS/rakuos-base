@@ -11,7 +11,8 @@
 set -euo pipefail
 
 INSTALLROOT="/var/lib/rakuos/packages"
-RPMDB_DUMP="/usr/share/rakuos/base-rpmdb.dump"
+PKGROOT_TRACK="/var/lib/rakuos/pkgroot-packages.txt"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 OLD_UPPER_DIR="/var/lib/rakuos/overlay/upper"
 STATE_FILE="/var/lib/rakuos/overlay.state"
@@ -30,11 +31,13 @@ _dnf() {
               --setopt=reposdir=/etc/yum.repos.d \
               --releasever "$FEDORA_VER" \
               --setopt=best=False \
+              --setopt=keepcache=True \
+              --setopt=cachedir="$PKG_CACHE_DIR" \
               "$@"
 }
 
 _installroot_ready() {
-    local rpm_db="$INSTALLROOT/usr/lib/sysimage/rpm"
+    local rpm_db="$INSTALLROOT/usr/share/rpm"
     [[ -d "$rpm_db" ]] && [[ -n "$(ls -A "$rpm_db" 2>/dev/null)" ]]
 }
 
@@ -46,7 +49,23 @@ if [[ -f "$MIGRATE_DONE" ]]; then
 fi
 
 if _installroot_ready; then
-    log "Installroot already populated — marking migration complete."
+    log "Installroot already populated — ensuring tracking and state are current..."
+    # Write tracking if missing so image-update merges work correctly
+    if [[ ! -s "$PKGROOT_TRACK" ]]; then
+        mkdir -p /var/lib/rakuos
+        comm -23 \
+            <(rpm --root "$INSTALLROOT" -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+            <(rpm --dbpath /usr/share/rpm  -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+            > "$PKGROOT_TRACK" 2>/dev/null || true
+        log "Tracking file written ($(wc -l < "$PKGROOT_TRACK") packages)."
+    fi
+    # Write state digest if missing
+    if [[ ! -f "$STATE_FILE" ]]; then
+        bootc status --json \
+            | jq -r '.status.booted.image.imageDigest // empty' 2>/dev/null \
+            > "$STATE_FILE" || echo "unknown" > "$STATE_FILE"
+    fi
+    mkdir -p "$PKG_CACHE_DIR"
     touch "$MIGRATE_DONE"
     exit 0
 fi
@@ -88,18 +107,14 @@ fi
 
 # ── Init installroot RPM db ───────────────────────────────────────────────────
 
-log "Initializing installroot RPM database..."
-mkdir -p "$INSTALLROOT/usr/lib/sysimage/rpm"
+log "Seeding installroot RPM database from base image (/usr/share/rpm)..."
+mkdir -p "$INSTALLROOT/usr/share/rpm"
+cp -a /usr/share/rpm/. "$INSTALLROOT/usr/share/rpm/"
+mkdir -p "$INSTALLROOT/usr/lib/sysimage"
+ln -sfn ../../share/rpm "$INSTALLROOT/usr/lib/sysimage/rpm"
+log "Installroot RPM db seeded."
 
-if [[ -f "$RPMDB_DUMP" ]]; then
-    rpm --root "$INSTALLROOT" --importdb < "$RPMDB_DUMP"
-    log "Installroot RPM db seeded from base image dump."
-else
-    log "WARNING: $RPMDB_DUMP not found — base packages may be reinstalled."
-    log "         Rebuild the image to generate base-rpmdb.dump."
-fi
-
-# Import Terra GPG keys into installroot RPM db
+# Import Terra GPG keys if not already present in the image db
 log "Importing Terra GPG keys..."
 rpm --root "$INSTALLROOT" --import \
     "https://repos.fyralabs.com/terra${FEDORA_VER}/key.asc" 2>/dev/null || true
@@ -128,6 +143,7 @@ done
 
 # ── Install packages ──────────────────────────────────────────────────────────
 
+mkdir -p "$PKG_CACHE_DIR"
 log "Installing packages into installroot (this may take a while)..."
 _dnf install -y --refresh "${PACKAGES[@]}" \
     || die "Package installation failed. Check the journal for details."
@@ -136,6 +152,14 @@ _dnf install -y --refresh "${PACKAGES[@]}" \
 for pkg in "${PACKAGES[@]}"; do
     _dnf mark user "$pkg" 2>/dev/null || true
 done
+
+# Record user packages + deps in installroot tracking file
+log "Updating installroot package tracking..."
+mkdir -p /var/lib/rakuos
+comm -23 \
+    <(rpm --root "$INSTALLROOT" -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+    <(rpm --dbpath /usr/share/rpm  -qa --qf '%{NAME}\n' 2>/dev/null | sort -u) \
+    > "$PKGROOT_TRACK" 2>/dev/null || true
 
 # ── Fix hardcoded /usr/ paths in installroot .desktop files ──────────────────
 _fix_desktop_exec_paths() {
