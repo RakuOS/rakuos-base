@@ -108,6 +108,24 @@ rpm --root "$INSTALLROOT" --import \
 rpm --root "$INSTALLROOT" --import \
     "https://repos.fyralabs.com/terra${FEDORA_VER}-multimedia/key.asc" 2>/dev/null || true
 
+# ── Remove stale old-overlay service symlinks ────────────────────────────────
+# The old service names were enabled on the running system; their unit files no
+# longer exist in the new image.  Remove the dangling wants symlinks so systemd
+# doesn't log warnings about them on every boot.
+for stale in \
+    rakuos-overlay-mount.service \
+    rakuos-overlay-sync.service \
+    rakuos-overlay-services.service \
+    rakuos-base-protect.service; do
+    for wants_dir in \
+        /etc/systemd/system/multi-user.target.wants \
+        /etc/systemd/system/sysinit.target.wants \
+        /etc/systemd/system/graphical.target.wants; do
+        [[ -L "$wants_dir/$stale" ]] && rm -f "$wants_dir/$stale" && \
+            log "Removed stale symlink: $wants_dir/$stale"
+    done
+done
+
 # ── Install packages ──────────────────────────────────────────────────────────
 
 log "Installing packages into installroot (this may take a while)..."
