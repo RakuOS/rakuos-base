@@ -1,43 +1,64 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PACKAGES=("${@}")
+INSTALLROOT="/var/lib/rakuos/packages"
+RPMDB_DUMP="/usr/share/rakuos/base-rpmdb.dump"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
-UPPER_DIR="/var/lib/rakuos/overlay/upper"
-WORK_DIR="/var/lib/rakuos/overlay/work"
+BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+
+PACKAGES=("${@}")
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "Usage: rakuos install <package> [package2] [package3]..."
     exit 1
 fi
 
-# Must run as root
 if [[ "$EUID" -ne 0 ]]; then
     echo "ERROR: rakuos install must be run as root"
     exit 1
 fi
 
-# Acquire lock so rakuos-base-protect allows our overlay writes
-LOCK_FILE="/run/rakuos-overlay.lock"
-touch "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
+FEDORA_VER=$(. /etc/os-release && echo "$VERSION_ID")
 
-# Ensure dirs exist
-mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
+# ── DNF installroot wrapper ───────────────────────────────────────────────────
+_dnf() {
+    dnf5.real --installroot "$INSTALLROOT" \
+              --setopt=reposdir=/etc/yum.repos.d \
+              --releasever "$FEDORA_VER" \
+              --setopt=best=False \
+              "$@"
+}
+
+# ── Init installroot RPM db if needed ────────────────────────────────────────
+_init_installroot() {
+    local rpm_db="$INSTALLROOT/usr/lib/sysimage/rpm"
+    if [[ ! -d "$rpm_db" ]] || [[ -z "$(ls -A "$rpm_db" 2>/dev/null)" ]]; then
+        echo "RakuOS: initializing package installroot..."
+        mkdir -p "$rpm_db"
+        if [[ -f "$RPMDB_DUMP" ]]; then
+            rpm --root "$INSTALLROOT" --importdb < "$RPMDB_DUMP"
+            echo "RakuOS: installroot RPM database seeded from base image."
+        else
+            echo "WARNING: No base RPM db dump found at $RPMDB_DUMP — base packages may be reinstalled."
+        fi
+        # Import Terra GPG keys into installroot RPM db
+        rpm --root "$INSTALLROOT" --import \
+            "https://repos.fyralabs.com/terra${FEDORA_VER}/key.asc" 2>/dev/null || true
+        rpm --root "$INSTALLROOT" --import \
+            "https://repos.fyralabs.com/terra${FEDORA_VER}-mesa/key.asc" 2>/dev/null || true
+        rpm --root "$INSTALLROOT" --import \
+            "https://repos.fyralabs.com/terra${FEDORA_VER}-multimedia/key.asc" 2>/dev/null || true
+    fi
+}
 
 # ── Normalise arguments ───────────────────────────────────────────────────────
-# Pass all args to dnf as-is, but for packages.list:
-#   - strip flags (e.g. -y, --assumeyes)
-#   - for .rpm file paths, extract the actual package Name
-
-CLEAN_ARGS=("${PACKAGES[@]}")  # dnf gets everything as passed
-PKG_NAMES=()                   # packages.list gets only clean names
+# Pass all args to dnf as-is; packages.list gets only clean names
+CLEAN_ARGS=("${PACKAGES[@]}")
+PKG_NAMES=()
 
 for arg in "${PACKAGES[@]}"; do
-    # Skip flags
     [[ "$arg" == -* ]] && continue
-    # Local .rpm file — extract Name field
     if [[ "$arg" == *.rpm ]]; then
         pkg_name=$(rpm -qp --queryformat '%{NAME}' "$arg" 2>/dev/null)
         if [[ -z "$pkg_name" ]]; then
@@ -50,28 +71,25 @@ for arg in "${PACKAGES[@]}"; do
     fi
 done
 
-# Filter out already installed packages (by clean name only)
-# Also block packages owned by the base image (marked as dependency by rakuos)
-BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
-
-# Filter out already installed packages (by clean name only)
-# Also block packages owned by the base image
+# ── Filter: block base packages and already-installed ────────────────────────
 BASE_PKGS=""
 if [[ -f "$BASE_PACKAGES_FILE" ]]; then
     BASE_PKGS=$(cat "$BASE_PACKAGES_FILE")
 fi
 
-TO_INSTALL_ARGS=("${CLEAN_ARGS[@]}")  # dnf args unchanged
+mkdir -p /var/lib/rakuos
+touch "$PACKAGES_LIST"
+
 TO_INSTALL_NAMES=()
 for pkg in "${PKG_NAMES[@]}"; do
-    # Block base image packages — bootc owns these
-    if [[ -n "$BASE_PKGS" ]] && echo "$BASE_PKGS" | grep -qx "$pkg"; then
-        echo "INFO: $pkg is part of the base system image and cannot be managed via the overlay."
+    # Block base image packages — match "name.arch" entries in base-packages.txt
+    if [[ -n "$BASE_PKGS" ]] && echo "$BASE_PKGS" | grep -qE "^${pkg}\.[a-z0-9_]+$"; then
+        echo "INFO: $pkg is part of the base system image and cannot be managed via the package root."
         echo "      Use 'bootc update' to update base image packages."
         continue
     fi
     if grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
-        echo "$pkg is already installed via RakuOS overlay — skipping."
+        echo "$pkg is already installed via RakuOS — skipping."
     else
         TO_INSTALL_NAMES+=("$pkg")
     fi
@@ -82,26 +100,32 @@ if [[ "${#TO_INSTALL_NAMES[@]}" -eq 0 ]]; then
     exit 0
 fi
 
-echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS overlay..."
+echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS package root..."
 
-# Mount our persistent overlay if not already active
-if ! findmnt /usr | grep -q overlay; then
-    echo "Mounting RakuOS overlay..."
-    mount -t overlay overlay \
-        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
-        /usr
-fi
+# Ensure installroot RPM db is seeded
+mkdir -p "$INSTALLROOT"
+_init_installroot
 
-# Install into overlay — excludes base packages from dep resolution
-dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" "${TO_INSTALL_ARGS[@]}"
+# Install into installroot
+_dnf install -y --refresh "${CLEAN_ARGS[@]}"
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
-    dnf5.real mark user "$pkg" || true
+    _dnf mark user "$pkg" 2>/dev/null || true
 done
 
-# Add canonical package names to packages.list (no flags, no .rpm paths)
-# Ensure file ends with a newline first to avoid concatenation with last entry
+# Post-install integration
+ldconfig
+# Re-run systemd generators so new unit files in the installroot are visible
+systemctl daemon-reload 2>/dev/null || true
+if [[ -d "$INSTALLROOT/usr/share/applications" ]]; then
+    update-desktop-database "$INSTALLROOT/usr/share/applications" 2>/dev/null || true
+fi
+if [[ -d "$INSTALLROOT/usr/share/icons" ]]; then
+    gtk-update-icon-cache -f -t "$INSTALLROOT/usr/share/icons/hicolor" 2>/dev/null || true
+fi
+
+# Add canonical package names to packages.list
 if [[ -s "$PACKAGES_LIST" ]]; then
     tail -c1 "$PACKAGES_LIST" | grep -qx '' || echo "" >> "$PACKAGES_LIST"
 fi
@@ -111,10 +135,9 @@ done
 
 # Save current digest to state file if not already set
 if [[ ! -f "/var/lib/rakuos/overlay.state" ]]; then
-    bootc status --json | jq -r '.status.booted.image.imageDigest // empty' > /var/lib/rakuos/overlay.state
+    bootc status --json | jq -r '.status.booted.image.imageDigest // empty' \
+        > /var/lib/rakuos/overlay.state
 fi
 
-# Set dirty flag so boot service syncs on next boot
 touch "$DIRTY_FILE"
-
 echo "${TO_INSTALL_NAMES[*]} installed successfully and added to RakuOS package list."

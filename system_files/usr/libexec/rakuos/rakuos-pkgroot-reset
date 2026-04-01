@@ -4,18 +4,16 @@ set -euo pipefail
 RAKUOS_DIR="/var/lib/rakuos"
 RESET_MARKER="$RAKUOS_DIR/overlay.reset"
 
-# Must run as root
 if [[ "$EUID" -ne 0 ]]; then
-    echo "ERROR: rakuos reset-overlay must be run as root"
+    echo "ERROR: rakuos reset must be run as root"
     exit 1
 fi
 
-# Require --confirm flag to prevent accidental wipes
 if [[ "${1:-}" != "--confirm" ]]; then
     echo "WARNING: This will remove all packages installed via rakuos install."
     echo "Your base system and /home will not be affected."
     echo ""
-    echo "To confirm run: sudo rakuos reset-overlay --confirm"
+    echo "To confirm run: sudo rakuos reset --confirm"
     exit 1
 fi
 
@@ -23,5 +21,5 @@ mkdir -p "$RAKUOS_DIR"
 touch "$RESET_MARKER"
 
 echo ""
-echo "RakuOS: overlay reset scheduled."
-echo "Please reboot — the overlay will be wiped cleanly on next boot."
+echo "RakuOS: package root reset scheduled."
+echo "Please reboot — the package root will be wiped cleanly on next boot."

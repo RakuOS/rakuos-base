@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# rakuos-pkgroot-services — Activate user package services after sync.
+# The systemd generator (rakuos-pkgroot-generator) already makes installroot
+# unit files visible via daemon-reload.  This script starts any that should be
+# running now (i.e. are enabled but not yet active) without waiting for reboot.
+set -euo pipefail
+
+INSTALLROOT="/var/lib/rakuos/packages"
+SERVICE_DIR="$INSTALLROOT/usr/lib/systemd/system"
+
+if [[ ! -d "$SERVICE_DIR" ]]; then
+    echo "RakuOS services: no user package service directory found, nothing to do."
+    exit 0
+fi
+
+echo "RakuOS services: reloading udev rules..."
+udevadm control --reload-rules && udevadm trigger
+
+echo "RakuOS services: starting enabled user package services..."
+while IFS= read -r -d '' unit_file; do
+    unit=$(basename "$unit_file")
+
+    # Skip template units
+    [[ "$unit" == *@* ]] && continue
+
+    # Only handle .service units
+    [[ "$unit" == *.service ]] || continue
+
+    # Only start units that are enabled (have wants symlinks or are static)
+    if ! systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+        continue
+    fi
+
+    if systemctl is-active --quiet "$unit" 2>/dev/null; then
+        echo "RakuOS services: $unit already active, skipping."
+        continue
+    fi
+
+    echo "RakuOS services: starting $unit..."
+    systemctl start "$unit" \
+        && echo "RakuOS services: $unit started OK." \
+        || echo "RakuOS services: WARNING — failed to start $unit"
+
+done < <(find "$SERVICE_DIR" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
+
+echo "RakuOS services: done."

@@ -1,0 +1,16 @@
+[Unit]
+Description=RakuOS Old Overlay Directory Cleanup
+Documentation=https://rakuos.org
+After=local-fs.target
+Before=rakuos-pkgroot-init.service
+# Only runs when cleanup script was written by migration
+ConditionPathExists=/var/lib/rakuos/cleanup-overlay.sh
+
+[Service]
+Type=oneshot
+ExecStart=/var/lib/rakuos/cleanup-overlay.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=RakuOS Overlay-to-Installroot Migration
+Documentation=https://rakuos.org
+# Run before the sync service so we don't double-install
+After=network-online.target systemd-resolved.service rakuos-pkgroot-init.service
+Before=rakuos-pkgroot-sync.service
+Wants=network-online.target systemd-resolved.service
+# Only needed when packages.list exists and migration hasn't run yet
+ConditionPathExists=/var/lib/rakuos/packages.list
+ConditionPathExists=!/var/lib/rakuos/migration-installroot.done
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/bash -c 'until nslookup mirrors.fedoraproject.org >/dev/null 2>&1; do echo "Waiting for DNS..."; sleep 2; done'
+ExecStart=/usr/libexec/rakuos/rakuos-migrate
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

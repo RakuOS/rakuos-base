@@ -1,16 +1,15 @@
 [Unit]
-Description=RakuOS Overlay Mount
+Description=RakuOS Package Root Init
 Documentation=https://rakuos.org
-DefaultDependencies=no
 After=local-fs.target
-Before=sysinit.target
+Before=rakuos-pkgroot-sync.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/rakuos/rakuos-overlay-mount
+ExecStart=/usr/libexec/rakuos/rakuos-pkgroot-init
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=multi-user.target

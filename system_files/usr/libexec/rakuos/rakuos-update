@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# rakuos-update — RakuOS overlay package update manager.
-# Handles check and upgrade of user overlay packages and their dependencies,
-# excluding base image packages via /usr/share/rakuos/dnf.conf.
+# rakuos-update — RakuOS package update manager.
+# Handles check and upgrade of user packages in the installroot and their dependencies.
 #
 # Usage:
 #   rakuos-update check           — print available updates as JSON, exit 0=updates 1=none
@@ -13,34 +12,38 @@
 
 set -euo pipefail
 
+INSTALLROOT="/var/lib/rakuos/packages"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
-DNF_CONF="/usr/share/rakuos/dnf.conf"
 COMMAND="${1:-upgrade}"
+FEDORA_VER=$(. /etc/os-release && echo "$VERSION_ID")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-dnf() { dnf5.real --config="$DNF_CONF" "$@"; }
+dnf() {
+    dnf5.real --installroot "$INSTALLROOT" \
+              --setopt=reposdir=/etc/yum.repos.d \
+              --releasever "$FEDORA_VER" \
+              --setopt=best=False \
+              "$@"
+}
 
 require_packages_list() {
     [[ -f "$PACKAGES_LIST" ]] || die "No packages.list found at $PACKAGES_LIST"
-    [[ -s "$PACKAGES_LIST" ]] || { echo "No overlay packages installed."; exit 0; }
+    [[ -s "$PACKAGES_LIST" ]] || { echo "No packages installed."; exit 0; }
 }
 
-# Get user packages from packages.list
 get_user_packages() {
     sort -u "$PACKAGES_LIST"
 }
 
-# Get full recursive dep tree of user packages that are installed,
-# minus anything already in the base image (handled by dnf.conf excludes)
+# Get full recursive dep tree of user packages that are installed in the installroot
 get_overlay_deps() {
     local user_pkgs
     user_pkgs=$(get_user_packages)
     [[ -z "$user_pkgs" ]] && return
 
-    # --whatrequires accepts comma-separated list
     local pkg_csv
     pkg_csv=$(echo "$user_pkgs" | paste -sd ',')
 
@@ -51,23 +54,18 @@ get_overlay_deps() {
         | sort -u || true
 }
 
-# Full set to check/upgrade: user packages + their recursive deps
 get_overlay_packages() {
     local user deps
     user=$(get_user_packages)
     deps=$(get_overlay_deps)
-    # Return as newline-separated, space-joined for passing to dnf
     echo -e "$user\n$deps" | sort -u | grep -v '^$'
 }
 
 # Detect if a package owns a .desktop file (GUI app)
-# 1. RPM database (installed packages) — fastest
-# 2. Disk scan matching package name — fast, covers most cases
-# 3. dnf5 repoquery — slowest, last resort for uninstalled packages
 is_gui_package() {
-    rpm -ql "$1" 2>/dev/null | grep -q '\.desktop$' && return 0
-    compgen -G "/usr/share/applications/${1}*.desktop" >/dev/null 2>&1 && return 0
-    dnf5 repoquery --list "$1" 2>/dev/null | grep -q '\.desktop$'
+    rpm --root "$INSTALLROOT" -ql "$1" 2>/dev/null | grep -q '\.desktop$' && return 0
+    compgen -G "$INSTALLROOT/usr/share/applications/${1}*.desktop" >/dev/null 2>&1 && return 0
+    dnf repoquery --list "$1" 2>/dev/null | grep -q '\.desktop$'
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ is_gui_package() {
 cmd_check() {
     require_packages_list
 
-    echo "RakuOS: checking for overlay package updates..." >&2
+    echo "RakuOS: checking for package updates..." >&2
     local overlay_pkgs
     overlay_pkgs=$(get_overlay_packages)
 
@@ -84,11 +82,9 @@ cmd_check() {
         exit 1
     fi
 
-    # Convert newline-separated to array for safe passing to dnf
     local -a pkg_array
     mapfile -t pkg_array <<< "$overlay_pkgs"
 
-    # dnf5 check-update exits 100 if updates available, 0 if none
     local check_output exit_code
     check_output=$(dnf check-update --quiet "${pkg_array[@]}" 2>/dev/null) || exit_code=$?
     exit_code=${exit_code:-0}
@@ -98,18 +94,16 @@ cmd_check() {
         local first=1
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
-            # Skip dnf header/separator lines (don't start with a package name)
             [[ "$line" =~ ^[[:space:]] ]] && continue
             [[ "$line" =~ ^Last ]] && continue
             [[ "$line" =~ ^Obsoleting ]] && continue
-            local name_arch version repo name gui
+            local name_arch version repo name gui current_version
             name_arch=$(echo "$line" | awk '{print $1}')
             version=$(echo "$line"   | awk '{print $2}')
             repo=$(echo "$line"      | awk '{print $3}')
-            # Strip arch suffix: firefox.x86_64 -> firefox
             name=$(echo "$name_arch" | sed 's/\.[a-z_0-9]*$//')
             [[ -z "$name" || -z "$version" ]] && continue
-            current_version=$(rpm -q --qf '%{VERSION}-%{RELEASE}' "$name" 2>/dev/null || echo "")
+            current_version=$(rpm --root "$INSTALLROOT" -q --qf '%{VERSION}-%{RELEASE}' "$name" 2>/dev/null || echo "")
             gui="false"
             is_gui_package "$name" && gui="true"
             [[ $first -eq 0 ]] && json+=","
@@ -128,12 +122,12 @@ cmd_check() {
 cmd_upgrade() {
     require_packages_list
 
-    echo "RakuOS: upgrading overlay packages..."
+    echo "RakuOS: upgrading packages..."
     local overlay_pkgs
     overlay_pkgs=$(get_overlay_packages)
 
     if [[ -z "$overlay_pkgs" ]]; then
-        echo "RakuOS: no overlay packages to upgrade."
+        echo "RakuOS: no packages to upgrade."
         exit 0
     fi
 
@@ -141,15 +135,20 @@ cmd_upgrade() {
     mapfile -t pkg_array <<< "$overlay_pkgs"
 
     dnf upgrade -y --refresh "${pkg_array[@]}"
-    echo "RakuOS: overlay package upgrade complete."
+
+    # Update integration after upgrade
+    ldconfig
+    if [[ -d "$INSTALLROOT/usr/share/applications" ]]; then
+        update-desktop-database "$INSTALLROOT/usr/share/applications" 2>/dev/null || true
+    fi
+
+    echo "RakuOS: package upgrade complete."
 }
 
 cmd_check_flatpak() {
     echo "RakuOS: checking for Flatpak updates..." >&2
     flatpak update --appstream -y &>/dev/null || true
 
-    # Query apps and runtimes separately so classification is always correct.
-    # --columns gives tab-separated output, preserving multi-word names.
     local app_updates runtime_updates
     app_updates=$(flatpak remote-ls --updates --app \
         --columns=name,application,version 2>/dev/null) || true
@@ -251,7 +250,6 @@ cmd_check_image() {
     echo "Current tag: $CURRENT_TAG" >&2
     echo "Latest tag:  $NEWEST_TAG"  >&2
 
-    # 1. New date tag available — switch to it
     if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
         if [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
             echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\",\"repo\":\"$REPO_URL\"}"
@@ -259,7 +257,6 @@ cmd_check_image() {
         fi
     fi
 
-    # 2. Same tag — check if current tag has updated content via bootc upgrade --check
     echo "RakuOS: same tag, checking for content updates..." >&2
     local check_out
     check_out=$(sudo bootc upgrade --check 2>&1) || true
@@ -269,7 +266,6 @@ cmd_check_image() {
         exit 1
     fi
 
-    # bootc found changes in current tag (hotfix/content update)
     echo "{\"update\":true,\"type\":\"upgrade\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\",\"repo\":\"$REPO_URL\"}"
     exit 0
 }
@@ -280,7 +276,6 @@ cmd_upgrade_image() {
     local IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
     _ghcr_get_image_info
 
-    # 1. New date tag — switch to it
     if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$' \
         && [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
         echo "RakuOS: switching to new image tag $REPO_URL:$NEWEST_TAG..."
@@ -289,7 +284,6 @@ cmd_upgrade_image() {
         exit 0
     fi
 
-    # 2. Same tag — run bootc upgrade for content updates (hotfixes)
     echo "RakuOS: upgrading current image tag $CURRENT_TAG..."
     bootc upgrade
     echo "RakuOS: system image update staged. Reboot to apply."

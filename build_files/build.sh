@@ -188,12 +188,17 @@ systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
+# Ensure systemd generator is executable
+chmod +x /usr/lib/systemd/system-generators/rakuos-pkgroot-generator
+
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \
-rakuos-overlay-mount.service \
-rakuos-overlay-sync.service \
-rakuos-overlay-services.service \
+rakuos-pkgroot-init.service \
+rakuos-pkgroot-cleanup.service \
+rakuos-migrate.service \
+rakuos-pkgroot-sync.service \
+rakuos-pkgroot-services.service \
 rakuos-flatpaks.service \
 rakuos-flatpak-watcher.service \
 flatpak-cleanup.timer \

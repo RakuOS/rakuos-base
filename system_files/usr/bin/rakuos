@@ -23,8 +23,11 @@ case "$COMMAND" in
     list)
         /usr/libexec/rakuos/rakuos-list
     ;;
-    reset-overlay)
-        /usr/libexec/rakuos/rakuos-reset-overlay "${2:-}"
+    migrate)
+        /usr/libexec/rakuos/rakuos-migrate
+    ;;
+    reset|reset-overlay)
+        /usr/libexec/rakuos/rakuos-pkgroot-reset "${2:-}"
     ;;
     setup-gaming)
         /usr/libexec/rakuos/setup-gaming
@@ -45,12 +48,13 @@ case "$COMMAND" in
         echo "RakuOS Helper"
         echo ""
         echo "Usage:"
-        echo "  rakuos install <package> [pkg2...]   Install packages via overlay"
-        echo "  rakuos update                        Update packages via overlay"
-        echo "  rakuos remove <package> [pkg2...]    Remove packages from overlay"
-        echo "  rakuos list                          List overlay installed packages"
+        echo "  rakuos install <package> [pkg2...]   Install packages into package root"
+        echo "  rakuos update                        Update installed packages"
+        echo "  rakuos remove <package> [pkg2...]    Remove packages from package root"
+        echo "  rakuos list                          List installed packages"
         echo "  rakuos system-upgrade                Check for and Apply system image upgrades"
-        echo "  rakuos reset-overlay --confirm       Wipe overlay and all installed packages"
+        echo "  rakuos migrate                       Migrate packages from old overlay to installroot"
+        echo "  rakuos reset --confirm               Wipe package root and all installed packages"
         echo "  rakuos setup-gaming                  Set up native gaming packages along with some apps from flathub"
         echo "  rakuos setup-virtualization          Set up KVM/QEMU virtualization"
         echo "  rakuos setup-lsfg-vk                 Set up Lossless Scaling Frame Gen"
