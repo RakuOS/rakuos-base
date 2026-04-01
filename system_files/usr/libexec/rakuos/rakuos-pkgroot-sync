@@ -120,11 +120,51 @@ fi
 # Always write current digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
+# ── Fix hardcoded /usr/ paths in installroot .desktop files ──────────────────
+_fix_desktop_exec_paths() {
+    local app_dir="$INSTALLROOT/usr/share/applications"
+    [[ -d "$app_dir" ]] || return 0
+    local count=0
+    local tmpfile
+    while IFS= read -r -d '' desktop; do
+        local changed=false
+        tmpfile=$(mktemp)
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^(Exec=|TryExec=)(.*) ]]; then
+                local key="${BASH_REMATCH[1]}" val="${BASH_REMATCH[2]}"
+                local mods=""
+                if [[ "$val" =~ ^([-@!+]+)(.*) ]]; then
+                    mods="${BASH_REMATCH[1]}"; val="${BASH_REMATCH[2]}"
+                fi
+                local first_token="${val%% *}"
+                if [[ "$first_token" == /usr/* ]]; then
+                    local ir_bin="${INSTALLROOT}${first_token}"
+                    if [[ -f "$ir_bin" || -L "$ir_bin" ]]; then
+                        local rest="${val#"$first_token"}"
+                        line="${key}${mods}${INSTALLROOT}${first_token}${rest}"
+                        changed=true
+                    fi
+                fi
+            fi
+            printf '%s\n' "$line"
+        done < "$desktop" > "$tmpfile"
+        if [[ "$changed" == "true" ]]; then
+            mv "$tmpfile" "$desktop"
+            (( count++ )) || true
+        else
+            rm -f "$tmpfile"
+        fi
+    done < <(find "$app_dir" -name "*.desktop" -print0 2>/dev/null)
+    [[ $count -gt 0 ]] && echo "RakuOS sync: fixed Exec= paths in $count desktop file(s)."
+    return 0
+}
+
 # Post-install integration: update linker cache, reload systemd, update desktop db
 ldconfig
 # Re-run generators so all installroot unit files enter systemd's search path
 systemctl daemon-reload 2>/dev/null || true
 if [[ -d "$INSTALLROOT/usr/share/applications" ]]; then
+    _fix_desktop_exec_paths
     update-desktop-database "$INSTALLROOT/usr/share/applications" 2>/dev/null || true
 fi
 if [[ -d "$INSTALLROOT/usr/share/icons/hicolor" ]]; then
