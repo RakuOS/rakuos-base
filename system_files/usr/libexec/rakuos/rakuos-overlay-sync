@@ -30,15 +30,21 @@ plyclear() {
 
 # ── Wait for DNS before any network operations ────────────────────────────────
 _wait_for_dns() {
-    if nslookup mirrors.fedoraproject.org >/dev/null 2>&1; then
-        return 0
-    fi
-    echo "RakuOS overlay sync: waiting for DNS..."
+    local ready=false
+    # Check both repo hosts we actually use
+    for host in mirrors.fedoraproject.org repos.fyralabs.com; do
+        nslookup "$host" >/dev/null 2>&1 || { ready=false; break; }
+        ready=true
+    done
+    $ready && return 0
+
+    echo "RakuOS overlay sync: waiting for network..."
     plymsg "RakuOS: Waiting for network..."
-    until nslookup mirrors.fedoraproject.org >/dev/null 2>&1; do
+    until nslookup mirrors.fedoraproject.org >/dev/null 2>&1 \
+       && nslookup repos.fyralabs.com >/dev/null 2>&1; do
         sleep 2
     done
-    echo "RakuOS overlay sync: DNS ready."
+    echo "RakuOS overlay sync: network ready."
 }
 
 # Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
@@ -271,10 +277,18 @@ _import_terra_keys() {
         return 0
     fi
     echo "RakuOS overlay sync: importing Terra GPG keys for Fedora ${fedora_version}..."
-    rpm --import "https://repos.fyralabs.com/terra${fedora_version}/key.asc" || true
-    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-mesa/key.asc" || true
-    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-multimedia/key.asc" || true
-    #rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
+    local base_url="https://repos.fyralabs.com/terra${fedora_version}"
+    local retries=5 delay=3
+    for key_url in "${base_url}/key.asc" "${base_url}-mesa/key.asc" "${base_url}-multimedia/key.asc"; do
+        local i=0
+        while (( i < retries )); do
+            rpm --import "$key_url" 2>/dev/null && break
+            (( i++ )) || true
+            echo "RakuOS overlay sync: key import failed ($key_url) — retry $i/$retries..."
+            sleep $delay
+        done
+        (( i == retries )) && echo "RakuOS overlay sync: WARNING — could not import $key_url after $retries attempts." || true
+    done
     echo "RakuOS overlay sync: Terra key import complete."
 }
 
