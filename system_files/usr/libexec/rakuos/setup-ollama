@@ -19,33 +19,18 @@ fi
 
 echo "Setting up Ollama..."
 
-OLLAMA_HOME="/var/lib/ollama"
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
 
-# Pre-create the ollama user with home in /var before the installer runs.
-# The official install.sh hardcodes /usr/share/ollama as the user home, which
-# is on the immutable /usr filesystem on RakuOS. Pre-creating the user causes
-# install.sh to skip the useradd call entirely.
-if ! id ollama >/dev/null 2>&1; then
-    sudo useradd -r -s /bin/false -U -m -d "$OLLAMA_HOME" ollama
-fi
-sudo mkdir -p "$OLLAMA_HOME"
-sudo chown ollama:ollama "$OLLAMA_HOME"
-
-# Run the official installer. It detects the ollama user already exists and
-# skips useradd. Binary and libs go to /usr/local (→ /var/usrlocal on RakuOS,
-# persistent across image updates).
+echo "Downloading and installing Ollama..."
 curl -fsSL https://ollama.com/install.sh | sudo sh
 
-# Drop a systemd override to redirect model storage out of the default user
-# home (/usr/share/ollama, immutable) and into /var/lib/ollama (persistent).
-sudo mkdir -p /etc/systemd/system/ollama.service.d
-sudo tee /etc/systemd/system/ollama.service.d/rakuos.conf > /dev/null <<'EOF'
-[Service]
-Environment="HOME=/var/lib/ollama"
-Environment="OLLAMA_MODELS=/var/lib/ollama/models"
-EOF
+cd /
+rm -rf "$TMPDIR"
 
-sudo systemctl daemon-reload
-sudo systemctl restart ollama.service
+mkdir -p /usr/share/ollama
+chown -R ollama:ollama /usr/share/ollama
+
+systemctl restart ollama.service
 
 echo "Ollama setup complete."

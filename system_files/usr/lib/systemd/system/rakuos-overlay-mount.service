@@ -1,0 +1,16 @@
+[Unit]
+Description=RakuOS Overlay Mount
+Documentation=https://rakuos.org
+DefaultDependencies=no
+After=local-fs.target
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/rakuos-overlay-mount
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target

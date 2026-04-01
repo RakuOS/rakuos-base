@@ -1,8 +1,8 @@
 [Unit]
 Description=RakuOS Base System Protection
 Documentation=https://rakuos.org
-# Only active when using overlayfs on /usr (legacy mode)
-ConditionPathIsDirectory=/var/lib/rakuos/overlay/upper
+After=rakuos-overlay-mount.service
+Wants=rakuos-overlay-mount.service
 
 [Service]
 Type=simple

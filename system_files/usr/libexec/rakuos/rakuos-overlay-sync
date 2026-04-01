@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGES_LIST="/var/lib/rakuos/packages.list"
+UPPER_DIR="/var/lib/rakuos/overlay/upper"
+WORK_DIR="/var/lib/rakuos/overlay/work"
+STATE_FILE="/var/lib/rakuos/overlay.state"
+DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+LOCK_FILE="/run/rakuos-overlay.lock"
+
+IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
+OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
+
+# Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
+# so dnf5 doesn't fail with "error opening file" on first run.
+_ensure_packages_toml() {
+    # Check via the overlay-mounted path — covers both lower and upper layers.
+    if [[ ! -f "/usr/lib/sysimage/libdnf5/packages.toml" ]]; then
+        mkdir -p "$(dirname "$OVERLAY_PKGS")"
+        touch "$OVERLAY_PKGS"
+        chmod 644 "$OVERLAY_PKGS"
+        echo "RakuOS overlay sync: created empty packages.toml for dnf5."
+    fi
+}
+
+# Merge packages.toml changes from the saved image reference into the overlay's
+# copy.  Additions are appended; removals are deleted — the file is never fully
+# rewritten so libdnf5's strict toml++ parser always sees its own format.
+_merge_packages_toml() {
+    [[ -f "$IMAGE_PKGS_SAVE" ]] || { echo "RakuOS overlay sync: no image-packages.toml reference — skipping merge."; return 0; }
+
+    # If the file only lives in the lower layer (image), promote it to the upper
+    # so dnf5 can write to it and so the merge has a writable copy to update.
+    if [[ ! -f "$OVERLAY_PKGS" ]]; then
+        local mounted_path="/usr/lib/sysimage/libdnf5/packages.toml"
+        if [[ -f "$mounted_path" ]]; then
+            mkdir -p "$(dirname "$OVERLAY_PKGS")"
+            cp "$mounted_path" "$OVERLAY_PKGS"
+            chmod 644 "$OVERLAY_PKGS"
+            echo "RakuOS overlay sync: promoted packages.toml from image lower layer to overlay upper."
+        else
+            echo "RakuOS overlay sync: no overlay packages.toml — skipping merge."
+            return 0
+        fi
+    fi
+
+    # Extract quoted "name.arch" keys from each file, one per line, sorted.
+    # Lines look like: "name.arch" = {reason = "..."}
+    local img_keys_f ovl_keys_f
+    img_keys_f=$(mktemp)
+    ovl_keys_f=$(mktemp)
+    grep '^"' "$IMAGE_PKGS_SAVE" | sed 's/^\("[^"]*"\).*/\1/' | LC_ALL=C sort > "$img_keys_f"
+    grep '^"' "$OVERLAY_PKGS"    | sed 's/^\("[^"]*"\).*/\1/' | LC_ALL=C sort > "$ovl_keys_f"
+
+    # Additions: in new image but not in overlay
+    local added_keys
+    added_keys=$(comm -23 "$img_keys_f" "$ovl_keys_f")
+
+    # Candidates for removal: in overlay but not in new image
+    local maybe_remove
+    maybe_remove=$(comm -13 "$img_keys_f" "$ovl_keys_f")
+    rm -f "$img_keys_f" "$ovl_keys_f"
+
+    # Filter removals — keep if user-installed or dnf5 tracks as "User"
+    local to_remove=""
+    while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
+        local name base
+        name="${key:1:${#key}-2}"   # strip surrounding quotes → name.arch
+        base="${name%.*}"            # strip arch suffix → name
+        # Keep if in packages.list (check bare name and name.arch)
+        if [[ -f "$PACKAGES_LIST" ]]; then
+            grep -qxF "$base" "$PACKAGES_LIST" 2>/dev/null && continue
+            grep -qxF "$name" "$PACKAGES_LIST" 2>/dev/null && continue
+        fi
+        # Keep if dnf5 marked as User-installed
+        grep -F "${key} " "$OVERLAY_PKGS" 2>/dev/null | grep -qiF '"User"' && continue
+        to_remove+="${key}"$'\n'
+    done <<< "$maybe_remove"
+
+    [[ -z "$added_keys" && -z "$to_remove" ]] && {
+        echo "RakuOS overlay sync: packages.toml already up to date — nothing to merge."
+        return 0
+    }
+
+    local tmp n_added=0 n_removed=0
+    tmp=$(mktemp)
+    cp "$OVERLAY_PKGS" "$tmp"
+
+    # Append new image entries (exact lines preserved — no TOML rewriting)
+    if [[ -n "$added_keys" ]]; then
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            grep -F "${key} " "$IMAGE_PKGS_SAVE" >> "$tmp" || true
+            (( n_added++ )) || true
+        done <<< "$added_keys"
+    fi
+
+    # Delete obsolete entries line-by-line using fixed-string match
+    if [[ -n "$to_remove" ]]; then
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            local tmp2
+            tmp2=$(mktemp)
+            grep -vF "${key} " "$tmp" > "$tmp2" && mv "$tmp2" "$tmp" || rm -f "$tmp2"
+            (( n_removed++ )) || true
+        done <<< "$to_remove"
+    fi
+
+    chmod 644 "$tmp"
+    mv "$tmp" "$OVERLAY_PKGS"
+    echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
+}
+
+# Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
+_import_terra_keys() {
+    local fedora_version
+    fedora_version=$(. /etc/os-release && echo "$VERSION_ID")
+    if [[ -z "$fedora_version" ]]; then
+        echo "RakuOS overlay sync: could not determine Fedora version — skipping Terra key import."
+        return 0
+    fi
+    echo "RakuOS overlay sync: importing Terra GPG keys for Fedora ${fedora_version}..."
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}/key.asc" || true
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-mesa/key.asc" || true
+    rpm --import "https://repos.fyralabs.com/terra${fedora_version}-multimedia/key.asc" || true
+    #rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
+    echo "RakuOS overlay sync: Terra key import complete."
+}
+
+# Acquire lock so rakuos-base-protect allows our overlay writes
+touch "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+_import_terra_keys
+
+# Read packages into array, skip empty lines and comments
+mapfile -t PACKAGES < <(
+    grep -v '^\s*#' "$PACKAGES_LIST" \
+    | grep -v '^\s*$' \
+    | sed 's/\s*#.*//' \
+    | tr -s ' \t' '\n' \
+    | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+    | grep -v '^$'
+)
+
+if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
+    echo "RakuOS overlay sync: no packages in list — skipping."
+    exit 0
+fi
+
+# Ensure overlay dirs exist
+mkdir -p "$UPPER_DIR" "$WORK_DIR"
+
+# Get current booted image digest
+CURRENT_DIGEST=$(bootc status --json | jq -r '.status.booted.image.imageDigest // empty')
+if [[ -z "$CURRENT_DIGEST" ]]; then
+    echo "WARNING: Could not detect image digest — using unknown."
+    CURRENT_DIGEST="unknown"
+fi
+
+SAVED_DIGEST=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+
+# Mount overlay if not already mounted
+if ! findmnt /usr | grep -q overlay; then
+    echo "RakuOS overlay sync: mounting overlay..."
+    mount -t overlay overlay \
+        -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \
+        /usr
+fi
+
+# ── Determine what needs doing ────────────────────────────────────────────────
+
+OVERLAY_HAS_CONTENT=false
+if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    OVERLAY_HAS_CONTENT=true
+fi
+
+# A missing STATE_FILE means either:
+#   - fresh first boot (packages.list just seeded by mount script), or
+#   - post-reset (mount script wiped state and re-seeded packages.list)
+# Either way: full install needed.
+STATE_MISSING=false
+if [[ -z "$SAVED_DIGEST" ]]; then
+    STATE_MISSING=true
+fi
+
+if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
+    echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
+    _ensure_packages_toml
+    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: full install complete."
+
+elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
+    echo "RakuOS overlay sync: image updated — merging packages.toml changes and upgrading overlay packages..."
+    _merge_packages_toml
+    #dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
+    echo "$CURRENT_DIGEST" > "$STATE_FILE"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: upgrade complete."
+
+elif [[ -f "$DIRTY_FILE" ]]; then
+    echo "RakuOS overlay sync: package changes detected — syncing..."
+    _ensure_packages_toml
+    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: sync complete."
+
+else
+    echo "RakuOS overlay sync: nothing to do."
+fi
+
+# Save digest
+echo "$CURRENT_DIGEST" > "$STATE_FILE"
+
+echo "RakuOS overlay sync: done."

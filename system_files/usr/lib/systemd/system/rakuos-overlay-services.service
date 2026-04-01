@@ -1,0 +1,16 @@
+[Unit]
+Description=RakuOS Overlay Service Activation
+Documentation=https://rakuos.org
+After=display-manager.service rakuos-overlay-mount.service
+#Requires=rakuos-overlay-mount.service
+ConditionPathExists=/var/lib/rakuos/packages.list
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/libexec/rakuos/rakuos-overlay-services
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
