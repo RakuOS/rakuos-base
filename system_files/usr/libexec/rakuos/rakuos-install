@@ -98,6 +98,18 @@ dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
     --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
     "${TO_INSTALL_ARGS[@]}"
 
+# Update the modified-base tracking list so the next image update only checks
+# packages the overlay has actually overridden, not the full overlay db.
+OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
+if [[ -d "$OVERLAY_RPM_DB" ]] && [[ -f "/usr/share/rakuos/base-packages.txt" ]]; then
+    rpm --dbpath "$OVERLAY_RPM_DB" -qa --qf '%{NAME}.%{ARCH}\n' 2>/dev/null \
+        | sort -u \
+        | grep -Fxf "/usr/share/rakuos/base-packages.txt" \
+        | sed 's/\.[^.]*$//' \
+        | sort -u \
+        > "/var/lib/rakuos/overlay-modified-base.list" || true
+fi
+
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
     dnf5.real mark user "$pkg" || true

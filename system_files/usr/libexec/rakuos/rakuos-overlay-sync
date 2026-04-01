@@ -13,11 +13,17 @@ IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
 BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
+MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
 
-# Show a Plymouth message, hiding the previous one first (safe no-op if Plymouth is not running)
+# Show a Plymouth message, hiding the previous one first.
+# If Plymouth has already quit (e.g. after network-online.target), reactivate it.
+# Safe no-op if Plymouth is not installed or reactivation fails.
 _PLY_LAST_MSG=""
 plymsg() {
-    plymouth --ping 2>/dev/null || return 0
+    if ! plymouth --ping 2>/dev/null; then
+        plymouth reactivate 2>/dev/null || return 0
+        plymouth --ping 2>/dev/null || return 0
+    fi
     [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
     _PLY_LAST_MSG="$*"
     plymouth display-message --text="$*" 2>/dev/null || true
@@ -26,6 +32,7 @@ plyclear() {
     plymouth --ping 2>/dev/null || return 0
     [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
     _PLY_LAST_MSG=""
+    plymouth deactivate 2>/dev/null || true
 }
 
 # ── Wait for DNS before any network operations ────────────────────────────────
@@ -148,6 +155,28 @@ _merge_packages_toml() {
     echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
 }
 
+# Record which packages in the overlay RPM db are also in base-packages.txt.
+# This gives _handback_base_packages a focused list to check rather than scanning
+# every overlay package on every image update.  Safe to call after any dnf install.
+_update_modified_base_list() {
+    local base_pkg_file="/usr/share/rakuos/base-packages.txt"
+    [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
+    [[ -f "$base_pkg_file" ]] || return 0
+
+    # Query overlay db in name.arch format, cross-ref with base-packages.txt,
+    # then strip arch to get bare names for rpm -q lookups.
+    rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa --qf '%{NAME}.%{ARCH}\n' 2>/dev/null \
+        | sort -u \
+        | grep -Fxf "$base_pkg_file" \
+        | sed 's/\.[^.]*$//' \
+        | sort -u \
+        > "$MODIFIED_BASE_LIST" || true
+
+    local count
+    count=$(wc -l < "$MODIFIED_BASE_LIST" 2>/dev/null || echo 0)
+    echo "RakuOS overlay sync: modified-base list updated — $count base package(s) tracked in overlay."
+}
+
 # For packages now provided by the new base image at the same or newer version,
 # remove their files from the overlay upper dir so the base image takes back over.
 _handback_base_packages() {
@@ -157,11 +186,30 @@ _handback_base_packages() {
         return 0
     fi
 
-    echo "RakuOS overlay sync: checking for packages to hand back to new base image..."
+    # Use the tracking file when available — only check base packages known to be
+    # in the overlay rather than scanning every overlay package.  Fall back to a
+    # full scan on first run or when the file is absent (legacy systems).
+    declare -A tracked_pkgs=()
+    local use_tracking=false
+    if [[ -s "$MODIFIED_BASE_LIST" ]]; then
+        use_tracking=true
+        while IFS= read -r pkg; do
+            [[ -n "$pkg" ]] && tracked_pkgs["$pkg"]=1
+        done < "$MODIFIED_BASE_LIST"
+        echo "RakuOS overlay sync: checking ${#tracked_pkgs[@]} tracked base package(s) for handback..."
+    else
+        echo "RakuOS overlay sync: no tracking file — scanning all overlay packages for handback..."
+    fi
+
     local handed_back=0
 
     while IFS=' ' read -r pkg_name ovl_evr; do
         [[ -z "$pkg_name" ]] && continue
+
+        # If tracking file was loaded, skip packages not recorded as base-modified
+        if $use_tracking && [[ -z "${tracked_pkgs[$pkg_name]:-}" ]]; then
+            continue
+        fi
 
         # Check if the new base image now provides this package
         local base_evr
@@ -204,6 +252,9 @@ _handback_base_packages() {
         --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
 
     echo "RakuOS overlay sync: handed back $handed_back package(s) to base image."
+
+    # Regenerate tracking file so it reflects what's still in the overlay
+    _update_modified_base_list
 }
 
 # Reset the overlay RPM database to the base image state, then re-register
@@ -359,6 +410,7 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
         "${PACKAGES[@]}"
+    _update_modified_base_list
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
     plymsg "RakuOS: Overlay ready."
@@ -383,6 +435,7 @@ elif [[ -f "$DIRTY_FILE" ]]; then
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
         "${PACKAGES[@]}"
+    _update_modified_base_list
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."
 
