@@ -8,6 +8,7 @@ PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DEFAULT_PACKAGES_LIST="/usr/share/rakuos/packages.list"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 
 # ── Reset requested on last boot ──────────────────────────────────────────────
 if [[ -f "$RESET_MARKER" ]]; then
@@ -52,6 +53,22 @@ if [[ ! -f "$PACKAGES_LIST" ]]; then
         touch "$PACKAGES_LIST"
         # Ensure packages.list ends with newline
         sed -i -e '$a\' "$PACKAGES_LIST"
+    fi
+fi
+
+# ── Migration: overlay exists but pkgcache doesn't ───────────────────────────
+# Existing systems predating the pkgcache feature have a populated overlay upper
+# dir but no cached RPMs.  Wipe the overlay so sync does a clean reinstall and
+# builds the initial cache.  packages.list is preserved so all user packages are
+# reinstalled transparently.
+if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    if [[ -z "$(find "$PKG_CACHE_DIR" -name "*.rpm" -type f 2>/dev/null | head -1)" ]]; then
+        echo "RakuOS overlay: pkgcache migration — no cached RPMs found for existing overlay."
+        echo "RakuOS overlay: wiping overlay so sync rebuilds it and populates the cache."
+        rm -rf "${UPPER_DIR:?}"/*
+        rm -rf "${WORK_DIR:?}"/*
+        rm -f "$STATE_FILE"
+        echo "RakuOS overlay: migration wipe complete — sync will reinstall packages on next step."
     fi
 fi
 

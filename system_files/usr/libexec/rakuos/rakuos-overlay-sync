@@ -11,6 +11,8 @@ PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
+OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
+BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
 
 # Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
 # so dnf5 doesn't fail with "error opening file" on first run.
@@ -113,6 +115,110 @@ _merge_packages_toml() {
     echo "RakuOS overlay sync: packages.toml merged — +${n_added} added, -${n_removed} removed."
 }
 
+# For packages now provided by the new base image at the same or newer version,
+# remove their files from the overlay upper dir so the base image takes back over.
+_handback_base_packages() {
+    [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
+    if [[ ! -d "$BASE_RPM_DB_SNAPSHOT" ]] || [[ -z "$(ls -A "$BASE_RPM_DB_SNAPSHOT" 2>/dev/null)" ]]; then
+        echo "RakuOS overlay sync: no base-rpmdb snapshot — skipping handback."
+        return 0
+    fi
+
+    echo "RakuOS overlay sync: checking for packages to hand back to new base image..."
+    local handed_back=0
+
+    while IFS=' ' read -r pkg_name ovl_evr; do
+        [[ -z "$pkg_name" ]] && continue
+
+        # Check if the new base image now provides this package
+        local base_evr
+        base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$base_evr" ]] && continue  # Not in base — keep in overlay
+
+        # Normalize epoch (strip leading "0:")
+        local base_ver ovl_ver
+        base_ver="${base_evr#0:}"
+        ovl_ver="${ovl_evr#0:}"
+
+        # Hand back if base version >= overlay version
+        local newer
+        newer=$(printf '%s\n%s\n' "$ovl_ver" "$base_ver" | sort -V | tail -1)
+        if [[ "$newer" == "$base_ver" ]]; then
+            echo "  Handing back: $pkg_name (overlay: $ovl_ver, base: $base_ver)"
+            local removed_files=0
+            while IFS= read -r fpath; do
+                [[ "$fpath" == /usr/* ]] || continue
+                local upper_path="$UPPER_DIR/${fpath#/usr/}"
+                if [[ -f "$upper_path" ]] || [[ -L "$upper_path" ]]; then
+                    rm -f "$upper_path"
+                    (( removed_files++ )) || true
+                fi
+            done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -ql "$pkg_name" 2>/dev/null)
+
+            # Remove now-empty directories in the upper dir
+            while IFS= read -r fpath; do
+                [[ "$fpath" == /usr/* ]] || continue
+                local upper_dir
+                upper_dir="$UPPER_DIR/$(dirname "${fpath#/usr/}")"
+                [[ -d "$upper_dir" ]] && rmdir --ignore-fail-on-non-empty "$upper_dir" 2>/dev/null || true
+            done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -ql "$pkg_name" 2>/dev/null)
+
+            echo "    Removed $removed_files file(s) from overlay upper."
+            (( handed_back++ )) || true
+        fi
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+
+    echo "RakuOS overlay sync: handed back $handed_back package(s) to base image."
+}
+
+# Reset the overlay RPM database to the base image state, then re-register
+# overlay-specific packages from the pkgcache.
+_rebuild_overlay_rpmdb() {
+    echo "RakuOS overlay sync: rebuilding overlay RPM database..."
+
+    if [[ ! -d "$BASE_RPM_DB_SNAPSHOT" ]] || [[ -z "$(ls -A "$BASE_RPM_DB_SNAPSHOT" 2>/dev/null)" ]]; then
+        echo "RakuOS overlay sync: WARNING — no base-rpmdb snapshot found, skipping db rebuild."
+        return 0
+    fi
+
+    # Reset overlay RPM db to fresh base image state
+    mkdir -p "$OVERLAY_RPM_DB_PATH"
+    cp -a "$BASE_RPM_DB_SNAPSHOT/." "$OVERLAY_RPM_DB_PATH/"
+    echo "RakuOS overlay sync: overlay RPM db reset to base image state."
+
+    # Re-register overlay packages from pkgcache.
+    # Process newest RPMs first (handles multiple versions of same package in cache).
+    # Skip packages now provided by the base image (they were handed back above).
+    local registered=0 skipped=0 failed=0
+    while IFS= read -r rpm_file; do
+        local pkg_name
+        pkg_name=$(rpm -qp --qf '%{NAME}' "$rpm_file" 2>/dev/null) || { (( failed++ )) || true; continue; }
+
+        # Skip packages now in the base image
+        if rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" &>/dev/null; then
+            (( skipped++ )) || true
+            continue
+        fi
+
+        # Skip if already re-registered (duplicate package version in cache)
+        if rpm --dbpath /usr/share/rpm -q "$pkg_name" &>/dev/null; then
+            continue
+        fi
+
+        if rpm --dbpath /usr/share/rpm --justdb -i --nodeps --nosignature "$rpm_file" 2>/dev/null; then
+            (( registered++ )) || true
+        else
+            (( failed++ )) || true
+        fi
+    done < <(find "$PKG_CACHE_DIR" -name "*.rpm" -type f -printf '%T@ %p\n' 2>/dev/null \
+        | sort -rn | cut -d' ' -f2-)
+
+    rpm --rebuilddb --dbpath /usr/share/rpm 2>/dev/null || true
+    echo "RakuOS overlay sync: RPM db rebuilt — registered: $registered, handed to base: $skipped, failed: $failed."
+}
+
 # Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
 _import_terra_keys() {
     local fedora_version
@@ -197,12 +303,13 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
-    echo "RakuOS overlay sync: image updated — merging packages.toml changes and upgrading overlay packages..."
+    echo "RakuOS overlay sync: image updated — syncing overlay with new base image..."
     _merge_packages_toml
-    #dnf5.real upgrade -y --config="/usr/share/rakuos/dnf.conf" "${PACKAGES[@]}"
+    _handback_base_packages
+    _rebuild_overlay_rpmdb
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
-    echo "RakuOS overlay sync: upgrade complete."
+    echo "RakuOS overlay sync: image update sync complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
