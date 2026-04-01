@@ -186,19 +186,25 @@ _handback_base_packages() {
         return 0
     fi
 
-    # Use the tracking file when available — only check base packages known to be
-    # in the overlay rather than scanning every overlay package.  Fall back to a
-    # full scan on first run or when the file is absent (legacy systems).
+    # Three-way dispatch on the tracking file:
+    #   missing  → full scan (first run / legacy), then create the file
+    #   empty    → no base packages in overlay, nothing to hand back
+    #   non-empty → targeted check of only the tracked packages
     declare -A tracked_pkgs=()
     local use_tracking=false
-    if [[ -s "$MODIFIED_BASE_LIST" ]]; then
+
+    if [[ ! -f "$MODIFIED_BASE_LIST" ]]; then
+        echo "RakuOS overlay sync: no tracking file — scanning all overlay packages for handback..."
+        # _update_modified_base_list is called at the end to create the file
+    elif [[ ! -s "$MODIFIED_BASE_LIST" ]]; then
+        echo "RakuOS overlay sync: no base packages tracked in overlay — skipping handback."
+        return 0
+    else
         use_tracking=true
         while IFS= read -r pkg; do
             [[ -n "$pkg" ]] && tracked_pkgs["$pkg"]=1
         done < "$MODIFIED_BASE_LIST"
         echo "RakuOS overlay sync: checking ${#tracked_pkgs[@]} tracked base package(s) for handback..."
-    else
-        echo "RakuOS overlay sync: no tracking file — scanning all overlay packages for handback..."
     fi
 
     local handed_back=0
