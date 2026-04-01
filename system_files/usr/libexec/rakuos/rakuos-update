@@ -15,13 +15,14 @@ set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DNF_CONF="/usr/share/rakuos/dnf.conf"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 COMMAND="${1:-upgrade}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-dnf() { dnf5.real --config="$DNF_CONF" "$@"; }
+dnf() { dnf5.real --config="$DNF_CONF" --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" "$@"; }
 
 require_packages_list() {
     [[ -f "$PACKAGES_LIST" ]] || die "No packages.list found at $PACKAGES_LIST"

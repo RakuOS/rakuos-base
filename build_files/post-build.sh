@@ -46,6 +46,86 @@ chmod +x /usr/bin/dnf5 /usr/bin/dnf
 
 echo "RakuOS post-build complete."
 
-#sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
+# ── Build protected-packages.txt ──────────────────────────────────────────────
+# nvidia.sh writes this file first (if it ran) with nvidia packages + deps.
+# We append the base build.sh packages either way.
+# If nvidia.sh did NOT run this is a normal build — create the file fresh.
+PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
+mkdir -p /usr/share/rakuos
+
+if [[ -f "$PROTECTED_FILE" ]]; then
+    echo "nvidia build detected — appending base packages to existing protected-packages.txt..."
+else
+    echo "Normal build — creating protected-packages.txt with base packages..."
+    > "$PROTECTED_FILE"
+fi
+
+cat >> "$PROTECTED_FILE" << 'EOF'
+
+# Base image packages (from rakuos-base/build_files/build.sh)
+kernel-cachyos
+kernel-cachyos-devel-matched
+ananicy-cpp
+cachyos-ananicy-rules
+cachyos-settings
+bore-sysctl
+scx-scheds
+scx-tools
+gamemode
+gamemode.i686
+pulseaudio-utils
+dkms
+mokutil
+rust
+cargo
+gcc
+make
+perl
+elfutils-libelf-devel
+openssl-devel
+git
+gtk4-devel
+libadwaita-devel
+qt6-qtbase-devel
+qt6-qtdeclarative-devel
+flatpak
+podman
+distrobox
+podman-compose
+xpadneo
+xone
+xone-firmware
+lm_sensors
+v4l-utils
+virtualbox-guest-additions
+mesa-dri-drivers.i686
+mesa-va-drivers.i686
+mesa-vulkan-drivers.i686
+mesa-libEGL.i686
+mesa-libGL.i686
+libxcrypt-compat
+rsync
+fuse
+squashfuse
+sqlite3
+openssl
+libnotify
+inotify-tools
+unzip
+glibc-langpack-en
+python3-pip
+python3-setuptools
+python3-dbus
+python3-gobject
+appstream
+appstream-data
+fwupd
+nodejs
+nodejs-npm
+ffmpeg
+EOF
+
+echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
+
 echo "Generating base file manifest..."
 /usr/libexec/rakuos/generate-base-manifest
