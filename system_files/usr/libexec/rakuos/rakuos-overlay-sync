@@ -14,6 +14,33 @@ OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
 BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
 
+# Show a Plymouth message, hiding the previous one first (safe no-op if Plymouth is not running)
+_PLY_LAST_MSG=""
+plymsg() {
+    plymouth --ping 2>/dev/null || return 0
+    [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
+    _PLY_LAST_MSG="$*"
+    plymouth display-message --text="$*" 2>/dev/null || true
+}
+plyclear() {
+    plymouth --ping 2>/dev/null || return 0
+    [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
+    _PLY_LAST_MSG=""
+}
+
+# ── Wait for DNS before any network operations ────────────────────────────────
+_wait_for_dns() {
+    if nslookup mirrors.fedoraproject.org >/dev/null 2>&1; then
+        return 0
+    fi
+    echo "RakuOS overlay sync: waiting for DNS..."
+    plymsg "RakuOS: Waiting for network..."
+    until nslookup mirrors.fedoraproject.org >/dev/null 2>&1; do
+        sleep 2
+    done
+    echo "RakuOS overlay sync: DNS ready."
+}
+
 # Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
 # so dnf5 doesn't fail with "error opening file" on first run.
 _ensure_packages_toml() {
@@ -235,6 +262,8 @@ _import_terra_keys() {
     echo "RakuOS overlay sync: Terra key import complete."
 }
 
+_wait_for_dns
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
@@ -294,21 +323,27 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
+    plymsg "RakuOS: Installing overlay packages — this may take a few minutes..."
     _ensure_packages_toml
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
         "${PACKAGES[@]}"
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
+    plymsg "RakuOS: Overlay ready."
+    plyclear
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — syncing overlay with new base image..."
+    plymsg "RakuOS: Image updated — updating overlay package database..."
     _merge_packages_toml
     _handback_base_packages
     _rebuild_overlay_rpmdb
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
+    plymsg "RakuOS: Overlay sync complete."
+    plyclear
     echo "RakuOS overlay sync: image update sync complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then

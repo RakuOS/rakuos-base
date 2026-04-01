@@ -10,9 +10,19 @@ RESET_MARKER="/var/lib/rakuos/overlay.reset"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 
+# Show a Plymouth message, hiding the previous one first (safe no-op if Plymouth is not running)
+_PLY_LAST_MSG=""
+plymsg() {
+    plymouth --ping 2>/dev/null || return 0
+    [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
+    _PLY_LAST_MSG="$*"
+    plymouth display-message --text="$*" 2>/dev/null || true
+}
+
 # ── Reset requested on last boot ──────────────────────────────────────────────
 if [[ -f "$RESET_MARKER" ]]; then
     echo "RakuOS overlay: reset marker found — wiping overlay..."
+    plymsg "RakuOS: Resetting overlay to base image defaults..."
 
     # Wipe overlay dirs
     rm -rf "${UPPER_DIR:?}"/*
@@ -65,6 +75,7 @@ if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     if [[ -z "$(find "$PKG_CACHE_DIR" -name "*.rpm" -type f 2>/dev/null | head -1)" ]]; then
         echo "RakuOS overlay: pkgcache migration — no cached RPMs found for existing overlay."
         echo "RakuOS overlay: wiping overlay so sync rebuilds it and populates the cache."
+        plymsg "RakuOS: Rebuilding overlay cache — your packages will be reinstalled..."
         rm -rf "${UPPER_DIR:?}"/*
         rm -rf "${WORK_DIR:?}"/*
         rm -f "$STATE_FILE"
