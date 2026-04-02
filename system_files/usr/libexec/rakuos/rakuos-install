@@ -98,28 +98,6 @@ dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
     --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
     "${TO_INSTALL_ARGS[@]}"
 
-# Update the modified-base tracking list so the next image update only checks
-# packages the overlay has actually overridden (newer version than base snapshot).
-OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
-BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
-MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
-if [[ -d "$OVERLAY_RPM_DB" ]] && [[ -d "$BASE_RPM_DB_SNAPSHOT" ]]; then
-    _tmp_list=$(mktemp)
-    while IFS=' ' read -r _pkg _ovl_evr; do
-        [[ -z "$_pkg" ]] && continue
-        _base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$_pkg" \
-            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
-        [[ -z "$_base_evr" ]] && continue
-        _bv="${_base_evr#0:}"; _ov="${_ovl_evr#0:}"
-        [[ "$_bv" == "$_ov" ]] && continue
-        _newer=$(printf '%s\n%s\n' "$_bv" "$_ov" | sort -V | tail -1)
-        [[ "$_newer" == "$_ov" ]] && echo "$_pkg" >> "$_tmp_list" || true
-    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
-        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
-    sort -u "$_tmp_list" > "$MODIFIED_BASE_LIST"
-    rm -f "$_tmp_list"
-fi
-
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
     dnf5.real mark user "$pkg" || true
@@ -141,5 +119,29 @@ fi
 
 # Set dirty flag so boot service syncs on next boot
 touch "$DIRTY_FILE"
+
+# Update the modified-base tracking list — must run last so the overlay RPM db
+# reflects the completed install. Only base-packages.txt entries at a newer
+# version than the base snapshot are tracked.
+OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
+BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
+MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+if [[ -d "$OVERLAY_RPM_DB" ]] && [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] && [[ -f "$BASE_PACKAGES_FILE" ]]; then
+    _tmp_list=$(mktemp)
+    while IFS=' ' read -r _pkg _ovl_evr; do
+        [[ -z "$_pkg" ]] && continue
+        grep -qx "$_pkg" "$BASE_PACKAGES_FILE" 2>/dev/null || continue
+        _base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$_pkg" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$_base_evr" ]] && continue
+        _bv="${_base_evr#0:}"; _ov="${_ovl_evr#0:}"
+        [[ "$_bv" == "$_ov" ]] && continue
+        _newer=$(printf '%s\n%s\n' "$_bv" "$_ov" | sort -V | tail -1)
+        [[ "$_newer" == "$_ov" ]] && echo "$_pkg" >> "$_tmp_list" || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+    sort -u "$_tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$_tmp_list"
+fi
 
 echo "${TO_INSTALL_NAMES[*]} installed successfully and added to RakuOS package list."

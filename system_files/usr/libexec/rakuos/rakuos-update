@@ -39,12 +39,15 @@ get_user_packages() {
 # packages at the same version are just the seeded copy, not an override.
 _update_modified_base_list() {
     local base_snapshot="/var/lib/rakuos/base-rpmdb"
+    local base_packages_file="/usr/share/rakuos/base-packages.txt"
     [[ -d "$OVERLAY_RPM_DB" ]] || return 0
     [[ -d "$base_snapshot" ]] || return 0
+    [[ -f "$base_packages_file" ]] || return 0
     local tmp_list
     tmp_list=$(mktemp)
     while IFS=' ' read -r pkg_name ovl_evr; do
         [[ -z "$pkg_name" ]] && continue
+        grep -qx "$pkg_name" "$base_packages_file" 2>/dev/null || continue
         local base_evr
         base_evr=$(rpm --dbpath "$base_snapshot" -q "$pkg_name" \
             --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true

@@ -60,4 +60,16 @@ done
 # Set dirty flag so boot service rebuilds overlay on next boot
 touch "$DIRTY_FILE"
 
+# Remove any of the removed packages from the modified-base tracking list if
+# they appear there (cross-checked against base-packages.txt).
+MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
+if [[ -f "$MODIFIED_BASE_LIST" ]] && [[ -f "$BASE_PACKAGES_FILE" ]]; then
+    for pkg in "${TO_REMOVE[@]}"; do
+        if grep -qx "$pkg" "$BASE_PACKAGES_FILE" 2>/dev/null; then
+            sed -i "/^${pkg}$/d" "$MODIFIED_BASE_LIST"
+        fi
+    done
+fi
+
 echo "${TO_REMOVE[*]} removed from RakuOS package list."
