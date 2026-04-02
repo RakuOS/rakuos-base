@@ -139,19 +139,22 @@ _merge_packages_toml() {
 _update_modified_base_list() {
     [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
     [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] || return 0
+    local base_packages_file="/usr/share/rakuos/base-packages.txt"
+    [[ -f "$base_packages_file" ]] || return 0
 
-    # A base package is only "overriding" the base image if the overlay db has it
-    # at a NEWER version than the base snapshot.  Packages present in the overlay
-    # db at the same version are just the seeded copy — they don't shadow anything.
+    # A base package is only "overriding" the base image if it is listed in
+    # base-packages.txt AND the overlay db has it at a NEWER version than the
+    # base snapshot.  Packages at the same version are just the seeded copy.
     local tmp_list
     tmp_list=$(mktemp)
 
     while IFS=' ' read -r pkg_name ovl_evr; do
         [[ -z "$pkg_name" ]] && continue
+        grep -qx "$pkg_name" "$base_packages_file" 2>/dev/null || continue
         local base_evr
         base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
             --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
-        [[ -z "$base_evr" ]] && continue  # not a base package
+        [[ -z "$base_evr" ]] && continue  # not in base snapshot
         local base_ver ovl_ver
         base_ver="${base_evr#0:}"
         ovl_ver="${ovl_evr#0:}"
@@ -172,6 +175,7 @@ _update_modified_base_list() {
 
 # For packages now provided by the new base image at the same or newer version,
 # remove their files from the overlay upper dir so the base image takes back over.
+# Packages where the overlay is still newer are kept and left in the tracking list.
 _handback_base_packages() {
     [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
     if [[ ! -d "$BASE_RPM_DB_SNAPSHOT" ]] || [[ -z "$(ls -A "$BASE_RPM_DB_SNAPSHOT" 2>/dev/null)" ]]; then
@@ -179,53 +183,48 @@ _handback_base_packages() {
         return 0
     fi
 
-    # Three-way dispatch on the tracking file:
-    #   missing  → full scan (first run / legacy), then create the file
-    #   empty    → no base packages in overlay, nothing to hand back
-    #   non-empty → targeted check of only the tracked packages
-    declare -A tracked_pkgs=()
-    local use_tracking=false
+    local base_packages_file="/usr/share/rakuos/base-packages.txt"
+    [[ -f "$base_packages_file" ]] || return 0
 
-    if [[ ! -f "$MODIFIED_BASE_LIST" ]]; then
-        echo "RakuOS overlay sync: no tracking file — scanning all overlay packages for handback..."
-        # _update_modified_base_list is called at the end to create the file
-    elif [[ ! -s "$MODIFIED_BASE_LIST" ]]; then
+    if [[ ! -f "$MODIFIED_BASE_LIST" ]] || [[ ! -s "$MODIFIED_BASE_LIST" ]]; then
         echo "RakuOS overlay sync: no base packages tracked in overlay — skipping handback."
         return 0
-    else
-        use_tracking=true
-        while IFS= read -r pkg; do
-            [[ -n "$pkg" ]] && tracked_pkgs["$pkg"]=1
-        done < "$MODIFIED_BASE_LIST"
-        echo "RakuOS overlay sync: checking ${#tracked_pkgs[@]} tracked base package(s) for handback..."
     fi
 
-    local handed_back=0
+    echo "RakuOS overlay sync: checking tracked base package(s) for handback..."
+    local handed_back=0 kept=0
+    local tmp_list
+    tmp_list=$(mktemp)
 
-    while IFS=' ' read -r pkg_name ovl_evr; do
+    while IFS= read -r pkg_name; do
         [[ -z "$pkg_name" ]] && continue
 
-        # If tracking file was loaded, skip packages not recorded as base-modified
-        if $use_tracking && [[ -z "${tracked_pkgs[$pkg_name]:-}" ]]; then
-            continue
-        fi
+        # Verify it is actually a base image package
+        grep -qx "$pkg_name" "$base_packages_file" 2>/dev/null || continue
 
-        # Check if the new base image now provides this package
+        # Get version from base snapshot
         local base_evr
         base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
             --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
-        [[ -z "$base_evr" ]] && continue  # Not in base — keep in overlay
+        [[ -z "$base_evr" ]] && continue  # not in new base image
 
-        # Normalize epoch (strip leading "0:")
+        # Get version from overlay db
+        local ovl_evr
+        ovl_evr=$(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        if [[ -z "$ovl_evr" ]]; then
+            continue  # not in overlay db — already gone, drop from list
+        fi
+
         local base_ver ovl_ver
         base_ver="${base_evr#0:}"
         ovl_ver="${ovl_evr#0:}"
 
-        # Hand back if base version >= overlay version
+        # Hand back if base image version >= overlay version
         local newer
         newer=$(printf '%s\n%s\n' "$ovl_ver" "$base_ver" | sort -V | tail -1)
         if [[ "$newer" == "$base_ver" ]]; then
-            echo "  Handing back: $pkg_name (overlay: $ovl_ver, base: $base_ver)"
+            echo "  Handing back: $pkg_name (overlay: $ovl_ver → base: $base_ver)"
             local removed_files=0
             while IFS= read -r fpath; do
                 [[ "$fpath" == /usr/* ]] || continue
@@ -235,7 +234,6 @@ _handback_base_packages() {
                     (( removed_files++ )) || true
                 fi
             done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -ql "$pkg_name" 2>/dev/null)
-
             # Remove now-empty directories in the upper dir
             while IFS= read -r fpath; do
                 [[ "$fpath" == /usr/* ]] || continue
@@ -243,17 +241,21 @@ _handback_base_packages() {
                 upper_dir="$UPPER_DIR/$(dirname "${fpath#/usr/}")"
                 [[ -d "$upper_dir" ]] && rmdir --ignore-fail-on-non-empty "$upper_dir" 2>/dev/null || true
             done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -ql "$pkg_name" 2>/dev/null)
-
             echo "    Removed $removed_files file(s) from overlay upper."
             (( handed_back++ )) || true
+            # Do NOT write to tmp_list — removed from tracking
+        else
+            # Overlay is still newer than base — keep it tracked
+            echo "$pkg_name" >> "$tmp_list"
+            (( kept++ )) || true
         fi
-    done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa \
-        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+    done < "$MODIFIED_BASE_LIST"
 
-    echo "RakuOS overlay sync: handed back $handed_back package(s) to base image."
+    # Write back only packages NOT handed back
+    sort -u "$tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$tmp_list"
 
-    # Regenerate tracking file so it reflects what's still in the overlay
-    _update_modified_base_list
+    echo "RakuOS overlay sync: handed back $handed_back package(s) to base image, kept $kept package(s) in overlay."
 }
 
 # Reset the overlay RPM database to the base image state, then re-register
@@ -274,16 +276,20 @@ _rebuild_overlay_rpmdb() {
 
     # Re-register overlay packages from pkgcache.
     # Process newest RPMs first (handles multiple versions of same package in cache).
-    # Skip packages now provided by the base image (they were handed back above).
+    # - Base packages that were handed back (not in MODIFIED_BASE_LIST) → skip
+    # - Base packages still in MODIFIED_BASE_LIST (overlay newer than base) → register
+    # - Non-base packages → always register
     local registered=0 skipped=0 failed=0
     while IFS= read -r rpm_file; do
         local pkg_name
         pkg_name=$(rpm -qp --qf '%{NAME}' "$rpm_file" 2>/dev/null) || { (( failed++ )) || true; continue; }
 
-        # Skip packages now in the base image
+        # If this is a base image package, only register if overlay is still newer
         if rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" &>/dev/null; then
-            (( skipped++ )) || true
-            continue
+            if ! grep -qx "$pkg_name" "$MODIFIED_BASE_LIST" 2>/dev/null; then
+                (( skipped++ )) || true
+                continue
+            fi
         fi
 
         # Skip if already re-registered (duplicate package version in cache)
