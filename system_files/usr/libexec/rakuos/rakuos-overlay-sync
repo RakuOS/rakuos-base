@@ -467,7 +467,7 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     _restore_overlay_gpg_keys
     _import_terra_keys
     _ensure_packages_toml
-    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
+    dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
         "${PACKAGES[@]}"
     _update_modified_base_list
@@ -492,7 +492,7 @@ elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
     _ensure_packages_toml
-    dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
+    dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
         "${PACKAGES[@]}"
     _update_modified_base_list

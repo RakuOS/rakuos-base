@@ -80,7 +80,7 @@ cmd_check() {
     # Run without a package list — dnf.conf excludepkgs handles what is off-limits.
     # dnf5 check-update exits 100 if updates are available, 0 if none.
     local check_output exit_code=0
-    check_output=$(dnf check-update --quiet 2>/dev/null) || exit_code=$?
+    check_output=$(dnf check-update --refresh --quiet 2>/dev/null) || exit_code=$?
 
     if [[ $exit_code -eq 100 ]]; then
         # Build a set of user-installed packages for annotation in the JSON.
