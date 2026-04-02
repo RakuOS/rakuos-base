@@ -112,6 +112,10 @@ SNAPSHOT_DB=/var/lib/rakuos/base-rpmdb
 
 mkdir -p "$SNAPSHOT_DB"
 cp -a "$BASE_RPM_DB/." "$SNAPSHOT_DB/"
+# Drop stale lock and Berkeley DB cache files from the snapshot — they are
+# process-specific and will cause "can't create transaction lock" errors if
+# carried into a fresh overlay RPM db.
+rm -f "$SNAPSHOT_DB"/.rpm.lock "$SNAPSHOT_DB"/__db.*
 
 echo "RakuOS overlay: mounting persistent overlay..."
 mount -t overlay overlay \

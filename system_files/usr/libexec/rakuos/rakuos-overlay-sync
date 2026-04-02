@@ -292,6 +292,7 @@ _rebuild_overlay_rpmdb() {
     # Reset overlay RPM db to fresh base image state
     mkdir -p "$OVERLAY_RPM_DB_PATH"
     cp -a "$BASE_RPM_DB_SNAPSHOT/." "$OVERLAY_RPM_DB_PATH/"
+    rm -f "$OVERLAY_RPM_DB_PATH"/.rpm.lock "$OVERLAY_RPM_DB_PATH"/__db.*
     echo "RakuOS overlay sync: overlay RPM db reset to base image state."
 
     # Re-register overlay packages from pkgcache.
@@ -371,10 +372,14 @@ _seed_overlay_rpmdb() {
     fi
     mkdir -p "$OVERLAY_RPM_DB_PATH"
     cp -a "$source_db/." "$OVERLAY_RPM_DB_PATH/"
+    # Remove stale lock and cache files copied from the snapshot — dnf/rpm will
+    # recreate them; leaving them causes "can't create transaction lock" errors.
+    rm -f "$OVERLAY_RPM_DB_PATH"/.rpm.lock "$OVERLAY_RPM_DB_PATH"/__db.*
     echo "RakuOS overlay sync: overlay RPM database seeded from $source_db."
 }
 
-# Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
+# Import Terra GPG keys from the local key files baked into the base image.
+# Idempotent — rpm silently ignores already-imported keys.
 _import_terra_keys() {
     local fedora_version
     fedora_version=$(. /etc/os-release && echo "$VERSION_ID")
@@ -383,17 +388,18 @@ _import_terra_keys() {
         return 0
     fi
     echo "RakuOS overlay sync: importing Terra GPG keys for Fedora ${fedora_version}..."
-    local base_url="https://repos.fyralabs.com/terra${fedora_version}"
-    local retries=5 delay=3
-    for key_url in "${base_url}/key.asc" "${base_url}-mesa/key.asc" "${base_url}-multimedia/key.asc"; do
-        local i=0
-        while (( i < retries )); do
-            rpm --import "$key_url" 2>/dev/null && break
-            (( i++ )) || true
-            echo "RakuOS overlay sync: key import failed ($key_url) — retry $i/$retries..."
-            sleep $delay
-        done
-        (( i == retries )) && echo "RakuOS overlay sync: WARNING — could not import $key_url after $retries attempts." || true
+    local key_dir="/etc/pki/rpm-gpg"
+    for key_file in \
+        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}" \
+        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}-mesa" \
+        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}-multimedia"; do
+        if [[ -f "$key_file" ]]; then
+            rpm --import "$key_file" 2>/dev/null \
+                && echo "RakuOS overlay sync: imported $key_file" \
+                || echo "RakuOS overlay sync: WARNING — could not import $key_file"
+        else
+            echo "RakuOS overlay sync: key file not found — $key_file (skipping)"
+        fi
     done
     echo "RakuOS overlay sync: Terra key import complete."
 }
