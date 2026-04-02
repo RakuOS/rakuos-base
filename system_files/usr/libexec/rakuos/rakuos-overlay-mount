@@ -56,22 +56,6 @@ if [[ ! -f "$PACKAGES_LIST" ]]; then
     fi
 fi
 
-# ── Migration: overlay exists but pkgcache doesn't ───────────────────────────
-# Existing systems predating the pkgcache feature have a populated overlay upper
-# dir but no cached RPMs.  Wipe the overlay so sync does a clean reinstall and
-# builds the initial cache.  packages.list is preserved so all user packages are
-# reinstalled transparently.
-if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
-    if [[ -z "$(find "$PKG_CACHE_DIR" -name "*.rpm" -type f 2>/dev/null | head -1)" ]]; then
-        echo "RakuOS overlay: pkgcache migration — no cached RPMs found for existing overlay."
-        echo "RakuOS overlay: wiping overlay so sync rebuilds it and populates the cache."
-        rm -rf "${UPPER_DIR:?}"/*
-        rm -rf "${WORK_DIR:?}"/*
-        rm -f "$STATE_FILE"
-        echo "RakuOS overlay: migration wipe complete — sync will reinstall packages on next step."
-    fi
-fi
-
 # ── Always snapshot the base image state ─────────────────────────────────────
 # Done unconditionally so resets and migrations have a fresh snapshot available
 # before sync runs, not just when the upper dir already has content.
@@ -91,6 +75,27 @@ cp -a "$BASE_RPM_DB/." "$SNAPSHOT_DB/"
 # Drop stale lock and Berkeley DB cache files — process-specific and will cause
 # "can't create transaction lock" errors if carried into a fresh overlay RPM db.
 rm -f "$SNAPSHOT_DB"/.rpm.lock "$SNAPSHOT_DB"/__db.*
+
+# ── Migration: overlay exists but pkgcache doesn't ───────────────────────────
+# Existing systems predating the pkgcache feature have a populated overlay upper
+# dir but no cached RPMs.  Wipe the overlay so sync does a clean reinstall and
+# builds the initial cache.  packages.list is preserved so all user packages are
+# reinstalled transparently.
+if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    if [[ -z "$(find "$PKG_CACHE_DIR" -name "*.rpm" -type f 2>/dev/null | head -1)" ]]; then
+        echo "RakuOS overlay: pkgcache migration — no cached RPMs found for existing overlay."
+        echo "RakuOS overlay: wiping overlay so sync rebuilds it and populates the cache."
+        rm -rf "${UPPER_DIR:?}"/*
+        rm -rf "${WORK_DIR:?}"/*
+        rm -f "$STATE_FILE"
+        echo "RakuOS overlay: migration wipe complete — seeding RPM database before overlay mounts..."
+        mkdir -p "$UPPER_DIR/share/rpm"
+        cp -a "$SNAPSHOT_DB/." "$UPPER_DIR/share/rpm/"
+        rm -f "$UPPER_DIR/share/rpm"/.rpm.lock "$UPPER_DIR/share/rpm"/__db.*
+        echo "RakuOS overlay: RPM database seeded — sync will reinstall packages on next step."
+        exit 0
+    fi
+fi
 
 # ── Normal mount ──────────────────────────────────────────────────────────────
 
