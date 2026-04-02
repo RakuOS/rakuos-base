@@ -36,6 +36,24 @@ plyclear() {
     plymouth deactivate 2>/dev/null || true
 }
 
+# Import GPG keys for Terra repos by reading gpgkey= from the installed .repo
+# files.  This handles file:// and https:// references and avoids hardcoding
+# paths or URLs.  Idempotent — rpm silently skips already-imported keys.
+_import_terra_keys() {
+    local count=0
+    for repo_file in /etc/yum.repos.d/terra*.repo; do
+        [[ -f "$repo_file" ]] || continue
+        while IFS= read -r key_src; do
+            [[ -z "$key_src" ]] && continue
+            rpm --dbpath /usr/share/rpm --import "$key_src" 2>/dev/null \
+                && (( count++ )) || true
+        done < <(grep -i '^gpgkey=' "$repo_file" \
+            | sed 's/^[Gg][Pp][Gg][Kk][Ee][Yy]=//;s/[[:space:]]//g' \
+            | tr ',' '\n')
+    done
+    echo "RakuOS overlay sync: imported ${count} Terra GPG key(s)."
+}
+
 # ── Wait for DNS before any network operations ────────────────────────────────
 _wait_for_dns() {
     local ready=false
@@ -378,39 +396,12 @@ _seed_overlay_rpmdb() {
     echo "RakuOS overlay sync: overlay RPM database seeded from $source_db."
 }
 
-# Import Terra GPG keys from the local key files baked into the base image.
-# Idempotent — rpm silently ignores already-imported keys.
-_import_terra_keys() {
-    local fedora_version
-    fedora_version=$(. /etc/os-release && echo "$VERSION_ID")
-    if [[ -z "$fedora_version" ]]; then
-        echo "RakuOS overlay sync: could not determine Fedora version — skipping Terra key import."
-        return 0
-    fi
-    echo "RakuOS overlay sync: importing Terra GPG keys for Fedora ${fedora_version}..."
-    local key_dir="/etc/pki/rpm-gpg"
-    for key_file in \
-        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}" \
-        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}-mesa" \
-        "${key_dir}/RPM-GPG-KEY-terra${fedora_version}-multimedia"; do
-        if [[ -f "$key_file" ]]; then
-            rpm --import "$key_file" 2>/dev/null \
-                && echo "RakuOS overlay sync: imported $key_file" \
-                || echo "RakuOS overlay sync: WARNING — could not import $key_file"
-        else
-            echo "RakuOS overlay sync: key file not found — $key_file (skipping)"
-        fi
-    done
-    echo "RakuOS overlay sync: Terra key import complete."
-}
 
 _wait_for_dns
 
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
-
-_import_terra_keys
 
 # Read packages into array, skip empty lines and comments
 mapfile -t PACKAGES < <(
@@ -447,6 +438,11 @@ if ! findmnt /usr | grep -q overlay; then
         /usr
 fi
 
+# Import Terra GPG keys into the overlay RPM db now that /usr/share/rpm is
+# writable through the overlay mount.  Covers dirty and image-update paths.
+# The full install path calls this again after re-seeding the db.
+_import_terra_keys
+
 # ── Determine what needs doing ────────────────────────────────────────────────
 
 OVERLAY_HAS_CONTENT=false
@@ -468,8 +464,8 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     plymsg "RakuOS: Installing overlay packages — this may take a few minutes..."
     _save_overlay_gpg_keys
     _seed_overlay_rpmdb
-    # Restore third-party keys (COPR, Terra, etc.) lost when the db was re-seeded,
-    # then re-import Terra keys to cover fresh installs with no prior keys saved.
+    # Restore third-party keys (COPR, etc.) saved before the seed, then re-import
+    # Terra keys since the seeded db may not have the latest rotated keys.
     _restore_overlay_gpg_keys
     _import_terra_keys
     _ensure_packages_toml
