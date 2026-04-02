@@ -115,8 +115,6 @@ python3-setuptools \
 appstream \
 appstream-data \
 fwupd \
-python3-dbus \
-python3-gobject \
 nodejs \
 nodejs-npm \
 fuse \

@@ -115,8 +115,6 @@ unzip
 glibc-langpack-en
 python3-pip
 python3-setuptools
-python3-dbus
-python3-gobject
 appstream
 appstream-data
 fwupd
