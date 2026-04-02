@@ -325,6 +325,39 @@ _rebuild_overlay_rpmdb() {
     echo "RakuOS overlay sync: RPM db rebuilt — registered: $registered, handed to base: $skipped, failed: $failed."
 }
 
+# Save any GPG keys imported into the overlay RPM db that are not in the base
+# snapshot (Terra, COPR, etc.) so they survive a db re-seed.
+_save_overlay_gpg_keys() {
+    [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
+    local save_dir="/var/lib/rakuos/saved-gpg-keys"
+    mkdir -p "$save_dir"
+    rm -f "$save_dir"/*.asc
+    local count=0
+    while IFS= read -r key_pkg; do
+        [[ -z "$key_pkg" ]] && continue
+        # Skip keys already present in the base snapshot — they'll come back via seed
+        rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$key_pkg" &>/dev/null && continue
+        rpm --dbpath "$OVERLAY_RPM_DB_PATH" -q --qf '%{DESCRIPTION}\n' "$key_pkg" 2>/dev/null \
+            > "$save_dir/${key_pkg}.asc" || true
+        (( count++ )) || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa --qf '%{NAME}-%{VERSION}-%{RELEASE}\n' \
+        2>/dev/null | grep '^gpg-pubkey-')
+    echo "RakuOS overlay sync: saved $count third-party GPG key(s) before seed."
+}
+
+# Re-import saved GPG keys into the freshly seeded overlay RPM db.
+_restore_overlay_gpg_keys() {
+    local save_dir="/var/lib/rakuos/saved-gpg-keys"
+    [[ -d "$save_dir" ]] || return 0
+    local count=0
+    for key_file in "$save_dir"/*.asc; do
+        [[ -f "$key_file" ]] && [[ -s "$key_file" ]] || continue
+        rpm --dbpath /usr/share/rpm --import "$key_file" 2>/dev/null \
+            && (( count++ )) || true
+    done
+    echo "RakuOS overlay sync: restored $count GPG key(s) after seed."
+}
+
 # Seed the overlay upper dir's RPM database from the base image before a fresh
 # install.  Prefer the saved snapshot (available after a normal boot); fall back
 # to /usr/share/rpm directly (accessible when overlay is freshly mounted empty).
@@ -427,7 +460,12 @@ fi
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
     plymsg "RakuOS: Installing overlay packages — this may take a few minutes..."
+    _save_overlay_gpg_keys
     _seed_overlay_rpmdb
+    # Restore third-party keys (COPR, Terra, etc.) lost when the db was re-seeded,
+    # then re-import Terra keys to cover fresh installs with no prior keys saved.
+    _restore_overlay_gpg_keys
+    _import_terra_keys
     _ensure_packages_toml
     dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" \
         --setopt=keepcache=True --setopt=cachedir="$PKG_CACHE_DIR" \
