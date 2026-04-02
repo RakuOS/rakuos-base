@@ -123,6 +123,7 @@ fwupd
 nodejs
 nodejs-npm
 ffmpeg
+fedora-logos
 EOF
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
