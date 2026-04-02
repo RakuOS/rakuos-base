@@ -17,7 +17,7 @@ set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DNF_CONF="/usr/share/rakuos/dnf.conf"
-PKG_CACHE_DIR="/var/cache/libdnf5"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
 MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
@@ -27,7 +27,7 @@ COMMAND="${1:-upgrade}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-dnf() { dnf5.real --config="$DNF_CONF" --setopt=keepcache=True "$@"; }
+dnf() { dnf5.real --config="$DNF_CONF" "$@"; }
 
 # Return user-installed package names from packages.list (empty-safe).
 get_user_packages() {

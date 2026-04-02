@@ -8,7 +8,7 @@ PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DEFAULT_PACKAGES_LIST="/usr/share/rakuos/packages.list"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
-PKG_CACHE_DIR="/var/cache/libdnf5"
+PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
 
 
 # ── Reset requested on last boot ──────────────────────────────────────────────
