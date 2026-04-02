@@ -72,24 +72,11 @@ if [[ -n "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     fi
 fi
 
-# ── Normal mount ──────────────────────────────────────────────────────────────
+# ── Always snapshot the base image state ─────────────────────────────────────
+# Done unconditionally so resets and migrations have a fresh snapshot available
+# before sync runs, not just when the upper dir already has content.
 mkdir -p "$UPPER_DIR" "$WORK_DIR"
 
-# Already mounted — nothing to do
-if findmnt /usr | grep -q overlay; then
-    echo "RakuOS overlay: already mounted."
-    exit 0
-fi
-
-# Upper dir empty — nothing to mount, sync will handle install
-if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
-    echo "RakuOS overlay: upper dir is empty — skipping mount, sync will handle install."
-    exit 0
-fi
-
-# Save image's packages.toml and rpm database before overlay mounts — used as merge reference
-# when the image digest changes on next sync. This overwrites only our
-# reference copy in /var/lib/rakuos, never the overlay itself.
 IMAGE_PKGS_SRC="/usr/lib/sysimage/libdnf5/packages.toml"
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 if [[ -f "$IMAGE_PKGS_SRC" ]]; then
@@ -101,10 +88,29 @@ SNAPSHOT_DB=/var/lib/rakuos/base-rpmdb
 
 mkdir -p "$SNAPSHOT_DB"
 cp -a "$BASE_RPM_DB/." "$SNAPSHOT_DB/"
-# Drop stale lock and Berkeley DB cache files from the snapshot — they are
-# process-specific and will cause "can't create transaction lock" errors if
-# carried into a fresh overlay RPM db.
+# Drop stale lock and Berkeley DB cache files — process-specific and will cause
+# "can't create transaction lock" errors if carried into a fresh overlay RPM db.
 rm -f "$SNAPSHOT_DB"/.rpm.lock "$SNAPSHOT_DB"/__db.*
+
+# ── Normal mount ──────────────────────────────────────────────────────────────
+
+# Already mounted — nothing to do
+if findmnt /usr | grep -q overlay; then
+    echo "RakuOS overlay: already mounted."
+    exit 0
+fi
+
+# Upper dir empty (first boot, post-reset, post-migration) — pre-seed the RPM
+# database into the upper dir now so it is ready before the overlay mounts.
+# sync will install packages; it can skip re-seeding since the db is already here.
+if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
+    echo "RakuOS overlay: seeding RPM database into upper dir before first install..."
+    mkdir -p "$UPPER_DIR/share/rpm"
+    cp -a "$SNAPSHOT_DB/." "$UPPER_DIR/share/rpm/"
+    rm -f "$UPPER_DIR/share/rpm"/.rpm.lock "$UPPER_DIR/share/rpm"/__db.*
+    echo "RakuOS overlay: RPM database seeded — skipping mount, sync will handle install."
+    exit 0
+fi
 
 echo "RakuOS overlay: mounting persistent overlay..."
 mount -t overlay overlay \

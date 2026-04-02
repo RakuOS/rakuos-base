@@ -340,6 +340,12 @@ _restore_overlay_gpg_keys() {
 # install.  Prefer the saved snapshot (available after a normal boot); fall back
 # to /usr/share/rpm directly (accessible when overlay is freshly mounted empty).
 _seed_overlay_rpmdb() {
+    # The mount script pre-seeds the db before exiting on first boot / reset /
+    # migration.  Skip here if it already did the work.
+    if [[ -d "$OVERLAY_RPM_DB_PATH" ]] && [[ -n "$(ls -A "$OVERLAY_RPM_DB_PATH" 2>/dev/null)" ]]; then
+        echo "RakuOS overlay sync: overlay RPM database already seeded by mount script — skipping."
+        return 0
+    fi
     echo "RakuOS overlay sync: seeding overlay RPM database from base image..."
     local source_db
     if [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] && [[ -n "$(ls -A "$BASE_RPM_DB_SNAPSHOT" 2>/dev/null)" ]]; then
@@ -349,8 +355,6 @@ _seed_overlay_rpmdb() {
     fi
     mkdir -p "$OVERLAY_RPM_DB_PATH"
     cp -a "$source_db/." "$OVERLAY_RPM_DB_PATH/"
-    # Remove stale lock and cache files copied from the snapshot — dnf/rpm will
-    # recreate them; leaving them causes "can't create transaction lock" errors.
     rm -f "$OVERLAY_RPM_DB_PATH"/.rpm.lock "$OVERLAY_RPM_DB_PATH"/__db.*
     echo "RakuOS overlay sync: overlay RPM database seeded from $source_db."
 }
