@@ -35,17 +35,31 @@ get_user_packages() {
 }
 
 # Update the tracking list of base packages overridden in the overlay.
-# Called after any upgrade so the next image update's handback is focused.
+# Only packages at a NEWER version than the base snapshot are tracked —
+# packages at the same version are just the seeded copy, not an override.
 _update_modified_base_list() {
-    local base_pkg_file="/usr/share/rakuos/base-packages.txt"
+    local base_snapshot="/var/lib/rakuos/base-rpmdb"
     [[ -d "$OVERLAY_RPM_DB" ]] || return 0
-    [[ -f "$base_pkg_file" ]] || return 0
-    rpm --dbpath "$OVERLAY_RPM_DB" -qa --qf '%{NAME}.%{ARCH}\n' 2>/dev/null \
-        | sort -u \
-        | grep -Fxf "$base_pkg_file" \
-        | sed 's/\.[^.]*$//' \
-        | sort -u \
-        > "$MODIFIED_BASE_LIST" || true
+    [[ -d "$base_snapshot" ]] || return 0
+    local tmp_list
+    tmp_list=$(mktemp)
+    while IFS=' ' read -r pkg_name ovl_evr; do
+        [[ -z "$pkg_name" ]] && continue
+        local base_evr
+        base_evr=$(rpm --dbpath "$base_snapshot" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$base_evr" ]] && continue
+        local base_ver ovl_ver
+        base_ver="${base_evr#0:}"
+        ovl_ver="${ovl_evr#0:}"
+        [[ "$base_ver" == "$ovl_ver" ]] && continue
+        local newer
+        newer=$(printf '%s\n%s\n' "$base_ver" "$ovl_ver" | sort -V | tail -1)
+        [[ "$newer" == "$ovl_ver" ]] && echo "$pkg_name" >> "$tmp_list" || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+    sort -u "$tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$tmp_list"
 }
 
 # Detect if a package owns a .desktop file (GUI app)

@@ -20,10 +20,11 @@ MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
 # Safe no-op if Plymouth is not installed or reactivation fails.
 _PLY_LAST_MSG=""
 plymsg() {
-    if ! plymouth --ping 2>/dev/null; then
-        plymouth reactivate 2>/dev/null || return 0
-        plymouth --ping 2>/dev/null || return 0
-    fi
+    # Bail if the Plymouth daemon is not running at all.
+    plymouth --ping 2>/dev/null || return 0
+    # Always reactivate — if Plymouth was deactivated by the display manager starting,
+    # this brings it back to the foreground.  No-op if already active.
+    plymouth reactivate 2>/dev/null || true
     [[ -n "$_PLY_LAST_MSG" ]] && plymouth hide-message --text="$_PLY_LAST_MSG" 2>/dev/null || true
     _PLY_LAST_MSG="$*"
     plymouth display-message --text="$*" 2>/dev/null || true
@@ -159,22 +160,37 @@ _merge_packages_toml() {
 # This gives _handback_base_packages a focused list to check rather than scanning
 # every overlay package on every image update.  Safe to call after any dnf install.
 _update_modified_base_list() {
-    local base_pkg_file="/usr/share/rakuos/base-packages.txt"
     [[ -d "$OVERLAY_RPM_DB_PATH" ]] || return 0
-    [[ -f "$base_pkg_file" ]] || return 0
+    [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] || return 0
 
-    # Query overlay db in name.arch format, cross-ref with base-packages.txt,
-    # then strip arch to get bare names for rpm -q lookups.
-    rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa --qf '%{NAME}.%{ARCH}\n' 2>/dev/null \
-        | sort -u \
-        | grep -Fxf "$base_pkg_file" \
-        | sed 's/\.[^.]*$//' \
-        | sort -u \
-        > "$MODIFIED_BASE_LIST" || true
+    # A base package is only "overriding" the base image if the overlay db has it
+    # at a NEWER version than the base snapshot.  Packages present in the overlay
+    # db at the same version are just the seeded copy — they don't shadow anything.
+    local tmp_list
+    tmp_list=$(mktemp)
+
+    while IFS=' ' read -r pkg_name ovl_evr; do
+        [[ -z "$pkg_name" ]] && continue
+        local base_evr
+        base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$base_evr" ]] && continue  # not a base package
+        local base_ver ovl_ver
+        base_ver="${base_evr#0:}"
+        ovl_ver="${ovl_evr#0:}"
+        [[ "$base_ver" == "$ovl_ver" ]] && continue  # same version — seeded, not overriding
+        local newer
+        newer=$(printf '%s\n%s\n' "$base_ver" "$ovl_ver" | sort -V | tail -1)
+        [[ "$newer" == "$ovl_ver" ]] && echo "$pkg_name" >> "$tmp_list" || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB_PATH" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+
+    sort -u "$tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$tmp_list"
 
     local count
     count=$(wc -l < "$MODIFIED_BASE_LIST" 2>/dev/null || echo 0)
-    echo "RakuOS overlay sync: modified-base list updated — $count base package(s) tracked in overlay."
+    echo "RakuOS overlay sync: modified-base list updated — $count base package(s) overriding base image."
 }
 
 # For packages now provided by the new base image at the same or newer version,
