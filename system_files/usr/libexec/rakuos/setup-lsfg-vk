@@ -3,32 +3,10 @@ set -e
 
 echo "Setting up LSFG-VK (native + Flatpak support)..."
 
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR"
-
 # -------------------------------
 # Native LSFG install
 # -------------------------------
-ZIP_URL="https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/lsfg-vk-1.0.0-x86_64.zip"
-ZIP_FILE="lsfg-vk.zip"
-
-echo "Downloading LSFG-VK..."
-curl -L "$ZIP_URL" -o "$ZIP_FILE"
-
-echo "Extracting..."
-unzip -o "$ZIP_FILE" >/dev/null
-
-# Move into extracted directory
-cd lsfg-vk-1.0.0-x86_64
-
-echo "Installing to /usr/local..."
-sudo cp -r bin lib share /usr/local/
-chmod +x /usr/local/bin/lsfg-vk-ui
-
-# Refresh linker cache if libs were added
-if command -v ldconfig &>/dev/null; then
-    sudo ldconfig
-fi
+rakuos install lsfg-vk
 
 # -------------------------------
 # Flatpak Vulkan layers
