@@ -69,7 +69,7 @@ EXCLUDE_LIST=$(
     { printf '%s\n' "${PROTECTED_PKGS[@]}"; printf '%s\n' "${PYTHON_PKGS[@]}"; } \
     | sort -u | paste -sd ',' -
 )
-printf '[main]\ncachedir=/var/lib/rakuos/pkgcache\nkeepcache=True\nexcludepkgs=%s\n' "$EXCLUDE_LIST" > "$RAKUOS_DNF_CONF"
+printf '[main]\nkeepcache=True\nexcludepkgs=%s\n' "$EXCLUDE_LIST" > "$RAKUOS_DNF_CONF"
 TOTAL_EXCLUDED=$(printf '%s\n' "$EXCLUDE_LIST" | tr ',' '\n' | grep -c .)
 echo "RakuOS dnf config written → $RAKUOS_DNF_CONF ($TOTAL_EXCLUDED packages excluded, includes python* from base)"
 

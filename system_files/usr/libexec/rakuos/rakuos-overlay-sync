@@ -7,7 +7,7 @@ WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 LOCK_FILE="/run/rakuos-overlay.lock"
-PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
+PKG_CACHE_DIR="/var/cache/libdnf5"
 
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"

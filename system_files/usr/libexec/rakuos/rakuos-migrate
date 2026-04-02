@@ -12,7 +12,7 @@ set -euo pipefail
 
 INSTALLROOT="/var/lib/rakuos/packages"
 PKGROOT_TRACK="/var/lib/rakuos/pkgroot-packages.txt"
-PKG_CACHE_DIR="/var/lib/rakuos/pkgcache"
+PKG_CACHE_DIR="/var/cache/libdnf5"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 OLD_UPPER_DIR="/var/lib/rakuos/overlay/upper"
 STATE_FILE="/var/lib/rakuos/overlay.state"
@@ -32,7 +32,6 @@ _dnf() {
               --releasever "$FEDORA_VER" \
               --setopt=best=False \
               --setopt=keepcache=True \
-              --setopt=cachedir="$PKG_CACHE_DIR" \
               "$@"
 }
 
@@ -65,7 +64,6 @@ if _installroot_ready; then
             | jq -r '.status.booted.image.imageDigest // empty' 2>/dev/null \
             > "$STATE_FILE" || echo "unknown" > "$STATE_FILE"
     fi
-    mkdir -p "$PKG_CACHE_DIR"
     touch "$MIGRATE_DONE"
     exit 0
 fi
@@ -143,7 +141,6 @@ done
 
 # ── Install packages ──────────────────────────────────────────────────────────
 
-mkdir -p "$PKG_CACHE_DIR"
 log "Installing packages into installroot (this may take a while)..."
 _dnf install -y --refresh "${PACKAGES[@]}" \
     || die "Package installation failed. Check the journal for details."
