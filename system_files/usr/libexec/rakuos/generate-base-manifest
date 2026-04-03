@@ -44,7 +44,8 @@ echo "Base package list: $PKG_TOTAL packages → $BASE_PACKAGES_FILE"
 
 # Extract python package names (strip arch suffix) for manifest + exclude use
 mapfile -t PYTHON_PKGS < <(
-    grep -E '^python' "$BASE_PACKAGES_FILE" | sed 's/\.[^.]*$//' | sort -u
+    grep -E '^python' "$BASE_PACKAGES_FILE" | sed 's/\.[^.]*$//' | sort -u \
+    | grep -vx 'python3-dbus'
 )
 echo "Found ${#PYTHON_PKGS[@]} python packages to add to manifest and excludepkgs."
 
