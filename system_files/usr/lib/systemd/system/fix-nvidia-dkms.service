@@ -1,5 +1,6 @@
 [Unit]
 Description=Fix NVIDIA DKMS source symlinks
+Before=dkms.service
 After=local-fs.target
 
 [Service]
