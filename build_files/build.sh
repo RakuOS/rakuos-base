@@ -130,54 +130,6 @@ dnf5 -y remove firefox* nss
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-
-# -----------------------------
-# castlabs Electron for RakuOS WebApps (includes Widevine hooks)
-# -----------------------------
-ECS_VERSION="v40.7.0+wvcus"
-ECS_URL="https://github.com/castlabs/electron-releases/releases/download/v40.7.0%2Bwvcus/electron-v40.7.0+wvcus-linux-x64.zip"
-ELECTRON_DIR="/usr/lib/rakuos-electron"
-
-echo "Downloading castlabs Electron ${ECS_VERSION}..."
-curl -fL "${ECS_URL}" -o /tmp/electron.zip
-mkdir -p "${ELECTRON_DIR}"
-unzip -q /tmp/electron.zip -d "${ELECTRON_DIR}"
-chmod +x "${ELECTRON_DIR}/electron"
-rm /tmp/electron.zip
-echo "Electron installed at ${ELECTRON_DIR}"
-
-# -----------------------------
-# Extract WidevineCDM from Chrome RPM
-# Electron (castlabs ECS) has the hooks to load it but doesn't bundle the CDM
-# -----------------------------
-CHROME_RPM_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
-WIDEVINE_DIR="${ELECTRON_DIR}/WidevineCdm"
-TMP_DIR=$(mktemp -d)
-
-echo "Downloading Chrome RPM to extract WidevineCDM..."
-curl -fL "$CHROME_RPM_URL" -o "${TMP_DIR}/chrome.rpm"
-
-echo "Extracting WidevineCDM..."
-mkdir -p "$WIDEVINE_DIR"
-cd "$TMP_DIR" || exit 1
-rpm2cpio chrome.rpm | cpio -idmv
-
-if [ -d "./opt/google/chrome/WidevineCdm" ]; then
-    cp -r ./opt/google/chrome/WidevineCdm/* "$WIDEVINE_DIR/"
-    if [ -f "${WIDEVINE_DIR}/manifest.json" ]; then
-        WV_VERSION=$(grep '"version"' "$WIDEVINE_DIR/manifest.json" | head -n1 | awk -F '"' '{print $4}')
-        echo "WidevineCDM installed in ${WIDEVINE_DIR} (version ${WV_VERSION})"
-    else
-        echo "WARNING: manifest.json not found in WidevineCDM folder"
-    fi
-else
-    echo "Error: WidevineCdm directory not found in Chrome RPM."
-    exit 1
-fi
-
-rm -rf "$TMP_DIR"
-echo "Electron + WidevineCDM installation complete!"
-
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
