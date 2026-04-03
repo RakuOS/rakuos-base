@@ -3,6 +3,8 @@ set -euo pipefail
 
 PACKAGES=("${@}")
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+LOCAL_RPM_LIST="/var/lib/rakuos/packages-rpm.list"
+LOCAL_RPM_CACHE="/var/lib/rakuos/local-rpms"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
@@ -27,10 +29,10 @@ trap 'rm -f "$LOCK_FILE"' EXIT
 # packages.list is the source of truth — if it's there, it was installed via overlay
 TO_REMOVE=()
 for pkg in "${PACKAGES[@]}"; do
-    if ! grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null; then
-        echo "$pkg is not in the RakuOS package list — skipping."
-    else
+    if grep -qx "$pkg" "$PACKAGES_LIST" 2>/dev/null || grep -qx "$pkg" "$LOCAL_RPM_LIST" 2>/dev/null; then
         TO_REMOVE+=("$pkg")
+    else
+        echo "$pkg is not in the RakuOS package list — skipping."
     fi
 done
 
@@ -52,9 +54,13 @@ fi
 # Remove live from overlay
 dnf5.real remove -y --config="/usr/share/rakuos/dnf.conf" "${TO_REMOVE[@]}" || echo "Warning: dnf5.real remove returned non-zero, may already be gone."
 
-# Remove each from packages list
+# Remove each from the appropriate list and clean up local RPM cache if applicable
 for pkg in "${TO_REMOVE[@]}"; do
     sed -i "/^${pkg}$/d" "$PACKAGES_LIST"
+    if grep -qx "$pkg" "$LOCAL_RPM_LIST" 2>/dev/null; then
+        sed -i "/^${pkg}$/d" "$LOCAL_RPM_LIST"
+        rm -f "$LOCAL_RPM_CACHE/${pkg}.rpm"
+    fi
 done
 
 # Set dirty flag so boot service rebuilds overlay on next boot

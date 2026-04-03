@@ -2,6 +2,8 @@
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+LOCAL_RPM_LIST="/var/lib/rakuos/packages-rpm.list"
+LOCAL_RPM_CACHE="/var/lib/rakuos/local-rpms"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
@@ -14,6 +16,26 @@ OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
 BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
 MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+
+# Install cached local RPMs (packages installed from .rpm files, not repos).
+# Reads packages-rpm.list and installs each from the local-rpms cache.
+_install_local_rpms() {
+    [[ -f "$LOCAL_RPM_LIST" ]] && [[ -s "$LOCAL_RPM_LIST" ]] || return 0
+    local rpms_to_install=()
+    while IFS= read -r pkg_name; do
+        [[ -z "$pkg_name" ]] && continue
+        local rpm_file="$LOCAL_RPM_CACHE/${pkg_name}.rpm"
+        if [[ -f "$rpm_file" ]]; then
+            rpms_to_install+=("$rpm_file")
+        else
+            echo "RakuOS overlay sync: WARNING — cached RPM for $pkg_name not found at $rpm_file, skipping."
+        fi
+    done < "$LOCAL_RPM_LIST"
+    if [[ ${#rpms_to_install[@]} -gt 0 ]]; then
+        echo "RakuOS overlay sync: reinstalling ${#rpms_to_install[@]} local RPM(s)..."
+        dnf5.real install -y --config="/usr/share/rakuos/dnf.conf" "${rpms_to_install[@]}"
+    fi
+}
 
 # Import Terra GPG keys for the current Fedora version (idempotent — rpm ignores already-imported keys)
 _import_terra_keys() {
@@ -436,6 +458,7 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     _ensure_packages_toml
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
+    _install_local_rpms
     _update_modified_base_list
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
@@ -455,6 +478,7 @@ elif [[ -f "$DIRTY_FILE" ]]; then
     _ensure_packages_toml
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
+    _install_local_rpms
     _update_modified_base_list
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: sync complete."

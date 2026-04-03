@@ -3,6 +3,8 @@ set -euo pipefail
 
 PACKAGES=("${@}")
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+LOCAL_RPM_LIST="/var/lib/rakuos/packages-rpm.list"
+LOCAL_RPM_CACHE="/var/lib/rakuos/local-rpms"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
@@ -25,7 +27,7 @@ touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
 # Ensure dirs exist
-mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
+mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR" "$LOCAL_RPM_CACHE"
 
 # ── Normalise arguments ───────────────────────────────────────────────────────
 # Pass all args to dnf as-is, but for packages.list:
@@ -34,11 +36,12 @@ mkdir -p /var/lib/rakuos "$UPPER_DIR" "$WORK_DIR"
 
 CLEAN_ARGS=("${PACKAGES[@]}")  # dnf gets everything as passed
 PKG_NAMES=()                   # packages.list gets only clean names
+declare -A RPM_FILE_FOR=()     # pkg_name -> original .rpm file path (local RPMs only)
 
 for arg in "${PACKAGES[@]}"; do
     # Skip flags
     [[ "$arg" == -* ]] && continue
-    # Local .rpm file — extract Name field
+    # Local .rpm file — extract Name field and record the source path
     if [[ "$arg" == *.rpm ]]; then
         pkg_name=$(rpm -qp --queryformat '%{NAME}' "$arg" 2>/dev/null)
         if [[ -z "$pkg_name" ]]; then
@@ -46,6 +49,7 @@ for arg in "${PACKAGES[@]}"; do
             continue
         fi
         PKG_NAMES+=("$pkg_name")
+        RPM_FILE_FOR["$pkg_name"]="$arg"
     else
         PKG_NAMES+=("$arg")
     fi
@@ -102,13 +106,20 @@ for pkg in "${TO_INSTALL_NAMES[@]}"; do
     dnf5.real mark user "$pkg" || true
 done
 
-# Add canonical package names to packages.list (no flags, no .rpm paths)
-# Ensure file ends with a newline first to avoid concatenation with last entry
+# Write installed packages to the appropriate list:
+#   - Local .rpm installs → packages-rpm.list + cache the file
+#   - Repo installs       → packages.list
 if [[ -s "$PACKAGES_LIST" ]]; then
     tail -c1 "$PACKAGES_LIST" | grep -qx '' || echo "" >> "$PACKAGES_LIST"
 fi
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
-    echo "$pkg" >> "$PACKAGES_LIST"
+    if [[ -n "${RPM_FILE_FOR[$pkg]:-}" ]]; then
+        # Cache the RPM file and track in packages-rpm.list
+        cp "${RPM_FILE_FOR[$pkg]}" "$LOCAL_RPM_CACHE/${pkg}.rpm"
+        grep -qx "$pkg" "$LOCAL_RPM_LIST" 2>/dev/null || echo "$pkg" >> "$LOCAL_RPM_LIST"
+    else
+        echo "$pkg" >> "$PACKAGES_LIST"
+    fi
 done
 
 # Save current digest to state file if not already set
