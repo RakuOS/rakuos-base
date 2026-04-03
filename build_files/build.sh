@@ -152,8 +152,8 @@ podman-prune.timer
 systemctl enable --global \
 rakuos-user.service
 
-mkdir -p /var/log//var/log/akmods
-touch /var/log//var/log/akmods/akmods.log
+mkdir -p /var/log/akmods
+touch /var/log/akmods/akmods.log
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
 akmods --force --kernels "$KVER"
 
