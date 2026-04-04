@@ -126,6 +126,8 @@ cmd_check() {
             repo=$(echo "$line"      | awk '{print $3}')
             # Strip arch suffix: firefox.x86_64 -> firefox
             name=$(echo "$name_arch" | sed 's/\.[a-z_0-9]*$//')
+            # Strip DNF5 rename transition suffix: zed-rename-zeditor -> zed
+            name=$(echo "$name" | sed 's/-rename-.*$//')
             [[ -z "$name" || -z "$version" ]] && continue
             # Deduplicate — same package can appear for multiple arches
             [[ -n "${seen_names[$name]:-}" ]] && continue
@@ -221,7 +223,7 @@ cmd_check_flatpak() {
                 [[ -z "$rt_name" ]] && rt_name="$rt_id"
                 rt_name="${rt_name//\"/\\\"}"
                 [[ $first -eq 0 ]] && json+=","
-                json+="{\"name\":\"$rt_name\",\"app_id\":\"$rt_id\",\"version\":\"$rt_branch\",\"current_version\":\"$installed_rt_branch\",\"runtime\":true}"
+                json+="{\"name\":\"$rt_name\",\"app_id\":\"$rt_id\",\"version\":\"$rt_branch\",\"current_version\":\"$installed_rt_branch\",\"runtime\":true,\"needs_install\":true,\"remote\":\"$remote\"}"
                 first=0
             fi
         done < <(flatpak remote-ls --updates "$remote" --app \
