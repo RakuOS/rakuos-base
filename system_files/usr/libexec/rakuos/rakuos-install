@@ -147,6 +147,7 @@ for pkg in "${TO_INSTALL_NAMES[@]}"; do
         # Cache the RPM file and track in packages-rpm.list
         cp "${RPM_FILE_FOR[$pkg]}" "$LOCAL_RPM_CACHE/${pkg}.rpm"
         grep -qx "$pkg" "$LOCAL_RPM_LIST" 2>/dev/null || echo "$pkg" >> "$LOCAL_RPM_LIST"
+        chmod 644 "$LOCAL_RPM_LIST" || true
     else
         echo "$pkg" >> "$PACKAGES_LIST"
     fi

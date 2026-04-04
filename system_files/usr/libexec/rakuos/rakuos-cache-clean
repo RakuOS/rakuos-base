@@ -42,21 +42,28 @@ _clean_dnf_cache() {
 
     while IFS= read -r rpm_file; do
         local info
-        info=$(rpm -qp --qf '%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}' "$rpm_file" 2>/dev/null) || continue
-        local pkg_name pkg_evr
+        info=$(rpm -qp --qf '%{NAME}\t%{ARCH}\t%{EPOCH}:%{VERSION}-%{RELEASE}' "$rpm_file" 2>/dev/null) || continue
+        local pkg_name pkg_arch pkg_evr
         pkg_name=$(echo "$info" | cut -f1)
-        pkg_evr=$(echo "$info"  | cut -f2)
-        [[ -z "$pkg_name" || -z "$pkg_evr" ]] && continue
-        pkg_entries["$pkg_name"]+="${pkg_evr}"$'\t'"${rpm_file}"$'\n'
+        pkg_arch=$(echo "$info"  | cut -f2)
+        pkg_evr=$(echo "$info"   | cut -f3)
+        [[ -z "$pkg_name" || -z "$pkg_arch" || -z "$pkg_evr" ]] && continue
+        # Key by NAME.ARCH so foo.i686 and foo.x86_64 are treated as separate packages.
+        local pkg_key="${pkg_name}.${pkg_arch}"
+        pkg_entries["$pkg_key"]+="${pkg_evr}"$'\t'"${rpm_file}"$'\n'
     done < <(find "$DNF_CACHE_DIR" -name "*.rpm" -type f 2>/dev/null)
 
     local removed_old=0 removed_uninstalled=0
 
-    for pkg_name in "${!pkg_entries[@]}"; do
+    for pkg_key in "${!pkg_entries[@]}"; do
+        # Split key back into name and arch.
+        local pkg_name="${pkg_key%.*}"
+        local pkg_arch="${pkg_key##*.}"
+
         # Sort entries by EVR descending (newest first).
         # Each line: "EVR<TAB>filepath"
         mapfile -t sorted < <(
-            printf '%s' "${pkg_entries[$pkg_name]}" \
+            printf '%s' "${pkg_entries[$pkg_key]}" \
             | grep -v '^$' \
             | sort -t$'\t' -k1 -V -r
         )
@@ -71,14 +78,14 @@ _clean_dnf_cache() {
         for (( i=1; i<${#sorted[@]}; i++ )); do
             local old_file
             old_file=$(printf '%s' "${sorted[$i]}" | cut -f2)
-            echo "  Removing old version: $(basename "$old_file") ($pkg_name)"
+            echo "  Removing old version: $(basename "$old_file") ($pkg_key)"
             rm -f "$old_file"
             (( removed_old++ )) || true
         done
 
-        # Remove newest if the package is no longer installed in the overlay.
-        if ! rpm --dbpath "$OVERLAY_RPM_DB" -q "$pkg_name" &>/dev/null; then
-            echo "  Removing uninstalled: $(basename "$newest_file") ($pkg_name not in overlay)"
+        # Remove newest if the package (this specific arch) is no longer installed in the overlay.
+        if ! rpm --dbpath "$OVERLAY_RPM_DB" -q "${pkg_name}.${pkg_arch}" &>/dev/null; then
+            echo "  Removing uninstalled: $(basename "$newest_file") ($pkg_key not in overlay)"
             rm -f "$newest_file"
             (( removed_uninstalled++ )) || true
         fi
@@ -118,6 +125,7 @@ _clean_local_cache() {
         done < "$LOCAL_RPM_LIST"
 
         mv "$tmp_list" "$LOCAL_RPM_LIST"
+        chmod 644 "$LOCAL_RPM_LIST" || true
     fi
 
     # Remove any .rpm files in the cache directory that are not tracked in

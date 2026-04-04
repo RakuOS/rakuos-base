@@ -94,6 +94,7 @@ for pkg in "${TO_REMOVE[@]}"; do
         rm -f "$LOCAL_RPM_CACHE/${pkg}.rpm"
     fi
 done
+[[ -f "$LOCAL_RPM_LIST" ]] && chmod 644 "$LOCAL_RPM_LIST" || true
 
 # Set dirty flag so boot service rebuilds overlay on next boot
 touch "$DIRTY_FILE"
