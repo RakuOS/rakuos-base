@@ -115,6 +115,23 @@ if [[ -z "$(ls -A "$UPPER_DIR" 2>/dev/null)" ]]; then
     exit 0
 fi
 
+OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
+PRE_UPDATE_RPMDB="/var/lib/rakuos/pre-update-overlay-rpmdb"
+
+# Back up the overlay RPM database before the overlay mounts.
+# This snapshot reflects exactly what was installed in the overlay at the last boot.
+# The image-update merge in rakuos-overlay-sync uses it to distinguish packages that
+# are in the dnf/local RPM cache but were actually uninstalled by the user — those
+# should not be re-registered into the rebuilt RPM database.
+if [[ -d "$OVERLAY_RPM_DB" ]] && [[ -n "$(ls -A "$OVERLAY_RPM_DB" 2>/dev/null)" ]]; then
+    echo "RakuOS overlay: backing up overlay RPM database before mount..."
+    rm -rf "$PRE_UPDATE_RPMDB"
+    mkdir -p "$PRE_UPDATE_RPMDB"
+    cp -a "$OVERLAY_RPM_DB/." "$PRE_UPDATE_RPMDB/"
+    rm -f "$PRE_UPDATE_RPMDB"/.rpm.lock "$PRE_UPDATE_RPMDB"/__db.*
+    echo "RakuOS overlay: overlay RPM database backed up to $PRE_UPDATE_RPMDB."
+fi
+
 echo "RakuOS overlay: mounting persistent overlay..."
 mount -t overlay overlay \
     -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \

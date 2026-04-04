@@ -16,6 +16,7 @@ OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
 BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
 MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+PRE_UPDATE_RPMDB="/var/lib/rakuos/pre-update-overlay-rpmdb"
 
 # Install cached local RPMs (packages installed from .rpm files, not repos).
 # Reads packages-rpm.list and installs each from the local-rpms cache.
@@ -300,7 +301,8 @@ _rebuild_overlay_rpmdb() {
     # Process newest RPMs first (handles multiple versions of same package in cache).
     # - Base packages that were handed back (not in MODIFIED_BASE_LIST) → skip
     # - Base packages still in MODIFIED_BASE_LIST (overlay newer than base) → register
-    # - Non-base packages → always register
+    # - Non-base packages → only register if confirmed installed in pre-update snapshot
+    #   (guards against stale cached .rpms for packages the user uninstalled)
     local registered=0 skipped=0 failed=0
     while IFS= read -r rpm_file; do
         local pkg_name
@@ -319,6 +321,18 @@ _rebuild_overlay_rpmdb() {
             continue
         fi
 
+        # Verify the package was actually installed in the overlay at last boot.
+        # The pre-update snapshot is written by rakuos-overlay-mount before mounting;
+        # if it exists and the package is absent from it, the .rpm is a stale cache
+        # entry for a package the user already uninstalled — do not re-register it.
+        if [[ -d "$PRE_UPDATE_RPMDB" ]]; then
+            if ! rpm --dbpath "$PRE_UPDATE_RPMDB" -q "$pkg_name" &>/dev/null; then
+                echo "  Skipping $pkg_name — not installed in overlay at last boot (stale cache)."
+                (( skipped++ )) || true
+                continue
+            fi
+        fi
+
         if rpm --dbpath /usr/share/rpm --justdb -i --nodeps --nosignature "$rpm_file" 2>/dev/null; then
             (( registered++ )) || true
         else
@@ -330,7 +344,7 @@ _rebuild_overlay_rpmdb() {
     # Re-register locally-installed RPMs from the local-rpms cache.
     # These aren't in PKG_CACHE_DIR so they're missed by the loop above.
     # Use --justdb because the files are already present in the overlay upper dir.
-    local local_registered=0 local_failed=0
+    local local_registered=0 local_skipped=0 local_failed=0
     if [[ -f "$LOCAL_RPM_LIST" ]] && [[ -s "$LOCAL_RPM_LIST" ]]; then
         while IFS= read -r pkg_name; do
             [[ -z "$pkg_name" ]] && continue
@@ -343,13 +357,22 @@ _rebuild_overlay_rpmdb() {
             if rpm --dbpath /usr/share/rpm -q "$pkg_name" &>/dev/null; then
                 continue
             fi
+            # Verify it was actually installed at last boot — packages-rpm.list may
+            # still list a package the user later removed, and its .rpm stays in cache.
+            if [[ -d "$PRE_UPDATE_RPMDB" ]]; then
+                if ! rpm --dbpath "$PRE_UPDATE_RPMDB" -q "$pkg_name" &>/dev/null; then
+                    echo "  Skipping local $pkg_name — not installed in overlay at last boot (stale entry)."
+                    (( local_skipped++ )) || true
+                    continue
+                fi
+            fi
             if rpm --dbpath /usr/share/rpm --justdb -i --nodeps --nosignature "$rpm_file" 2>/dev/null; then
                 (( local_registered++ )) || true
             else
                 (( local_failed++ )) || true
             fi
         done < "$LOCAL_RPM_LIST"
-        echo "RakuOS overlay sync: local RPMs re-registered — registered: $local_registered, failed: $local_failed."
+        echo "RakuOS overlay sync: local RPMs re-registered — registered: $local_registered, skipped: $local_skipped, failed: $local_failed."
     fi
 
     rpm --rebuilddb --dbpath /usr/share/rpm 2>/dev/null || true

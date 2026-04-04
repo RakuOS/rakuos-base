@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly RakuOS RPM Cache Cleaner
+
+[Timer]
+# Run every Sunday at 04:00 UTC, after the weekly auto-updater window
+OnCalendar=Sun *-*-* 04:00:00
+# Also run once on boot, 5 minutes after sync completes, to catch
+# packages removed since the last scheduled clean.
+OnBootSec=5min
+Persistent=true
+Timezone=UTC
+
+[Install]
+WantedBy=timers.target

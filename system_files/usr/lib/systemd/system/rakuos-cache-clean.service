@@ -1,0 +1,11 @@
+[Unit]
+Description=RakuOS RPM Cache Cleaner
+Documentation=https://rakuos.org
+After=rakuos-overlay-sync.service
+Wants=rakuos-overlay-sync.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rakuos/rakuos-cache-clean
+StandardOutput=journal
+StandardError=journal

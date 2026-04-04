@@ -140,6 +140,7 @@ rakuos-overlay-sync.service \
 rakuos-overlay-services.service \
 rakuos-flatpaks.service \
 rakuos-flatpak-watcher.service \
+rakuos-cache-clean.timer \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
 rpm-ostree-clean-metadata.timer \
