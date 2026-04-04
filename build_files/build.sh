@@ -100,9 +100,6 @@ libxcrypt-compat \
 rsync \
 podman \
 distrobox \
-akmod-xpadneo \
-akmod-xone \
-xone-firmware \
 mokutil \
 lm_sensors \
 sqlite3 \
@@ -151,19 +148,3 @@ podman-prune.timer
 
 systemctl enable --global \
 rakuos-user.service
-
-mkdir -p /var/log/akmods
-touch /var/log/akmods/akmods.log
-KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
-akmods --force --kernels "$KVER"
-
-#Build initramfs
-
-# Generate module dependencies
-depmod "$QUALIFIED_KERNEL"
-
-# Generate initramfs for that kernel
-/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
---add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
-
-chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img

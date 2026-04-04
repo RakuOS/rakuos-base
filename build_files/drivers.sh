@@ -6,27 +6,23 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 
-# Install NVIDIA stack — skip systemd scriptlets that fail in containers
+# Install non-NVIDIA drivers for every image
 dnf5 install -y --setopt=tsflags=noscripts \
-    dkms-nvidia \
-    nvidia-driver \
-    nvidia-persistenced
+    akmod-xpadneo \
+    akmod-xone \
+    xone-firmware
 
+mkdir -p /var/log/akmods
+touch /var/log/akmods/akmods.log
+KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
+akmods --force --kernels "$KVER"
 
-# Build DKMS module for the installed kernel
-# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-XONE_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-xone)
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed — make.log:"
-    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
-    exit 1
-}
-
+#Build initramfs
 # Generate module dependencies
-depmod "${QUALIFIED_KERNEL}"
+depmod "$QUALIFIED_KERNEL"
 
-# Generate initramfs with nvidia module included
-/usr/bin/dracut --no-hostonly --kver "${QUALIFIED_KERNEL}" --reproducible --zstd -v \
-    --add ostree --add fido2 -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
+# Generate initramfs for that kernel
+/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
+--add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
-chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
+chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
