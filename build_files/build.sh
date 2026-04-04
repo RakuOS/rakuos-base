@@ -100,8 +100,8 @@ libxcrypt-compat \
 rsync \
 podman \
 distrobox \
-xpadneo \
-xone \
+akmod-xpadneo \
+akmod-xone \
 xone-firmware \
 mokutil \
 lm_sensors \
