@@ -16,6 +16,7 @@
 set -euo pipefail
 
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
+LOCAL_RPM_LIST="/var/lib/rakuos/packages-rpm.list"
 DNF_CONF="/usr/share/rakuos/dnf.conf"
 PKG_CACHE_DIR="/var/cache/libdnf5"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
@@ -32,6 +33,16 @@ dnf() { dnf5.real --config="$DNF_CONF" "$@"; }
 # Return user-installed package names from packages.list (empty-safe).
 get_user_packages() {
     [[ -s "$PACKAGES_LIST" ]] && sort -u "$PACKAGES_LIST" || true
+}
+
+# Return all managed package names: packages.list + packages-rpm.list.
+get_all_managed_packages() {
+    local tmp
+    tmp=$(mktemp)
+    [[ -s "$PACKAGES_LIST" ]] && cat "$PACKAGES_LIST" >> "$tmp" || true
+    [[ -s "$LOCAL_RPM_LIST" ]] && cat "$LOCAL_RPM_LIST" >> "$tmp" || true
+    sort -u "$tmp"
+    rm -f "$tmp"
 }
 
 # Update the tracking list of base packages overridden in the overlay.
@@ -80,31 +91,45 @@ is_gui_package() {
 cmd_check() {
     echo "RakuOS: checking for package updates..." >&2
 
-    # Run without a package list — dnf.conf excludepkgs handles what is off-limits.
+    # Only check packages managed by the overlay (packages.list + packages-rpm.list)
+    # and any of their dependencies that dnf would also upgrade.
+    local pkg_list=()
+    while IFS= read -r p; do
+        [[ -n "$p" ]] && pkg_list+=("$p")
+    done < <(get_all_managed_packages)
+
+    if [[ ${#pkg_list[@]} -eq 0 ]]; then
+        echo '{"updates": []}'
+        exit 1
+    fi
+
     # dnf5 check-update exits 100 if updates are available, 0 if none.
     local check_output exit_code=0
-    check_output=$(dnf check-update --refresh --quiet 2>/dev/null) || exit_code=$?
+    check_output=$(dnf check-update --refresh --quiet "${pkg_list[@]}" 2>/dev/null) || exit_code=$?
 
     if [[ $exit_code -eq 100 ]]; then
-        # Build a set of user-installed packages for annotation in the JSON.
         local user_pkgs
         user_pkgs=$(get_user_packages)
 
         local json='{"updates": ['
         local first=1
+        declare -A seen_names=()
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
             # Skip dnf header/separator lines
             [[ "$line" =~ ^[[:space:]] ]] && continue
             [[ "$line" =~ ^Last ]] && continue
             [[ "$line" =~ ^Obsoleting ]] && continue
-            local name_arch version repo name gui user_installed
+            local name_arch version repo name gui user_installed current_version
             name_arch=$(echo "$line" | awk '{print $1}')
             version=$(echo "$line"   | awk '{print $2}')
             repo=$(echo "$line"      | awk '{print $3}')
             # Strip arch suffix: firefox.x86_64 -> firefox
             name=$(echo "$name_arch" | sed 's/\.[a-z_0-9]*$//')
             [[ -z "$name" || -z "$version" ]] && continue
+            # Deduplicate — same package can appear for multiple arches
+            [[ -n "${seen_names[$name]:-}" ]] && continue
+            seen_names["$name"]=1
             current_version=$(rpm -q --qf '%{VERSION}-%{RELEASE}' "$name" 2>/dev/null || echo "")
             gui="false"
             is_gui_package "$name" && gui="true"
@@ -126,8 +151,19 @@ cmd_check() {
 cmd_upgrade() {
     echo "RakuOS: upgrading packages..."
 
-    # No package list needed — dnf.conf excludepkgs filters protected base packages.
-    dnf upgrade -y --refresh
+    # Upgrade only packages managed by the overlay and their required dependencies.
+    # If a dep happens to be a base image package not in excludepkgs, it can upgrade.
+    local pkg_list=()
+    while IFS= read -r p; do
+        [[ -n "$p" ]] && pkg_list+=("$p")
+    done < <(get_all_managed_packages)
+
+    if [[ ${#pkg_list[@]} -eq 0 ]]; then
+        echo "RakuOS: no managed packages to upgrade."
+        exit 0
+    fi
+
+    dnf upgrade -y --refresh "${pkg_list[@]}"
 
     # Update tracking list so the next image update's handback only checks packages
     # the overlay has actually overridden (safe base packages upgraded here land here).

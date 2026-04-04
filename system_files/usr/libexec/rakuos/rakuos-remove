@@ -8,6 +8,38 @@ LOCAL_RPM_CACHE="/var/lib/rakuos/local-rpms"
 UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
+OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
+BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
+BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
+MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+
+# Rebuild the modified-base tracking list by scanning the overlay RPM db.
+# Packages at a newer version than the base snapshot are tracked for handback.
+_update_modified_base_list() {
+    [[ -d "$OVERLAY_RPM_DB" ]] || return 0
+    [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] || return 0
+    [[ -f "$BASE_PACKAGES_FILE" ]] || return 0
+    local tmp_list
+    tmp_list=$(mktemp)
+    while IFS=' ' read -r pkg_name ovl_evr; do
+        [[ -z "$pkg_name" ]] && continue
+        grep -qx "$pkg_name" "$BASE_PACKAGES_FILE" 2>/dev/null || continue
+        local base_evr
+        base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$base_evr" ]] && continue
+        local base_ver ovl_ver
+        base_ver="${base_evr#0:}"
+        ovl_ver="${ovl_evr#0:}"
+        [[ "$base_ver" == "$ovl_ver" ]] && continue
+        local newer
+        newer=$(printf '%s\n%s\n' "$base_ver" "$ovl_ver" | sort -V | tail -1)
+        [[ "$newer" == "$ovl_ver" ]] && echo "$pkg_name" >> "$tmp_list" || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+    sort -u "$tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$tmp_list"
+}
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "Usage: rakuos remove <package> [package2] [package3]..."
@@ -66,16 +98,9 @@ done
 # Set dirty flag so boot service rebuilds overlay on next boot
 touch "$DIRTY_FILE"
 
-# Remove any of the removed packages from the modified-base tracking list if
-# they appear there (cross-checked against base-packages.txt).
-MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
-BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
-if [[ -f "$MODIFIED_BASE_LIST" ]] && [[ -f "$BASE_PACKAGES_FILE" ]]; then
-    for pkg in "${TO_REMOVE[@]}"; do
-        if grep -qx "$pkg" "$BASE_PACKAGES_FILE" 2>/dev/null; then
-            sed -i "/^${pkg}$/d" "$MODIFIED_BASE_LIST"
-        fi
-    done
-fi
+# Rebuild the modified-base tracking list from scratch so any base-image
+# dependencies that were also removed (as side-effects of this removal) are
+# correctly dropped from the list.
+_update_modified_base_list
 
 echo "${TO_REMOVE[*]} removed from RakuOS package list."

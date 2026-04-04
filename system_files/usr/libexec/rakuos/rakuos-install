@@ -9,6 +9,40 @@ UPPER_DIR="/var/lib/rakuos/overlay/upper"
 WORK_DIR="/var/lib/rakuos/overlay/work"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 PKG_CACHE_DIR="/var/cache/libdnf5"
+OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
+BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
+BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
+MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
+
+# Rebuild the modified-base tracking list by scanning the overlay RPM db.
+# Checks every installed package (including dependencies pulled in by this
+# install) against base-packages.txt — if any are newer than the base
+# snapshot they get tracked for handback on the next image update.
+_update_modified_base_list() {
+    [[ -d "$OVERLAY_RPM_DB" ]] || return 0
+    [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] || return 0
+    [[ -f "$BASE_PACKAGES_FILE" ]] || return 0
+    local tmp_list
+    tmp_list=$(mktemp)
+    while IFS=' ' read -r pkg_name ovl_evr; do
+        [[ -z "$pkg_name" ]] && continue
+        grep -qx "$pkg_name" "$BASE_PACKAGES_FILE" 2>/dev/null || continue
+        local base_evr
+        base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$pkg_name" \
+            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
+        [[ -z "$base_evr" ]] && continue
+        local base_ver ovl_ver
+        base_ver="${base_evr#0:}"
+        ovl_ver="${ovl_evr#0:}"
+        [[ "$base_ver" == "$ovl_ver" ]] && continue
+        local newer
+        newer=$(printf '%s\n%s\n' "$base_ver" "$ovl_ver" | sort -V | tail -1)
+        [[ "$newer" == "$ovl_ver" ]] && echo "$pkg_name" >> "$tmp_list" || true
+    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
+        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
+    sort -u "$tmp_list" > "$MODIFIED_BASE_LIST"
+    rm -f "$tmp_list"
+}
 
 if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "Usage: rakuos install <package> [package2] [package3]..."
@@ -54,10 +88,6 @@ for arg in "${PACKAGES[@]}"; do
         PKG_NAMES+=("$arg")
     fi
 done
-
-# Filter out already installed packages (by clean name only)
-# Also block packages owned by the base image (marked as dependency by rakuos)
-BASE_PACKAGES_FILE="/usr/share/rakuos/base-packages.txt"
 
 # Filter out already installed packages (by clean name only)
 # Also block packages owned by the base image
@@ -130,28 +160,9 @@ fi
 # Set dirty flag so boot service syncs on next boot
 touch "$DIRTY_FILE"
 
-# Update the modified-base tracking list — must run last so the overlay RPM db
-# reflects the completed install. Only base-packages.txt entries at a newer
-# version than the base snapshot are tracked.
-OVERLAY_RPM_DB="$UPPER_DIR/share/rpm"
-BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
-MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
-if [[ -d "$OVERLAY_RPM_DB" ]] && [[ -d "$BASE_RPM_DB_SNAPSHOT" ]] && [[ -f "$BASE_PACKAGES_FILE" ]]; then
-    _tmp_list=$(mktemp)
-    while IFS=' ' read -r _pkg _ovl_evr; do
-        [[ -z "$_pkg" ]] && continue
-        grep -qx "$_pkg" "$BASE_PACKAGES_FILE" 2>/dev/null || continue
-        _base_evr=$(rpm --dbpath "$BASE_RPM_DB_SNAPSHOT" -q "$_pkg" \
-            --qf '%{EPOCH}:%{VERSION}-%{RELEASE}' 2>/dev/null) || true
-        [[ -z "$_base_evr" ]] && continue
-        _bv="${_base_evr#0:}"; _ov="${_ovl_evr#0:}"
-        [[ "$_bv" == "$_ov" ]] && continue
-        _newer=$(printf '%s\n%s\n' "$_bv" "$_ov" | sort -V | tail -1)
-        [[ "$_newer" == "$_ov" ]] && echo "$_pkg" >> "$_tmp_list" || true
-    done < <(rpm --dbpath "$OVERLAY_RPM_DB" -qa \
-        --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}\n' 2>/dev/null)
-    sort -u "$_tmp_list" > "$MODIFIED_BASE_LIST"
-    rm -f "$_tmp_list"
-fi
+# Rebuild the modified-base tracking list — must run last so the overlay RPM db
+# reflects the completed install. Scans all overlay packages (including deps
+# pulled in by this install) against base-packages.txt.
+_update_modified_base_list
 
 echo "${TO_INSTALL_NAMES[*]} installed successfully and added to RakuOS package list."
