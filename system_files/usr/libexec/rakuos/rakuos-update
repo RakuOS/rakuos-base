@@ -176,41 +176,82 @@ cmd_check_flatpak() {
     echo "RakuOS: checking for Flatpak updates..." >&2
     flatpak update --appstream -y &>/dev/null || true
 
-    # Query apps and runtimes separately so classification is always correct.
-    # --columns gives tab-separated output, preserving multi-word names.
-    local app_updates runtime_updates
-    app_updates=$(flatpak remote-ls --updates --app \
-        --columns=name,application,version 2>/dev/null) || true
-    runtime_updates=$(flatpak remote-ls --updates --runtime \
-        --columns=name,application,version 2>/dev/null) || true
-
-    if [[ -z "$app_updates" && -z "$runtime_updates" ]]; then
-        echo '{"updates": []}'
-        exit 1
-    fi
-
     local json='{"updates": ['
     local first=1
+    local current_version disp_ver
+    # Track runtimes already emitted to avoid duplicates: key = "app_id/branch"
+    declare -A seen_runtimes=()
 
-    while IFS=$'\t' read -r name app_id version; do
-        [[ -z "$app_id" ]] && continue
-        name="${name//\"/\\\"}"
-        current_version=$(flatpak info "$app_id" 2>/dev/null | awk '/Version:/{print $2}')
-        [[ $first -eq 0 ]] && json+=","
-        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":false}"
-        first=0
-    done <<< "$app_updates"
+    while IFS= read -r remote; do
+        [[ -z "$remote" ]] && continue
 
-    while IFS=$'\t' read -r name app_id version; do
-        [[ -z "$app_id" ]] && continue
-        name="${name//\"/\\\"}"
-        current_version=$(flatpak info "$app_id" 2>/dev/null | awk '/Version:/{print $2}')
-        [[ $first -eq 0 ]] && json+=","
-        json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$version\",\"current_version\":\"$current_version\",\"runtime\":true}"
-        first=0
-    done <<< "$runtime_updates"
+        # ── Apps ──────────────────────────────────────────────────────────────
+        while IFS=$'\t' read -r name app_id branch version; do
+            [[ -z "$app_id" ]] && continue
+            name="${name//\"/\\\"}"
+            disp_ver="${version:-$branch}"
+            current_version=$(flatpak info "$app_id//$branch" 2>/dev/null \
+                | awk '/Version:/{print $2}') || true
+            [[ -z "$current_version" ]] && \
+                current_version=$(flatpak info "$app_id" 2>/dev/null \
+                    | awk '/Version:/{print $2}') || true
+            [[ $first -eq 0 ]] && json+=","
+            json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$disp_ver\",\"current_version\":\"$current_version\",\"runtime\":false}"
+            first=0
+
+            # Check if the updated app requires a runtime branch not yet installed.
+            # e.g. Alpaca update needs org.gnome.Platform/x86_64/50 but only 49 is installed.
+            local req_runtime rt_id rt_branch installed_rt_branch
+            req_runtime=$(flatpak remote-info --system "$remote" "$app_id" 2>/dev/null \
+                | awk '/Runtime:/{print $2}') || true
+            [[ -z "$req_runtime" ]] && continue
+            rt_id=$(echo "$req_runtime" | cut -d/ -f1)
+            rt_branch=$(echo "$req_runtime" | cut -d/ -f3)
+            [[ -z "$rt_id" || -z "$rt_branch" ]] && continue
+            [[ -n "${seen_runtimes[$rt_id/$rt_branch]:-}" ]] && continue
+            # Only emit if this branch is NOT already installed
+            if ! flatpak list --runtime --columns=application,branch 2>/dev/null \
+                    | awk -v id="$rt_id" -v br="$rt_branch" '$1==id && $2==br {found=1} END{exit !found}'; then
+                seen_runtimes["$rt_id/$rt_branch"]=1
+                installed_rt_branch=$(flatpak list --runtime --columns=application,branch 2>/dev/null \
+                    | awk -v id="$rt_id" '$1==id {print $2}' | sort -V | tail -1) || true
+                local rt_name
+                rt_name=$(flatpak remote-info --system "$remote" "$rt_id//$rt_branch" 2>/dev/null \
+                    | awk '/Name:/{$1=""; gsub(/^ /,""); print; exit}') || true
+                [[ -z "$rt_name" ]] && rt_name="$rt_id"
+                rt_name="${rt_name//\"/\\\"}"
+                [[ $first -eq 0 ]] && json+=","
+                json+="{\"name\":\"$rt_name\",\"app_id\":\"$rt_id\",\"version\":\"$rt_branch\",\"current_version\":\"$installed_rt_branch\",\"runtime\":true}"
+                first=0
+            fi
+        done < <(flatpak remote-ls --updates "$remote" --app \
+            --columns=name,application,branch,version 2>/dev/null) || true
+
+        # ── Runtimes (patch updates to already-installed branches) ────────────
+        # version column is often empty for runtimes; branch is the version (e.g. "49").
+        while IFS=$'\t' read -r name app_id branch version; do
+            [[ -z "$app_id" ]] && continue
+            [[ -n "${seen_runtimes[$app_id/$branch]:-}" ]] && continue
+            seen_runtimes["$app_id/$branch"]=1
+            name="${name//\"/\\\"}"
+            disp_ver="${version:-$branch}"
+            # Use the latest installed branch of this runtime as current_version
+            current_version=$(flatpak list --runtime --columns=application,branch 2>/dev/null \
+                | awk -v id="$app_id" '$1==id {print $2}' | sort -V | tail -1) || true
+            [[ $first -eq 0 ]] && json+=","
+            json+="{\"name\":\"$name\",\"app_id\":\"$app_id\",\"version\":\"$disp_ver\",\"current_version\":\"$current_version\",\"runtime\":true}"
+            first=0
+        done < <(flatpak remote-ls --updates "$remote" --runtime \
+            --columns=name,application,branch,version 2>/dev/null) || true
+
+    done < <(flatpak remotes --system --columns=name 2>/dev/null)
 
     json+="]}"
+
+    if [[ "$json" == '{"updates": []}' ]]; then
+        echo "$json"
+        exit 1
+    fi
     echo "$json"
     exit 0
 }
