@@ -27,9 +27,9 @@ rm -f /tmp/pre-nvidia-pkgs.txt
 echo "Recorded $(wc -l < /usr/share/rakuos/protected-packages.txt) nvidia packages for protection."
 
 # Enable NVIDIA power management services
-systemctl enable nvidia-powerd.service \
-    nvidia-persistenced.service \
-    fix-nvidia-dkms.service
+# systemctl enable nvidia-powerd.service \
+#     nvidia-persistenced.service \
+#     fix-nvidia-dkms.service
 
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
 akmods --force --kernels "$KVER"
