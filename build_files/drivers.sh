@@ -10,7 +10,8 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 dnf5 install -y --setopt=tsflags=noscripts \
     akmod-xpadneo \
     akmod-xone \
-    xone-firmware
+    xone-firmware \
+    akmod-zenergy
 
 mkdir -p /var/log/akmods
 touch /var/log/akmods/akmods.log
