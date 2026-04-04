@@ -9,7 +9,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 # Install non-NVIDIA drivers for every image
 dnf5 install -y --setopt=tsflags=noscripts \
     akmod-xpadneo \
-    akmod-xonedo \
+    akmod-xpad-noone \
     akmod-xone \
     xone-firmware \
     akmod-zenergy
