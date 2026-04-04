@@ -133,7 +133,7 @@ dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
 
 # Mark newly installed packages as user so PackageKit can manage them
 for pkg in "${TO_INSTALL_NAMES[@]}"; do
-    dnf5.real mark user "$pkg" || true
+    dnf5.real -y mark user "$pkg" || true
 done
 
 # Write installed packages to the appropriate list:

@@ -16,7 +16,7 @@ cp /usr/share/polkit-1/actions/org.libvirt.*.policy /etc/polkit-1/actions/
 
 # Reload polkit so it picks up the libvirt actions immediately
 echo "Reloading polkit..."
-systemctl reload polkit || systemctl restart polkit
+systemctl restart polkit
 
 # Add the logged in user to the libvirt group
 REAL_USER="${SUDO_USER:-$USER}"
