@@ -327,6 +327,31 @@ _rebuild_overlay_rpmdb() {
     done < <(find "$PKG_CACHE_DIR" -name "*.rpm" -type f -printf '%T@ %p\n' 2>/dev/null \
         | sort -rn | cut -d' ' -f2-)
 
+    # Re-register locally-installed RPMs from the local-rpms cache.
+    # These aren't in PKG_CACHE_DIR so they're missed by the loop above.
+    # Use --justdb because the files are already present in the overlay upper dir.
+    local local_registered=0 local_failed=0
+    if [[ -f "$LOCAL_RPM_LIST" ]] && [[ -s "$LOCAL_RPM_LIST" ]]; then
+        while IFS= read -r pkg_name; do
+            [[ -z "$pkg_name" ]] && continue
+            local rpm_file="$LOCAL_RPM_CACHE/${pkg_name}.rpm"
+            if [[ ! -f "$rpm_file" ]]; then
+                echo "  WARNING — cached RPM for $pkg_name not found at $rpm_file, skipping."
+                continue
+            fi
+            # Skip if already registered (shouldn't happen but be safe)
+            if rpm --dbpath /usr/share/rpm -q "$pkg_name" &>/dev/null; then
+                continue
+            fi
+            if rpm --dbpath /usr/share/rpm --justdb -i --nodeps --nosignature "$rpm_file" 2>/dev/null; then
+                (( local_registered++ )) || true
+            else
+                (( local_failed++ )) || true
+            fi
+        done < "$LOCAL_RPM_LIST"
+        echo "RakuOS overlay sync: local RPMs re-registered — registered: $local_registered, failed: $local_failed."
+    fi
+
     rpm --rebuilddb --dbpath /usr/share/rpm 2>/dev/null || true
     echo "RakuOS overlay sync: RPM db rebuilt — registered: $registered, handed to base: $skipped, failed: $failed."
 }
