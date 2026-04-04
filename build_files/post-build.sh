@@ -92,8 +92,8 @@ flatpak
 podman
 distrobox
 podman-compose
-xpadneo
-xone
+akmod-xpadneo
+akmod-xone
 xone-firmware
 lm_sensors
 v4l-utils
