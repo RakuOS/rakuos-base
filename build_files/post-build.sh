@@ -75,6 +75,7 @@ gamemode
 gamemode.i686
 pulseaudio-utils
 dkms
+akmods
 mokutil
 elfutils-libelf-devel
 openssl-devel

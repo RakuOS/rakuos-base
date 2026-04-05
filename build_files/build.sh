@@ -82,6 +82,7 @@ gamemode \
 gamemode.i686 \
 pulseaudio-utils \
 dkms \
+akmods \
 kernel-cachyos-devel-${QUALIFIED_KERNEL} \
 elfutils-libelf-devel \
 openssl-devel \
