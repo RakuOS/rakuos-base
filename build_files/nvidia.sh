@@ -37,8 +37,7 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 
 # Enable NVIDIA power management services
 systemctl enable nvidia-powerd.service \
-    nvidia-persistenced.service \
-    fix-nvidia-dkms.service
+    nvidia-persistenced.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"

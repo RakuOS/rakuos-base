@@ -8,15 +8,28 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 # Install non-NVIDIA drivers for every image
 dnf5 install -y --setopt=tsflags=noscripts \
-    akmod-xpadneo \
-    akmod-xone \
+    dkms-xpadneo \
+    dkms-xpad-noone \
+    dkms-xone \
     xone-firmware \
-    akmod-zenergy
+    dkms-zenergy
 
 mkdir -p /var/log/akmods
 touch /var/log/akmods/akmods.log
 KVER="$(dnf5 repoquery --installed --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-cachyos)"
 akmods --force --kernels "$KVER"
+
+# Build all installed DKMS modules for the installed kernel (if any)
+while IFS=' ' read -r pkg_name pkg_ver; do
+    module="${pkg_name#dkms-}"
+    echo "Building DKMS module: ${module} ${pkg_ver}"
+
+    dkms install -m "${module}" -v "${pkg_ver}" -k "${QUALIFIED_KERNEL}" --force || {
+        echo "DKMS build failed for ${module} ${pkg_ver} — make.log:"
+        cat "/var/lib/dkms/${module}/${pkg_ver}/build/make.log" 2>/dev/null || true
+        exit 1
+    }
+done < <(rpm -qa --queryformat '%{NAME} %{VERSION}\n' | grep '^dkms-')
 
 #Build initramfs
 # Generate module dependencies

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# fix-nvidia-dkms — Fix DKMS source symlinks for all installed dkms-* packages.
+# Runs before dkms.service so every module has a correct source symlink regardless
+# of which image version is booted.
+set -euo pipefail
+
+DKMS_BASE="/var/lib/dkms"
+SRC_BASE="/usr/src"
+
+# Collect all installed dkms-* packages: "module_name version" per line.
+mapfile -t DKMS_PKGS < <(
+    rpm -qa --queryformat '%{NAME} %{VERSION}\n' 2>/dev/null \
+    | grep '^dkms-' \
+    || true
+)
+
+if [[ ${#DKMS_PKGS[@]} -eq 0 ]]; then
+    echo "No DKMS packages installed, skipping."
+    exit 0
+fi
+
+any_failed=0
+
+for pkg_info in "${DKMS_PKGS[@]}"; do
+    pkg_name=$(echo "$pkg_info" | cut -d' ' -f1)
+    pkg_ver=$(echo  "$pkg_info" | cut -d' ' -f2)
+
+    # Module name is the package name with the "dkms-" prefix stripped.
+    module="${pkg_name#dkms-}"
+
+    src_path="$SRC_BASE/${module}-${pkg_ver}"
+    module_base="$DKMS_BASE/${module}"
+    target_dir="$module_base/${pkg_ver}"
+
+    echo "Ensuring DKMS state for ${module} ${pkg_ver}"
+
+    if [[ ! -d "$src_path" ]]; then
+        echo "  WARNING: Missing source dir $src_path — skipping ${module}"
+        any_failed=1
+        continue
+    fi
+
+    mkdir -p "$module_base"
+
+    # Remove stale version directories (authoritative reset).
+    for dir in "$module_base"/*/; do
+        [[ -d "$dir" ]] || continue
+        ver_dir=$(basename "$dir")
+        if [[ "$ver_dir" != "$pkg_ver" ]]; then
+            echo "  Removing stale DKMS version: $dir"
+            rm -rf "$dir"
+        fi
+    done
+
+    mkdir -p "$target_dir"
+
+    ln -sfn "$src_path" "$target_dir/source"
+    echo "  Linked: $target_dir/source -> $src_path"
+done
+
+if [[ $any_failed -ne 0 ]]; then
+    echo "DKMS fix completed with warnings (see above)."
+    exit 1
+fi
+
+echo "DKMS fix complete."

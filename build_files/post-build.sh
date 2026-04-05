@@ -83,9 +83,6 @@ flatpak
 podman
 distrobox
 podman-compose
-akmod-xpadneo
-akmod-xone
-xone-firmware
 lm_sensors
 v4l-utils
 virtualbox-guest-additions
@@ -110,6 +107,11 @@ appstream-data
 fwupd
 ffmpeg
 fedora-logos
+dkms-xpadneo
+dkms-xpad-noone
+dkms-xone
+xone-firmware
+dkms-zenergy
 EOF
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
