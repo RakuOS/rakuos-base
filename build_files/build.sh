@@ -83,15 +83,6 @@ gamemode.i686 \
 pulseaudio-utils \
 dkms \
 kernel-cachyos-devel-${QUALIFIED_KERNEL} \
-rust \
-cargo \
-gcc \
-make \
-gtk4-devel \
-libadwaita-devel \
-qt6-qtbase-devel \
-qt6-qtdeclarative-devel \
-perl \
 elfutils-libelf-devel \
 openssl-devel \
 git \
@@ -112,14 +103,11 @@ python3-setuptools \
 appstream \
 appstream-data \
 fwupd \
-nodejs \
-nodejs-npm \
 fuse \
 squashfuse \
 virtualbox-guest-additions \
 v4l-utils \
-unzip \
-glibc-langpack-en
+unzip
 
 ## Remove packages
 dnf5 -y remove firefox* nss
