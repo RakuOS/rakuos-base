@@ -1,14 +1,12 @@
 #!/bin/bash
 
 set -ouex pipefail
-FEDORA_VERSION="${FEDORA_VERSION:-43}"
+FEDORA_VERSION=$(rpm -E %fedora)
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ublue-os/obs-vkcapture fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable sentry/xpadneo fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable faugus/faugus-launcher fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable garecrow/ExtensionManager fedora-${FEDORA_VERSION}-x86_64
