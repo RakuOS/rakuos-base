@@ -1,11 +1,12 @@
 [Unit]
 Description=Fix DKMS source symlinks for all installed dkms-* packages
-Before=dkms.service
-After=local-fs.target
+After=local-fs.target rakuos-overlay-mount.service
+Requires=rakuos-overlay-mount.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/rakuos/fix-dkms
+ExecStartPost=/usr/bin/systemctl restart dkms.service
 
 [Install]
 WantedBy=multi-user.target
