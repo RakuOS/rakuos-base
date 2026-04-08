@@ -77,12 +77,14 @@ _update_modified_base_list() {
 }
 
 # Detect if a package owns a .desktop file (GUI app)
-# 1. RPM database (installed packages) — fastest
-# 2. Disk scan matching package name — fast, covers most cases
-# 3. dnf5 repoquery — slowest, last resort for uninstalled packages
+# 1. RPM database (installed packages) — fastest and most accurate
+# 2. Broad glob scan of /usr/share/applications/ — catches reverse-DNS names (e.g. dev.zed.Zed.desktop)
+# 3. Scan Exec= fields in all .desktop files for the binary name
+# 4. dnf5 repoquery — slowest, last resort for packages not yet installed
 is_gui_package() {
     rpm -ql "$1" 2>/dev/null | grep -q '\.desktop$' && return 0
-    compgen -G "/usr/share/applications/${1}*.desktop" >/dev/null 2>&1 && return 0
+    ls /usr/share/applications/*.desktop 2>/dev/null | grep -qi "${1}" && return 0
+    grep -ril "^Exec=.*\b${1}\b" /usr/share/applications/ 2>/dev/null | grep -q . && return 0
     dnf5 repoquery --list "$1" 2>/dev/null | grep -q '\.desktop$'
 }
 
