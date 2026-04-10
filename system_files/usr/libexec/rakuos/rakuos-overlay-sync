@@ -17,6 +17,22 @@ OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
 BASE_RPM_DB_SNAPSHOT="/var/lib/rakuos/base-rpmdb"
 MODIFIED_BASE_LIST="/var/lib/rakuos/overlay-modified-base.list"
 PRE_UPDATE_RPMDB="/var/lib/rakuos/pre-update-overlay-rpmdb"
+SETUP_COMPLETE="/var/lib/rakuos/setup-complete"
+
+# --initial-install: called directly by the initial-setup app on first boot to drive
+# the first package install.  Bypasses the setup-complete guard so the setup wizard
+# can run the full install path before setup-complete is written.
+INITIAL_INSTALL=false
+for _arg in "$@"; do
+    [[ "$_arg" == "--initial-install" ]] && INITIAL_INSTALL=true && break
+done
+
+# On first boot the setup app handles initial package installation into the overlay.
+# Do not run sync until setup is complete — rakuos-initial-setup creates this marker.
+if [[ ! -f "$SETUP_COMPLETE" ]] && [[ "$INITIAL_INSTALL" != "true" ]]; then
+    echo "RakuOS overlay sync: setup not complete — skipping (initial-setup app will handle first install)."
+    exit 0
+fi
 
 # Install cached local RPMs (packages installed from .rpm files, not repos).
 # Reads packages-rpm.list and installs each from the local-rpms cache.
