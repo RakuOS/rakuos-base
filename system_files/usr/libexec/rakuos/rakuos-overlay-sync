@@ -478,6 +478,26 @@ if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     exit 0
 fi
 
+# Place an Install RakuOS shortcut on the live user's desktop.
+_place_installer_shortcut() {
+    local live_user desktop_dir src dest
+    # Find the live user — first non-root human user with a home under /home
+    live_user=$(getent passwd | awk -F: '$3 >= 1000 && $6 ~ /^\/home\// { print $1; exit }')
+    [[ -z "$live_user" ]] && return 0
+    desktop_dir="/home/${live_user}/Desktop"
+    src="/usr/share/applications/rakuos-installer.desktop"
+    dest="${desktop_dir}/rakuos-installer.desktop"
+    [[ -f "$src" ]] || return 0
+    mkdir -p "$desktop_dir"
+    cp "$src" "$dest"
+    # Remove NoDisplay so the icon shows on the desktop
+    sed -i 's/^NoDisplay=.*/NoDisplay=false/' "$dest"
+    # Mark as trusted (required by GNOME to show as launchable)
+    chmod +x "$dest"
+    chown "${live_user}:${live_user}" "$desktop_dir" "$dest"
+    echo "RakuOS overlay sync: installer shortcut placed on ${live_user}'s desktop."
+}
+
 # ── Live environment — install packages without overlay mount ─────────────────
 if [[ "$IS_LIVE" == "true" ]]; then
     echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
@@ -486,6 +506,7 @@ if [[ "$IS_LIVE" == "true" ]]; then
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
     _install_local_rpms
+    _place_installer_shortcut
     rm -f "$DIRTY_FILE"
     echo "RakuOS overlay sync: live install complete."
     exit 0
