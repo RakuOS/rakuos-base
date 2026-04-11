@@ -55,6 +55,14 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
+# Detect live environment — root is already a writable dmsquash-live overlay.
+# Skip the overlay mount; list tracking and install still run normally.
+IS_LIVE=false
+if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
+   [[ -e /run/initramfs/livedev ]]; then
+    IS_LIVE=true
+fi
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 LOCK_FILE="/run/rakuos-overlay.lock"
 touch "$LOCK_FILE"
@@ -119,8 +127,8 @@ fi
 
 echo "Installing ${TO_INSTALL_NAMES[*]} via RakuOS overlay..."
 
-# Mount our persistent overlay if not already active
-if ! findmnt /usr | grep -q overlay; then
+# Mount our persistent overlay if not already active (skip on live — root already writable)
+if [[ "$IS_LIVE" != "true" ]] && ! findmnt /usr | grep -q overlay; then
     echo "Mounting RakuOS overlay..."
     mount -t overlay overlay \
         -o lowerdir=/usr,upperdir="$UPPER_DIR",workdir="$WORK_DIR" \

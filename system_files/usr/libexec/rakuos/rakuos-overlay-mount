@@ -6,6 +6,7 @@ WORK_DIR="/var/lib/rakuos/overlay/work"
 STATE_FILE="/var/lib/rakuos/overlay.state"
 PACKAGES_LIST="/var/lib/rakuos/packages.list"
 DEFAULT_PACKAGES_LIST="/usr/share/rakuos/packages.list"
+LIVE_PACKAGES_LIST="/usr/share/rakuos/packages-live.list"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 PKGCACHE_MIGRATED="/var/lib/rakuos/pkgcache.migrated"
@@ -14,15 +15,36 @@ PKGCACHE_MIGRATED="/var/lib/rakuos/pkgcache.migrated"
 # If true, setup-complete is NOT created — the initial-setup wizard needs to run.
 IS_INITIAL_SEED=false
 
-# ── Live environment — suppress initial-setup ─────────────────────────────────
+# ── Live environment — suppress initial-setup, seed live package list ─────────
 # On a live ISO the overlay is ephemeral; touch setup-complete immediately so the
-# initial-setup wizard does not start, then continue so the overlay mounts normally
-# for the session.
+# initial-setup wizard does not start.  If packages-live.list exists it is used
+# as packages.list for the session so the overlay installs the live-specific set
+# of packages rather than the normal installed-system set.
 if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
    [[ -e /run/initramfs/livedev ]]; then
     echo "RakuOS overlay: live environment detected — suppressing initial-setup."
     mkdir -p /var/lib/rakuos
     touch /var/lib/rakuos/setup-complete
+
+    if [[ ! -f "$PACKAGES_LIST" ]]; then
+        mkdir -p "$(dirname "$PACKAGES_LIST")"
+        if [[ -f "$LIVE_PACKAGES_LIST" ]]; then
+            echo "RakuOS overlay: seeding packages.list from packages-live.list for live session."
+            cp "$LIVE_PACKAGES_LIST" "$PACKAGES_LIST"
+            sed -i -e '$a\' "$PACKAGES_LIST"
+            touch "$DIRTY_FILE"
+        else
+            echo "RakuOS overlay: no packages-live.list found — live session starts with empty package list."
+            touch "$PACKAGES_LIST"
+        fi
+    fi
+
+    # The live root is already a writable overlay managed by dmsquash-live
+    # (squashfs lower + tmpfs upper). Stacking another overlayfs on /usr on top
+    # of that fails with "not supported as upperdir". Skip the mount entirely —
+    # the live root is already writable.
+    echo "RakuOS overlay: live environment — skipping /usr overlay mount."
+    exit 0
 fi
 
 # ── Reset requested on last boot ──────────────────────────────────────────────

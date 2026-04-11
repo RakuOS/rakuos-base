@@ -27,6 +27,14 @@ for _arg in "$@"; do
     [[ "$_arg" == "--initial-install" ]] && INITIAL_INSTALL=true && break
 done
 
+# Detect live environment — root is already a writable dmsquash-live overlay.
+# Skip our overlay mount; still install packages from packages.list.
+IS_LIVE=false
+if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
+   [[ -e /run/initramfs/livedev ]]; then
+    IS_LIVE=true
+fi
+
 # On first boot the setup app handles initial package installation into the overlay.
 # Do not run sync until setup is complete — rakuos-initial-setup creates this marker.
 if [[ ! -f "$SETUP_COMPLETE" ]] && [[ "$INITIAL_INSTALL" != "true" ]]; then
@@ -469,6 +477,21 @@ if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
     echo "RakuOS overlay sync: no packages in list — skipping."
     exit 0
 fi
+
+# ── Live environment — install packages without overlay mount ─────────────────
+if [[ "$IS_LIVE" == "true" ]]; then
+    echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
+    _import_terra_keys
+    _ensure_packages_toml
+    dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
+        "${PACKAGES[@]}"
+    _install_local_rpms
+    rm -f "$DIRTY_FILE"
+    echo "RakuOS overlay sync: live install complete."
+    exit 0
+fi
+
+# ── Normal (installed system) path ────────────────────────────────────────────
 
 # Ensure overlay dirs exist
 mkdir -p "$UPPER_DIR" "$WORK_DIR"
