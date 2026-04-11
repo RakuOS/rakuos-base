@@ -1,9 +1,6 @@
 # RakuOS Software Center — passwordless sudo for wheel group
 # File: /etc/sudoers.d/rakuos
 
-# Disk installer
-%wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-installer
-
 # Package management
 %wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-install
 %wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-remove
@@ -19,3 +16,4 @@
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc upgrade
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc switch *
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc rollback
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc install *
