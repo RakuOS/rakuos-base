@@ -465,22 +465,16 @@ trap 'rm -f "$LOCK_FILE"' EXIT
 
 # Place an Install RakuOS shortcut on the live user's desktop.
 _place_installer_shortcut() {
-    local live_user desktop_dir src dest
-    # Find the live user — first non-root human user with a home under /home
-    live_user=$(getent passwd | awk -F: '$3 >= 1000 && $6 ~ /^\/home\// { print $1; exit }')
-    [[ -z "$live_user" ]] && return 0
-    desktop_dir="/home/${live_user}/Desktop"
-    src="/usr/share/applications/rakuos-installer.desktop"
-    dest="${desktop_dir}/rakuos-installer.desktop"
+    local desktop_dir="/var/home/liveuser/Desktop"
+    local src="/usr/share/applications/rakuos-installer.desktop"
+    local dest="${desktop_dir}/rakuos-installer.desktop"
     [[ -f "$src" ]] || return 0
     mkdir -p "$desktop_dir"
     cp "$src" "$dest"
-    # Remove NoDisplay so the icon shows on the desktop
-    sed -i 's/^NoDisplay=.*/NoDisplay=false/' "$dest"
-    # Mark as trusted (required by GNOME to show as launchable)
+    # Mark as trusted (required by GNOME/COSMIC to show as launchable)
     chmod +x "$dest"
-    chown "${live_user}:${live_user}" "$desktop_dir" "$dest"
-    echo "RakuOS overlay sync: installer shortcut placed on ${live_user}'s desktop."
+    chown liveuser:liveuser "$desktop_dir" "$dest"
+    echo "RakuOS overlay sync: installer shortcut placed on liveuser's desktop."
 }
 
 # ── Live environment — install packages without overlay mount ─────────────────
