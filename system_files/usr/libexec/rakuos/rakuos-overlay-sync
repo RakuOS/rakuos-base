@@ -463,21 +463,6 @@ _seed_overlay_rpmdb() {
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
-# Read packages into array, skip empty lines and comments
-mapfile -t PACKAGES < <(
-    grep -v '^\s*#' "$PACKAGES_LIST" \
-    | grep -v '^\s*$' \
-    | sed 's/\s*#.*//' \
-    | tr -s ' \t' '\n' \
-    | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-    | grep -v '^$'
-)
-
-if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
-    echo "RakuOS overlay sync: no packages in list — skipping."
-    exit 0
-fi
-
 # Place an Install RakuOS shortcut on the live user's desktop.
 _place_installer_shortcut() {
     local live_user desktop_dir src dest
@@ -500,15 +485,47 @@ _place_installer_shortcut() {
 
 # ── Live environment — install packages without overlay mount ─────────────────
 if [[ "$IS_LIVE" == "true" ]]; then
-    echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
-    _import_terra_keys
-    _ensure_packages_toml
-    dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
-        "${PACKAGES[@]}"
-    _install_local_rpms
+    echo "RakuOS overlay sync: live environment..."
+    # Always place installer shortcut regardless of whether there are packages
     _place_installer_shortcut
-    rm -f "$DIRTY_FILE"
-    echo "RakuOS overlay sync: live install complete."
+
+    # Read packages into array
+    mapfile -t PACKAGES < <(
+        grep -v '^\s*#' "$PACKAGES_LIST" \
+        | grep -v '^\s*$' \
+        | sed 's/\s*#.*//' \
+        | tr -s ' \t' '\n' \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | grep -v '^$'
+    ) || true
+
+    if [[ "${#PACKAGES[@]}" -gt 0 ]]; then
+        echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
+        _import_terra_keys
+        _ensure_packages_toml
+        dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
+            "${PACKAGES[@]}"
+        _install_local_rpms
+        rm -f "$DIRTY_FILE"
+        echo "RakuOS overlay sync: live install complete."
+    else
+        echo "RakuOS overlay sync: no packages in list — skipping install."
+    fi
+    exit 0
+fi
+
+# Read packages into array, skip empty lines and comments
+mapfile -t PACKAGES < <(
+    grep -v '^\s*#' "$PACKAGES_LIST" \
+    | grep -v '^\s*$' \
+    | sed 's/\s*#.*//' \
+    | tr -s ' \t' '\n' \
+    | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+    | grep -v '^$'
+)
+
+if [[ "${#PACKAGES[@]}" -eq 0 ]]; then
+    echo "RakuOS overlay sync: no packages in list — skipping."
     exit 0
 fi
 
