@@ -467,16 +467,15 @@ trap 'rm -f "$LOCK_FILE"' EXIT
 _place_installer_shortcut() {
     local live_user desktop_dir src dest
     # Find the live user — first non-root human user with a home under /home
-    live_user=$(getent passwd | awk -F: '$3 >= 1000 && $6 ~ /^\/home\// { print $1; exit }')
+    live_user=liveuser
     [[ -z "$live_user" ]] && return 0
-    desktop_dir="/home/${live_user}/Desktop"
+    desktop_dir="/var/home/${live_user}/Desktop"
     src="/usr/share/applications/rakuos-installer.desktop"
     dest="${desktop_dir}/rakuos-installer.desktop"
     [[ -f "$src" ]] || return 0
     mkdir -p "$desktop_dir"
     cp "$src" "$dest"
-    # Remove NoDisplay so the icon shows on the desktop
-    sed -i 's/^NoDisplay=.*/NoDisplay=false/' "$dest"
+    # Remove NoDisplay so the icon shows on the desktop"
     # Mark as trusted (required by GNOME to show as launchable)
     chmod +x "$dest"
     chown "${live_user}:${live_user}" "$desktop_dir" "$dest"
