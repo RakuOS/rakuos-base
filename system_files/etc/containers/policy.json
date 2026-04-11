@@ -11,6 +11,13 @@
           "type": "insecureAcceptAnything"
         }
       ]
+    },
+    "containers-storage": {
+      "": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ]
     }
   }
 }
