@@ -26,18 +26,18 @@ if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
     mkdir -p /var/lib/rakuos
     touch /var/lib/rakuos/setup-complete
 
-    if [[ ! -f "$PACKAGES_LIST" ]]; then
-        mkdir -p "$(dirname "$PACKAGES_LIST")"
-        if [[ -f "$LIVE_PACKAGES_LIST" ]]; then
-            echo "RakuOS overlay: seeding packages.list from packages-live.list for live session."
-            cp "$LIVE_PACKAGES_LIST" "$PACKAGES_LIST"
-            sed -i -e '$a\' "$PACKAGES_LIST"
-            touch "$DIRTY_FILE"
-        else
-            echo "RakuOS overlay: no packages-live.list found — live session starts with empty package list."
-            touch "$PACKAGES_LIST"
-        fi
+    mkdir -p "$(dirname "$PACKAGES_LIST")"
+    if [[ -f "$LIVE_PACKAGES_LIST" ]]; then
+        echo "RakuOS overlay: seeding packages.list from packages-live.list for live session."
+        cp "$LIVE_PACKAGES_LIST" "$PACKAGES_LIST"
+    elif [[ -f "$DEFAULT_PACKAGES_LIST" ]]; then
+        echo "RakuOS overlay: no packages-live.list — falling back to default packages.list."
+        cp "$DEFAULT_PACKAGES_LIST" "$PACKAGES_LIST"
+    else
+        : > "$PACKAGES_LIST"
     fi
+    sed -i -e '$a\' "$PACKAGES_LIST"
+    touch "$DIRTY_FILE"
 
     # The live root is already a writable overlay managed by dmsquash-live
     # (squashfs lower + tmpfs upper). Stacking another overlayfs on /usr on top
