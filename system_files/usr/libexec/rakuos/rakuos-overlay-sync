@@ -462,7 +462,7 @@ _seed_overlay_rpmdb() {
 # Send a message to the Plymouth splash screen if it is running.
 # Silently does nothing if Plymouth is absent or has already handed off to the DM.
 _plymsg() {
-    plymouth --ping 2>/dev/null && plymouth message --text="$1" 2>/dev/null || true
+    plymouth --ping 2>/dev/null && plymouth display-message --text="$1" 2>/dev/null || true
 }
 
 # Acquire lock so rakuos-base-protect allows our overlay writes
