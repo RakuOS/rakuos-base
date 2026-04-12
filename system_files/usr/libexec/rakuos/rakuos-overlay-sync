@@ -469,12 +469,6 @@ _plymsg() {
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
-# Switch Plymouth to updates mode so the splash stays visible and shows activity
-# while we run.  This is a no-op if Plymouth is not active (normal installed boot
-# without splash, or plymouth.enable=0 on the kernel cmdline).
-if plymouth --ping 2>/dev/null; then
-    plymouth change-mode --updates 2>/dev/null || true
-fi
 
 # Place an Install RakuOS shortcut on the live user's desktop.
 _place_installer_shortcut() {
