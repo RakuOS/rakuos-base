@@ -459,9 +459,22 @@ _seed_overlay_rpmdb() {
     echo "RakuOS overlay sync: overlay RPM database seeded from $source_db."
 }
 
+# Send a message to the Plymouth splash screen if it is running.
+# Silently does nothing if Plymouth is absent or has already handed off to the DM.
+_plymsg() {
+    plymouth --ping 2>/dev/null && plymouth message --text="$1" 2>/dev/null || true
+}
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
+
+# Switch Plymouth to updates mode so the splash stays visible and shows activity
+# while we run.  This is a no-op if Plymouth is not active (normal installed boot
+# without splash, or plymouth.enable=0 on the kernel cmdline).
+if plymouth --ping 2>/dev/null; then
+    plymouth change-mode --updates 2>/dev/null || true
+fi
 
 # Place an Install RakuOS shortcut on the live user's desktop.
 _place_installer_shortcut() {
@@ -495,16 +508,19 @@ if [[ "$IS_LIVE" == "true" ]]; then
 
     if [[ "${#PACKAGES[@]}" -gt 0 ]]; then
         echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
+        _plymsg "RakuOS: Installing live environment packages..."
         _import_terra_keys
         _ensure_packages_toml
         dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
             "${PACKAGES[@]}"
         _install_local_rpms
         rm -f "$DIRTY_FILE"
+        _plymsg "RakuOS: Live environment ready."
         echo "RakuOS overlay sync: live install complete."
     else
         echo "RakuOS overlay sync: no packages in list — skipping install."
     fi
+    plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
     exit 0
 fi
 
@@ -568,6 +584,7 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
+    _plymsg "RakuOS: Setting up software overlay..."
     _save_overlay_gpg_keys
     _seed_overlay_rpmdb
     # Restore third-party keys (COPR, etc.) saved before the seed, then re-import
@@ -575,31 +592,40 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     _restore_overlay_gpg_keys
     _import_terra_keys
     _ensure_packages_toml
+    _plymsg "RakuOS: Installing packages..."
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
     _install_local_rpms
     _update_modified_base_list
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
+    _plymsg "RakuOS: Overlay setup complete."
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — syncing overlay with new base image..."
+    _plymsg "RakuOS: Applying image update..."
+    _plymsg "RakuOS: Merging package database..."
     _merge_packages_toml
+    _plymsg "RakuOS: Updating base packages..."
     _handback_base_packages
+    _plymsg "RakuOS: Rebuilding RPM database..."
     _rebuild_overlay_rpmdb
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
+    _plymsg "RakuOS: Image update complete."
     echo "RakuOS overlay sync: image update sync complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
+    _plymsg "RakuOS: Syncing package changes..."
     _ensure_packages_toml
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
     _install_local_rpms
     _update_modified_base_list
     rm -f "$DIRTY_FILE"
+    _plymsg "RakuOS: Package sync complete."
     echo "RakuOS overlay sync: sync complete."
 
 else
@@ -610,3 +636,8 @@ fi
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
 echo "RakuOS overlay sync: done."
+
+# Hand Plymouth back — the display manager will take over the screen now.
+# plymouth-quit.service will do this too, but signalling it here lets the DM
+# start (and Plymouth transition) without the extra 20-second timeout window.
+plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true

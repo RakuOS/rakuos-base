@@ -1,9 +1,9 @@
 [Unit]
 Description=RakuOS Overlay Sync
 Documentation=https://rakuos.org
-After=network-online.target systemd-resolved.service rakuos-overlay-mount.service
-Wants=network-online.target systemd-resolved.service
-Before=display-manager.service
+After=network-online.target systemd-resolved.service rakuos-overlay-mount.service plymouth-start.service
+Wants=network-online.target systemd-resolved.service plymouth-start.service
+Before=display-manager.service plymouth-quit.service plymouth-quit-wait.service
 ConditionPathExists=/var/lib/rakuos/packages.list
 
 [Service]
