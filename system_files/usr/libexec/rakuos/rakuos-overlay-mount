@@ -176,10 +176,7 @@ mount -t overlay overlay \
 
 echo "RakuOS overlay: mounted."
 
-# Mark setup as complete so the initial-setup wizard does not trigger on subsequent boots.
-# Skip only when we just did the very first packages.list seed AND the marker doesn't
-# already exist — that is the one case where initial-setup still needs to run.
-# If the marker is already present (existing install, post-reset, etc.) always leave it.
-if [[ "$IS_INITIAL_SEED" == "true" ]] || [[ -f "/var/lib/rakuos/setup-complete" ]]; then
-    touch /var/lib/rakuos/setup-complete
-fi
+# Always mark setup as complete, including on initial seed.
+# TODO: restore the IS_INITIAL_SEED guard once rakuos-initial-setup ships:
+#   if [[ "$IS_INITIAL_SEED" == "true" ]] || [[ -f "/var/lib/rakuos/setup-complete" ]]; then
+touch /var/lib/rakuos/setup-complete
