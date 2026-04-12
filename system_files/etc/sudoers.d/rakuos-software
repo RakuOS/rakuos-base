@@ -1,6 +1,9 @@
 # RakuOS Software Center — passwordless sudo for wheel group
 # File: /etc/sudoers.d/rakuos
 
+# Initial setup — allow rakuos-setup user to trigger first-boot package install
+rakuos-setup ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-overlay-sync --initial-install
+
 # Package management
 %wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-install
 %wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-remove
