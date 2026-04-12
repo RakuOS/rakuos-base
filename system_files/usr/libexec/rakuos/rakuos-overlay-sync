@@ -508,14 +508,14 @@ if [[ "$IS_LIVE" == "true" ]]; then
 
     if [[ "${#PACKAGES[@]}" -gt 0 ]]; then
         echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
-        _plymsg "RakuOS: Installing live environment packages..."
+        _plymsg "Setting up live environment..."
         _import_terra_keys
         _ensure_packages_toml
         dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
             "${PACKAGES[@]}"
         _install_local_rpms
         rm -f "$DIRTY_FILE"
-        _plymsg "RakuOS: Live environment ready."
+        _plymsg "Live environment ready."
         echo "RakuOS overlay sync: live install complete."
     else
         echo "RakuOS overlay sync: no packages in list — skipping install."
@@ -584,7 +584,7 @@ fi
 
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
-    _plymsg "RakuOS: Setting up software overlay..."
+    _plymsg "Wiping overlay and reinstalling default applications..."
     _save_overlay_gpg_keys
     _seed_overlay_rpmdb
     # Restore third-party keys (COPR, etc.) saved before the seed, then re-import
@@ -592,40 +592,38 @@ if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; 
     _restore_overlay_gpg_keys
     _import_terra_keys
     _ensure_packages_toml
-    _plymsg "RakuOS: Installing packages..."
+    _plymsg "Installing default applications..."
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
     _install_local_rpms
     _update_modified_base_list
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
-    _plymsg "RakuOS: Overlay setup complete."
+    _plymsg "Default applications installed."
     echo "RakuOS overlay sync: full install complete."
 
 elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
     echo "RakuOS overlay sync: image updated — syncing overlay with new base image..."
-    _plymsg "RakuOS: Applying image update..."
-    _plymsg "RakuOS: Merging package database..."
+    _plymsg "Updating overlay package database..."
     _merge_packages_toml
-    _plymsg "RakuOS: Updating base packages..."
     _handback_base_packages
-    _plymsg "RakuOS: Rebuilding RPM database..."
+    _plymsg "Rebuilding package database..."
     _rebuild_overlay_rpmdb
     echo "$CURRENT_DIGEST" > "$STATE_FILE"
     rm -f "$DIRTY_FILE"
-    _plymsg "RakuOS: Image update complete."
+    _plymsg "Overlay package database updated."
     echo "RakuOS overlay sync: image update sync complete."
 
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
-    _plymsg "RakuOS: Syncing package changes..."
+    _plymsg "Wiping overlay and reinstalling user applications..."
     _ensure_packages_toml
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
     _install_local_rpms
     _update_modified_base_list
     rm -f "$DIRTY_FILE"
-    _plymsg "RakuOS: Package sync complete."
+    _plymsg "User applications reinstalled."
     echo "RakuOS overlay sync: sync complete."
 
 else
