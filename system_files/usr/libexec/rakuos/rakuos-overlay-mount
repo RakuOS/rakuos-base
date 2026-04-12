@@ -180,6 +180,6 @@ echo "RakuOS overlay: mounted."
 # Skip only when we just did the very first packages.list seed AND the marker doesn't
 # already exist — that is the one case where initial-setup still needs to run.
 # If the marker is already present (existing install, post-reset, etc.) always leave it.
-if [[ "$IS_INITIAL_SEED" == "false" ]] || [[ -f "/var/lib/rakuos/setup-complete" ]]; then
+if [[ "$IS_INITIAL_SEED" == "true" ]] || [[ -f "/var/lib/rakuos/setup-complete" ]]; then
     touch /var/lib/rakuos/setup-complete
 fi
