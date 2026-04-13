@@ -32,7 +32,7 @@ EOF
             # Live environment — include installer shortcut
             cat > "$COSMIC_FAVORITES" <<'EOF'
 [
-  "rakuos-installer", 
+  "liveinst", 
   "org.mozilla.firefox", 
   "com.system76.CosmicFiles", 
   "com.system76.CosmicEdit", 
