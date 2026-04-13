@@ -1,0 +1,2 @@
+[org.gnome.shell]
+favorite-apps = ['anaconda.desktop', 'org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop']

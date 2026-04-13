@@ -8,17 +8,12 @@ VERSION_CODENAME=""
 PRETTY_NAME="RakuOS Linux 43"
 ANSI_COLOR="0;38;2;120;40;160"
 LOGO=rakuos-logo
-CPE_NAME="cpe:/o:rakuos:rakuos:43"
+CPE_NAME="cpe:/o:rakuos:rakuos-kde:43"
 DEFAULT_HOSTNAME="rakuos"
-
 HOME_URL="https://rakuos.org/"
 DOCUMENTATION_URL="https://rakuos.org/docs"
 SUPPORT_URL="https://rakuos.org/support"
 BUG_REPORT_URL="https://rakuos.org/issues"
-
-SUPPORT_END=2026-12-02
-
-# Base system information (for compatibility/debugging)
 PLATFORM_ID="platform:f43"
 VARIANT="bootc"
-VARIANT_ID=bootc
+VARIANT_ID=rakuos
