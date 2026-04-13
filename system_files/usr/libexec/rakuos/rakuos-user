@@ -24,36 +24,6 @@ filesystems=xdg-config/gtk-3.0:ro;xdg-data/applications;~/.var/app/io.github.ben
 VK_INSTANCE_LAYERS=VK_LAYER_MANGOHUD_overlay_x86_64
 EOF
 
-    # Configure COSMIC app favorites
-    COSMIC_FAVORITES="$HOME/.config/cosmic/com.system76.CosmicAppList/v1/favorites"
-    if [[ -f "$COSMIC_FAVORITES" ]]; then
-        if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
-           [[ -e /run/initramfs/livedev ]]; then
-            # Live environment — include installer shortcut
-            cat > "$COSMIC_FAVORITES" <<'EOF'
-[
-  "liveinst", 
-  "org.mozilla.firefox", 
-  "com.system76.CosmicFiles", 
-  "com.system76.CosmicEdit", 
-  "com.system76.CosmicTerm", 
-  "com.system76.CosmicSettings",
-]
-EOF
-        else
-            # Normal installed system
-            cat > "$COSMIC_FAVORITES" <<'EOF'
-[
-  "org.mozilla.firefox", 
-  "com.system76.CosmicFiles", 
-  "com.system76.CosmicEdit", 
-  "com.system76.CosmicTerm", 
-  "com.system76.CosmicSettings",
-]
-EOF
-        fi
-    fi
-
     touch "$MARKER_FILE"
 fi
 
