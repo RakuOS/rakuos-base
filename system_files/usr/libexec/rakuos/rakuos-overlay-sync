@@ -35,13 +35,6 @@ if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
     IS_LIVE=true
 fi
 
-# On first boot the setup app handles initial package installation into the overlay.
-# Do not run sync until setup is complete — rakuos-initial-setup creates this marker.
-if [[ ! -f "$SETUP_COMPLETE" ]] && [[ "$INITIAL_INSTALL" != "true" ]]; then
-    echo "RakuOS overlay sync: setup not complete — skipping (initial-setup app will handle first install)."
-    exit 0
-fi
-
 # Install cached local RPMs (packages installed from .rpm files, not repos).
 # Reads packages-rpm.list and installs each from the local-rpms cache.
 _install_local_rpms() {
