@@ -10,6 +10,7 @@ LIVE_PACKAGES_LIST="/usr/share/rakuos/packages-live.list"
 RESET_MARKER="/var/lib/rakuos/overlay.reset"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 PKGCACHE_MIGRATED="/var/lib/rakuos/pkgcache.migrated"
+OS_VERSION_FILE="/var/lib/rakuos/os-version"
 
 # Tracks whether this run is doing initial packages.list seeding (first boot / post-reset).
 # If true, setup-complete is NOT created — the initial-setup wizard needs to run.
@@ -45,6 +46,25 @@ if grep -q 'rd\.live\.image\|live\|liveimg' /proc/cmdline 2>/dev/null || \
     # the live root is already writable.
     echo "RakuOS overlay: live environment — skipping /usr overlay mount."
     exit 0
+fi
+
+# ── OS upgrade soft reset trigger ─────────────────────────────────────────────
+if [[ -f "$OS_VERSION_FILE" && -f /etc/os-release ]]; then
+
+    . /etc/os-release
+    CURRENT_VERSION="${VERSION_ID:-unknown}"
+    SAVED_VERSION="$(cat "$OS_VERSION_FILE" 2>/dev/null || echo unknown)"
+
+    echo "RakuOS overlay: version check — saved=$SAVED_VERSION current=$CURRENT_VERSION"
+
+    if [[ "$SAVED_VERSION" != "unknown" ]] && [[ "$CURRENT_VERSION" != "unknown" ]]; then
+        if [[ "$CURRENT_VERSION" != "$SAVED_VERSION" ]]; then
+            echo "RakuOS overlay: version change detected — triggering soft reset (dnf cache wipe)"
+            rm -f "$PKGCACHE_MIGRATED"
+            rm -rf /var/cache/libdnf5
+        fi
+    fi
+
 fi
 
 # ── Reset requested on last boot ──────────────────────────────────────────────

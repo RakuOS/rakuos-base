@@ -10,7 +10,7 @@ STATE_FILE="/var/lib/rakuos/overlay.state"
 DIRTY_FILE="/var/lib/rakuos/overlay.dirty"
 LOCK_FILE="/run/rakuos-overlay.lock"
 PKG_CACHE_DIR="/var/cache/libdnf5"
-
+OS_VERSION_FILE="/var/lib/rakuos/os-version"
 IMAGE_PKGS_SAVE="/var/lib/rakuos/image-packages.toml"
 OVERLAY_PKGS="/var/lib/rakuos/overlay/upper/lib/sysimage/libdnf5/packages.toml"
 OVERLAY_RPM_DB_PATH="$UPPER_DIR/share/rpm"
@@ -70,7 +70,6 @@ _import_terra_keys() {
     #rpm --import "https://repos.fyralabs.com/terra${fedora_version}-nvidia/key.asc" || true
     echo "RakuOS overlay sync: Terra key import complete."
 }
-
 
 # Ensure /usr/lib/sysimage/libdnf5/packages.toml exists in the overlay upper
 # so dnf5 doesn't fail with "error opening file" on first run.
@@ -621,6 +620,17 @@ fi
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
 echo "RakuOS overlay sync: done."
+
+# ── RakuOS version stamp (runs every boot after sync completes) ────────────────
+mkdir -p "$(dirname "$OS_VERSION_FILE")"
+
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    echo "${VERSION_ID:-unknown}" > "$OS_VERSION_FILE"
+else
+    echo "unknown" > "$OS_VERSION_FILE"
+fi
+
 
 # Hand Plymouth back — the display manager will take over the screen now.
 # plymouth-quit.service will do this too, but signalling it here lets the DM
