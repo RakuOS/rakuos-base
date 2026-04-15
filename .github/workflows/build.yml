@@ -55,6 +55,14 @@ jobs:
           echo "source_branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"
           echo "branch_slug=${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
           if [[ "${SOURCE_BRANCH}" == "${DEFAULT_BRANCH}" ]]; then
+            FEDORA_VERSION="43"
+          elif [[ "${BRANCH_SLUG}" == "staging" ]]; then
+            FEDORA_VERSION="44"
+          else
+            FEDORA_VERSION="44"
+          fi
+          echo "fedora_version=${FEDORA_VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${SOURCE_BRANCH}" == "${DEFAULT_BRANCH}" ]]; then
             echo "is_stable=true" >> "$GITHUB_OUTPUT"
             {
               echo "tag_lines<<EOF"
@@ -131,6 +139,8 @@ jobs:
           image: ${{ env.FINAL_IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            FEDORA_VERSION=${{ steps.branch.outputs.fedora_version }}
           oci: false
 
       - name: Login to GHCR
