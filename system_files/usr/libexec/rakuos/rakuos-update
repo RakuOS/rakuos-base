@@ -276,7 +276,9 @@ cmd_upgrade_flatpak() {
 }
 
 _ghcr_get_image_info() {
-    # Populates globals: IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
+    # Populates globals:
+    #   IMAGE_FULL REPO_URL REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION
+    #   CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     local bootc_status
     bootc_status=$(sudo bootc status --json 2>/dev/null) || die "bootc status failed"
 
@@ -284,14 +286,32 @@ _ghcr_get_image_info() {
         | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
     REPO_URL="${IMAGE_FULL%:*}"
     REPO_PATH="${REPO_URL#ghcr.io/}"
-    CURRENT_TAG=$(echo "$bootc_status" \
-        | jq -r '.status.booted.image.version // empty' \
-        | sed 's/^latest\.//' | tr -d '[:space:]')
+    CURRENT_IMAGE_TAG="${IMAGE_FULL##*:}"
+    CURRENT_VERSION=$(echo "$bootc_status" \
+        | jq -r '.status.booted.image.version // empty' | tr -d '[:space:]')
 
     [[ -n "$REPO_URL" ]]    || die "Could not detect booted image from bootc status."
-    [[ -n "$CURRENT_TAG" ]] || die "Could not detect current tag from bootc status."
+    [[ -n "$CURRENT_IMAGE_TAG" ]] || die "Could not detect current image tag from bootc status."
+    [[ -n "$CURRENT_VERSION" ]] || die "Could not detect current version from bootc status."
     [[ "$REPO_PATH" != "$REPO_URL" ]] \
         || die "Could not parse GHCR repo path from: $REPO_URL"
+
+    if [[ "$CURRENT_IMAGE_TAG" =~ ^[0-9]{8}$ ]]; then
+        CHANNEL_TAG="latest"
+        CURRENT_DATE_TAG="$CURRENT_IMAGE_TAG"
+    elif [[ "$CURRENT_IMAGE_TAG" =~ ^(.+)\.([0-9]{8})$ ]]; then
+        CHANNEL_TAG="${BASH_REMATCH[1]}"
+        CURRENT_DATE_TAG="${BASH_REMATCH[2]}"
+    else
+        CHANNEL_TAG="$CURRENT_IMAGE_TAG"
+        if [[ "$CURRENT_VERSION" =~ ^${CHANNEL_TAG}\.([0-9]{8})$ ]]; then
+            CURRENT_DATE_TAG="${BASH_REMATCH[1]}"
+        elif [[ "$CURRENT_VERSION" =~ ^([0-9]{8})$ ]]; then
+            CURRENT_DATE_TAG="${BASH_REMATCH[1]}"
+        else
+            CURRENT_DATE_TAG=""
+        fi
+    fi
 
     TOKEN=$(curl -fsSL \
         "https://ghcr.io/token?scope=repository:${REPO_PATH}:pull&service=ghcr.io" \
@@ -299,17 +319,17 @@ _ghcr_get_image_info() {
     [[ -n "$TOKEN" && "$TOKEN" != "null" ]] \
         || die "Failed to get GHCR token for $REPO_PATH"
 
-    local latest_manifest version_annotation config_digest
-    latest_manifest=$(curl -fsSL \
+    local channel_manifest version_annotation config_digest prefix_regex
+    channel_manifest=$(curl -fsSL \
         -H "Authorization: Bearer $TOKEN" \
         -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-        "https://ghcr.io/v2/$REPO_PATH/manifests/latest")
+        "https://ghcr.io/v2/$REPO_PATH/manifests/$CHANNEL_TAG")
 
-    version_annotation=$(echo "$latest_manifest" \
+    version_annotation=$(echo "$channel_manifest" \
         | jq -r '.annotations["org.opencontainers.image.version"] // empty')
 
     if [[ -z "$version_annotation" ]]; then
-        config_digest=$(echo "$latest_manifest" | jq -r '.config.digest // empty')
+        config_digest=$(echo "$channel_manifest" | jq -r '.config.digest // empty')
         if [[ -n "$config_digest" ]]; then
             version_annotation=$(curl -fsSL \
                 -H "Authorization: Bearer $TOKEN" \
@@ -318,25 +338,34 @@ _ghcr_get_image_info() {
         fi
     fi
 
-    NEWEST_TAG=$(echo "$version_annotation" \
-        | sed 's/^latest\.//' | grep -oE '^[0-9]{8}$' || true)
-    [[ -n "$NEWEST_TAG" ]] \
+    prefix_regex=$(printf '%s' "$CHANNEL_TAG" | sed 's/[][(){}.^$*+?|\\/]/\\&/g')
+    NEWEST_VERSION="$version_annotation"
+    NEWEST_DATE_TAG=$(echo "$version_annotation" \
+        | sed -E "s/^${prefix_regex}\.//" | grep -oE '^[0-9]{8}$' || true)
+    [[ -n "$NEWEST_DATE_TAG" ]] \
         || die "Could not extract date tag from GHCR manifest. Got: '$version_annotation'"
+
+    if [[ "$CHANNEL_TAG" == "latest" ]]; then
+        TARGET_TAG="$NEWEST_DATE_TAG"
+    else
+        TARGET_TAG="${CHANNEL_TAG}.${NEWEST_DATE_TAG}"
+    fi
 }
 
 cmd_check_image() {
     echo "RakuOS: checking for system image update..." >&2
 
-    local IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
+    local IMAGE_FULL REPO_URL REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     _ghcr_get_image_info
 
-    echo "Current tag: $CURRENT_TAG" >&2
-    echo "Latest tag:  $NEWEST_TAG"  >&2
+    echo "Current version: $CURRENT_VERSION" >&2
+    echo "Channel tag:     $CHANNEL_TAG" >&2
+    echo "Latest version:  $NEWEST_VERSION"  >&2
 
     # 1. New date tag available — switch to it
-    if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
-        if [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
-            echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$NEWEST_TAG\",\"repo\":\"$REPO_URL\"}"
+    if [[ "$CURRENT_DATE_TAG" =~ ^[0-9]{8}$ ]]; then
+        if [[ "$NEWEST_DATE_TAG" -gt "$CURRENT_DATE_TAG" ]]; then
+            echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_VERSION\",\"available\":\"$TARGET_TAG\",\"repo\":\"$REPO_URL\"}"
             exit 0
         fi
     fi
@@ -347,32 +376,32 @@ cmd_check_image() {
     check_out=$(sudo bootc upgrade --check 2>&1) || true
 
     if echo "$check_out" | grep -q "No changes"; then
-        echo "{\"update\":false,\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\"}"
+        echo "{\"update\":false,\"booted\":\"$CURRENT_VERSION\",\"available\":\"$CURRENT_VERSION\"}"
         exit 1
     fi
 
     # bootc found changes in current tag (hotfix/content update)
-    echo "{\"update\":true,\"type\":\"upgrade\",\"booted\":\"$CURRENT_TAG\",\"available\":\"$CURRENT_TAG\",\"repo\":\"$REPO_URL\"}"
+    echo "{\"update\":true,\"type\":\"upgrade\",\"booted\":\"$CURRENT_VERSION\",\"available\":\"$CURRENT_IMAGE_TAG\",\"repo\":\"$REPO_URL\"}"
     exit 0
 }
 
 cmd_upgrade_image() {
     echo "RakuOS: checking for system image update..."
 
-    local IMAGE_FULL REPO_URL REPO_PATH CURRENT_TAG TOKEN NEWEST_TAG
+    local IMAGE_FULL REPO_URL REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     _ghcr_get_image_info
 
     # 1. New date tag — switch to it
-    if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$' \
-        && [[ "$NEWEST_TAG" -gt "$CURRENT_TAG" ]]; then
-        echo "RakuOS: switching to new image tag $REPO_URL:$NEWEST_TAG..."
-        bootc switch "$REPO_URL:$NEWEST_TAG"
+    if [[ "$CURRENT_DATE_TAG" =~ ^[0-9]{8}$ ]] \
+        && [[ "$NEWEST_DATE_TAG" -gt "$CURRENT_DATE_TAG" ]]; then
+        echo "RakuOS: switching to new image tag $REPO_URL:$TARGET_TAG..."
+        bootc switch "$REPO_URL:$TARGET_TAG"
         echo "RakuOS: system image update staged. Reboot to apply."
         exit 0
     fi
 
     # 2. Same tag — run bootc upgrade for content updates (hotfixes)
-    echo "RakuOS: upgrading current image tag $CURRENT_TAG..."
+    echo "RakuOS: upgrading current image tag $CURRENT_IMAGE_TAG..."
     bootc upgrade
     echo "RakuOS: system image update staged. Reboot to apply."
 }

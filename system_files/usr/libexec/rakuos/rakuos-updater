@@ -11,25 +11,49 @@ BOOTC_STATUS=$(bootc status --json)
 # Full image string e.g. ghcr.io/rakuos/rakuos-kde:latest
 IMAGE_FULL=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
 
-# Strip :latest to get base repo URL
+# Strip :tag to get base repo URL
 REPO_URL="${IMAGE_FULL%:*}"
+CURRENT_IMAGE_TAG="${IMAGE_FULL##*:}"
 
-# Get current tag from version field e.g. "latest.20260306" -> "20260306"
-CURRENT_TAG=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.version // empty' | sed 's/^latest\.//')
-CURRENT_TAG=$(echo "$CURRENT_TAG" | tr -d '[:space:]')
+# Get current version field e.g. "latest.20260306" or "staging.20260306"
+CURRENT_VERSION=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.version // empty' | tr -d '[:space:]')
 
 if [[ -z "$REPO_URL" ]]; then
     echo "ERROR: Could not detect booted image from bootc status."
     exit 1
 fi
 
-if [[ -z "$CURRENT_TAG" ]]; then
-    echo "ERROR: Could not detect current tag from bootc status."
+if [[ -z "$CURRENT_IMAGE_TAG" ]]; then
+    echo "ERROR: Could not detect current image tag from bootc status."
     exit 1
 fi
 
+if [[ -z "$CURRENT_VERSION" ]]; then
+    echo "ERROR: Could not detect current version from bootc status."
+    exit 1
+fi
+
+if [[ "$CURRENT_IMAGE_TAG" =~ ^[0-9]{8}$ ]]; then
+    CHANNEL_TAG="latest"
+    CURRENT_DATE_TAG="$CURRENT_IMAGE_TAG"
+elif [[ "$CURRENT_IMAGE_TAG" =~ ^(.+)\.([0-9]{8})$ ]]; then
+    CHANNEL_TAG="${BASH_REMATCH[1]}"
+    CURRENT_DATE_TAG="${BASH_REMATCH[2]}"
+else
+    CHANNEL_TAG="$CURRENT_IMAGE_TAG"
+    if [[ "$CURRENT_VERSION" =~ ^${CHANNEL_TAG}\.([0-9]{8})$ ]]; then
+        CURRENT_DATE_TAG="${BASH_REMATCH[1]}"
+    elif [[ "$CURRENT_VERSION" =~ ^([0-9]{8})$ ]]; then
+        CURRENT_DATE_TAG="${BASH_REMATCH[1]}"
+    else
+        CURRENT_DATE_TAG=""
+    fi
+fi
+
 echo "Current image repo: $REPO_URL"
-echo "Current tag:        $CURRENT_TAG"
+echo "Current image tag:  $CURRENT_IMAGE_TAG"
+echo "Current version:    $CURRENT_VERSION"
+echo "Channel tag:        $CHANNEL_TAG"
 
 # -------------------------------
 # Get GHCR token
@@ -51,13 +75,12 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
 fi
 
 # -------------------------------
-# Get newest tag from org.opencontainers.image.version annotation on 'latest'
-# Workflow sets this to: latest.YYYYMMDD — strip 'latest.' to get the date
+# Get newest version annotation from the current channel manifest
 # -------------------------------
 LATEST_MANIFEST=$(curl -fsSL \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-"https://ghcr.io/v2/$REPO_PATH/manifests/latest")
+"https://ghcr.io/v2/$REPO_PATH/manifests/$CHANNEL_TAG")
 
 # Try manifest-level annotations first
 VERSION_ANNOTATION=$(echo "$LATEST_MANIFEST" \
@@ -74,24 +97,31 @@ if [[ -z "$VERSION_ANNOTATION" ]]; then
     fi
 fi
 
-# Extract YYYYMMDD from value like "latest.20260306"
-NEWEST_TAG=$(echo "$VERSION_ANNOTATION" | sed 's/^latest\.//' | grep -oE '^[0-9]{8}$' || true)
+PREFIX_REGEX=$(printf '%s' "$CHANNEL_TAG" | sed 's/[][(){}.^$*+?|\\/]/\\&/g')
+NEWEST_TAG=$(echo "$VERSION_ANNOTATION" | sed -E "s/^${PREFIX_REGEX}\.//" | grep -oE '^[0-9]{8}$' || true)
 
 if [[ -z "$NEWEST_TAG" ]]; then
-    echo "ERROR: Could not extract date from latest manifest annotation."
+    echo "ERROR: Could not extract date from channel manifest annotation."
     echo "Version annotation value: '$VERSION_ANNOTATION'"
     echo "Manifest response:"
     echo "$LATEST_MANIFEST" | jq . || echo "$LATEST_MANIFEST"
     exit 1
 fi
 
-echo "Latest dated tag on GHCR: $NEWEST_TAG"
+if [[ "$CHANNEL_TAG" == "latest" ]]; then
+    TARGET_TAG="$NEWEST_TAG"
+else
+    TARGET_TAG="${CHANNEL_TAG}.${NEWEST_TAG}"
+fi
+
+echo "Latest version on GHCR: $VERSION_ANNOTATION"
+echo "Latest target tag:      $TARGET_TAG"
 
 # -------------------------------
 # Compare tags — skip if already on newest
 # -------------------------------
-if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
-    if [[ "$CURRENT_TAG" -ge "$NEWEST_TAG" ]]; then
+if echo "$CURRENT_DATE_TAG" | grep -qE '^[0-9]{8}$'; then
+    if [[ "$CURRENT_DATE_TAG" -ge "$NEWEST_TAG" ]]; then
         bootc upgrade
         # -------------------------------
         # Notify user
@@ -118,7 +148,7 @@ if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
                 --action=later="Later" \
                 --wait \
                 "RakuOS Update Ready" \
-            "Image $NEWEST_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
+            "Image $TARGET_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
             
             case "$ACTION" in
                 reboot)
@@ -140,15 +170,15 @@ if echo "$CURRENT_TAG" | grep -qE '^[0-9]{8}$'; then
         exit 0
     fi
 else
-    echo "Current tag is '$CURRENT_TAG' (non-date), will switch to dated tag $NEWEST_TAG."
+    echo "Current version is '$CURRENT_VERSION' (non-date), will switch to target tag $TARGET_TAG."
 fi
 
 # -------------------------------
 # Switch to newest dated tag via bootc
 # -------------------------------
-echo "New image available: $NEWEST_TAG (current: $CURRENT_TAG) — updating..."
+echo "New image available: $TARGET_TAG (current: $CURRENT_IMAGE_TAG) — updating..."
 
-bootc switch "$REPO_URL:$NEWEST_TAG"
+bootc switch "$REPO_URL:$TARGET_TAG"
 
 # -------------------------------
 # Notify user
@@ -175,7 +205,7 @@ if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
         --action=later="Later" \
         --wait \
         "RakuOS Update Ready" \
-    "Image $NEWEST_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
+    "Image $TARGET_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
     
     case "$ACTION" in
         reboot)
