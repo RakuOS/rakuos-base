@@ -26,7 +26,7 @@ dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyra
 #dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
-dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="dkms-xpadneo akmod-xpadneo"
+#dnf5 -y config-manager setopt "*terra*".priority=3 "*terra*".exclude="dkms-xpadneo akmod-xpadneo"
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
 TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-nvidia terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
