@@ -9,8 +9,12 @@
 # ============================================================
 
 variables:
-  # Registry prefix for this project's container images
+  # Registry prefix for this project's container images.
+  # Both base and nvidia variants live under the same project registry
+  # so the built-in CI_REGISTRY_USER / CI_REGISTRY_PASSWORD credentials
+  # work for both without any extra deploy token setup.
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
+  IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
   IMAGE_DESC: "RakuOS Base"
   IMAGE_KEYWORDS: "bootc,fedora,atomic"
   # Default tag applied to images built from the main branch
@@ -113,17 +117,20 @@ build-push-base:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
 
-# Build (and push) the nvidia variant
+# Build (and push) the nvidia variant.
+# Pushed to a sub-path of this project's registry so the built-in
+# CI_REGISTRY_USER / CI_REGISTRY_PASSWORD credentials work without
+# any extra deploy token setup.
 build-push-nvidia:
   extends: .buildah-job
   stage: build-push
   script:
     - |
       if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
-        TAGS="${IMAGE_REGISTRY}-nvidia:${DEFAULT_TAG} ${IMAGE_REGISTRY}-nvidia:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}-nvidia:${DATE_TAG}"
+        TAGS="${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DATE_TAG}"
       else
         BRANCH_SLUG=$(echo "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
-        TAGS="${IMAGE_REGISTRY}-nvidia:${BRANCH_SLUG} ${IMAGE_REGISTRY}-nvidia:${BRANCH_SLUG}.${DATE_TAG}"
+        TAGS="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
     - |
       buildah build \
