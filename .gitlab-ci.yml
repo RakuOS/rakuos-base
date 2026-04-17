@@ -1,10 +1,11 @@
 # ============================================================
 # RakuOS Base Image — GitLab CI/CD Pipeline
 # ============================================================
-# Builds two OCI image variants (base, nvidia) using buildah,
-# pushes them to the GitLab Container Registry, and (once
-# configured) signs them with Cosign and triggers downstream
-# image pipelines.
+# Builds two OCI image variants (base, nvidia) using buildah
+# and pushes them to the GitLab Container Registry in a single
+# job per variant. Build and push must run in the same container
+# because buildah's local image store is ephemeral — it does not
+# persist across separate jobs.
 # ============================================================
 
 variables:
@@ -16,17 +17,15 @@ variables:
   DEFAULT_TAG: "latest"
 
 stages:
-  - build
-  - push
-  # - sign   # Uncomment when Cosign keys are configured
-  #- dispatch
+  - build-push
+  # - sign      # Uncomment when Cosign keys are configured
+  # - dispatch  # Uncomment when downstream trigger tokens are configured
 
 # ============================================================
 # Hidden base job — shared config for all buildah jobs
 # ============================================================
 # Runs in the official buildah image which ships with all
 # tools needed to build OCI images without a Docker daemon.
-# privileged: true is required by buildah inside a container.
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
@@ -52,17 +51,26 @@ stages:
     BUILDAH_FORMAT: docker
 
 # ============================================================
-# STAGE: build
+# STAGE: build-push
 # ============================================================
+# Build and push happen in the same job so the image built by
+# buildah is still present in the local store when we push.
+# Splitting build and push across separate jobs would lose the
+# image because each job runs in a fresh, ephemeral container.
+#
+# On MR pipelines: build only (no push) — validates the image
+# builds correctly without publishing anything.
+# On main/staging: build then immediately push.
 
-# Build the standard (non-nvidia) base image
-build-base:
+# Build (and push) the standard base image
+build-push-base:
   extends: .buildah-job
-  stage: build
+  stage: build-push
   script:
     # Compute image tags based on branch:
     #   main    → latest, latest.YYYYMMDD, YYYYMMDD
     #   staging → staging, staging.YYYYMMDD
+    #   other   → <branch-slug>, <branch-slug>.YYYYMMDD
     - |
       if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
         TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
@@ -82,23 +90,33 @@ build-base:
         --label "containers.bootc=1" \
         $(for t in $TAGS; do echo "--tag $t"; done) \
         .
-    # Save computed tags to dotenv artifact so push-base can read them
+    # Push immediately after build while the image is still in the local store.
+    # Skipped on MR pipelines — we only validate the build, never publish.
+    - |
+      if [[ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]]; then
+        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+        for tag in ${TAGS}; do
+          echo "Pushing ${tag}"
+          buildah push "${tag}"
+        done
+      fi
+    # Export tags for downstream sign/dispatch stages
     - echo "TAGS=${TAGS}" > build-base.env
     - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-base.env
   artifacts:
-    # Pass the computed image tags to the push-base job
+    # Pass computed tags to future sign/dispatch jobs
     reports:
       dotenv: build-base.env
   rules:
-    # Build on merge requests (for validation) and on main/staging pushes
+    # Run on MRs (build-only validation) and on main/staging (build + push)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
 
-# Build the nvidia variant from Containerfile.nvidia
-build-nvidia:
+# Build (and push) the nvidia variant
+build-push-nvidia:
   extends: .buildah-job
-  stage: build
+  stage: build-push
   script:
     - |
       if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
@@ -119,59 +137,25 @@ build-nvidia:
         --label "containers.bootc=1" \
         $(for t in $TAGS; do echo "--tag $t"; done) \
         .
-    # Save computed nvidia tags to dotenv artifact so push-nvidia can read them
+    # Push immediately after build while the image is still in the local store.
+    # Skipped on MR pipelines — we only validate the build, never publish.
+    - |
+      if [[ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]]; then
+        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+        for tag in ${TAGS}; do
+          echo "Pushing ${tag}"
+          buildah push "${tag}"
+        done
+      fi
+    # Export nvidia tags for downstream sign/dispatch stages
     - echo "TAGS_NVIDIA=${TAGS}" > build-nvidia.env
     - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-nvidia.env
   artifacts:
-    # Pass the computed nvidia image tags to the push-nvidia job
+    # Pass computed nvidia tags to future sign/dispatch jobs
     reports:
       dotenv: build-nvidia.env
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-
-# ============================================================
-# STAGE: push
-# ============================================================
-# Push jobs only run on main/staging — never on MR pipelines.
-# CI_REGISTRY_USER / CI_REGISTRY_PASSWORD are automatically
-# provided by GitLab for the built-in container registry.
-
-# Push the base image to the GitLab Container Registry
-push-base:
-  extends: .buildah-job
-  stage: push
-  needs:
-    - job: build-base
-      artifacts: true
-  script:
-    - buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-    - |
-      for tag in ${TAGS}; do
-        echo "Pushing ${tag}"
-        buildah push "${tag}"
-      done
-  rules:
-    # Only push on branch pipelines (not MRs)
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-
-# Push the nvidia image to the GitLab Container Registry
-push-nvidia:
-  extends: .buildah-job
-  stage: push
-  needs:
-    - job: build-nvidia
-      artifacts: true
-  script:
-    - buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-    - |
-      for tag in ${TAGS_NVIDIA}; do
-        echo "Pushing ${tag}"
-        buildah push "${tag}"
-      done
-  rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
 
@@ -188,7 +172,7 @@ push-nvidia:
 #   stage: sign
 #   image: cgr.dev/chainguard/cosign:latest
 #   needs:
-#     - job: push-base
+#     - job: build-push-base
 #       artifacts: true
 #   script:
 #     - |
@@ -205,7 +189,7 @@ push-nvidia:
 #   stage: sign
 #   image: cgr.dev/chainguard/cosign:latest
 #   needs:
-#     - job: push-nvidia
+#     - job: build-push-nvidia
 #       artifacts: true
 #   script:
 #     - |
@@ -239,7 +223,7 @@ push-nvidia:
 #   stage: dispatch
 #   image: curlimages/curl:latest
 #   needs:
-#     - job: push-nvidia
+#     - job: build-push-nvidia
 #   script:
 #     - |
 #       for TOKEN_VAR in TRIGGER_TOKEN_KDE TRIGGER_TOKEN_GNOME TRIGGER_TOKEN_COSMIC; do
