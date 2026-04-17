@@ -19,7 +19,7 @@ stages:
   - build
   - push
   # - sign   # Uncomment when Cosign keys are configured
-  - dispatch
+  #- dispatch
 
 # ============================================================
 # Hidden base job — shared config for all buildah jobs
