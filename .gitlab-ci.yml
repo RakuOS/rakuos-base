@@ -1,0 +1,262 @@
+# ============================================================
+# RakuOS Base Image — GitLab CI/CD Pipeline
+# ============================================================
+# Builds two OCI image variants (base, nvidia) using buildah,
+# pushes them to the GitLab Container Registry, and (once
+# configured) signs them with Cosign and triggers downstream
+# image pipelines.
+# ============================================================
+
+variables:
+  # Registry prefix for this project's container images
+  IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
+  IMAGE_DESC: "RakuOS Base"
+  IMAGE_KEYWORDS: "bootc,fedora,atomic"
+  # Default tag applied to images built from the main branch
+  DEFAULT_TAG: "latest"
+
+stages:
+  - build
+  - push
+  # - sign   # Uncomment when Cosign keys are configured
+  - dispatch
+
+# ============================================================
+# Hidden base job — shared config for all buildah jobs
+# ============================================================
+# Runs in the official buildah image which ships with all
+# tools needed to build OCI images without a Docker daemon.
+# privileged: true is required by buildah inside a container.
+.buildah-job:
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-medium-amd64
+  before_script:
+    # Resolve Fedora version from the branch name, mirroring
+    # the logic in the GitHub Actions workflow:
+    #   main     → Fedora 43 (stable)
+    #   staging  → Fedora 44
+    #   anything else → Fedora 44
+    - |
+      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+        export FEDORA_VERSION="43"
+      else
+        export FEDORA_VERSION="44"
+      fi
+      echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
+    # Compute a date-stamped tag (e.g. latest.20260417)
+    - export DATE_TAG=$(date -u +%Y%m%d)
+  variables:
+    # Allow buildah to use overlayfs storage inside the runner
+    STORAGE_DRIVER: overlay
+    BUILDAH_FORMAT: docker
+
+# ============================================================
+# STAGE: build
+# ============================================================
+
+# Build the standard (non-nvidia) base image
+build-base:
+  extends: .buildah-job
+  stage: build
+  script:
+    # Compute image tags based on branch:
+    #   main    → latest, latest.YYYYMMDD, YYYYMMDD
+    #   staging → staging, staging.YYYYMMDD
+    - |
+      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+        TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
+      else
+        BRANCH_SLUG=$(echo "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
+        TAGS="${IMAGE_REGISTRY}:${BRANCH_SLUG} ${IMAGE_REGISTRY}:${BRANCH_SLUG}.${DATE_TAG}"
+      fi
+    - |
+      buildah build \
+        --file Containerfile \
+        --build-arg FEDORA_VERSION=${FEDORA_VERSION} \
+        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.description=${IMAGE_DESC}" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.vendor=RakuOS" \
+        --label "containers.bootc=1" \
+        $(for t in $TAGS; do echo "--tag $t"; done) \
+        .
+    # Save computed tags to dotenv artifact so push-base can read them
+    - echo "TAGS=${TAGS}" > build-base.env
+    - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-base.env
+  artifacts:
+    # Pass the computed image tags to the push-base job
+    reports:
+      dotenv: build-base.env
+  rules:
+    # Build on merge requests (for validation) and on main/staging pushes
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+
+# Build the nvidia variant from Containerfile.nvidia
+build-nvidia:
+  extends: .buildah-job
+  stage: build
+  script:
+    - |
+      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+        TAGS="${IMAGE_REGISTRY}-nvidia:${DEFAULT_TAG} ${IMAGE_REGISTRY}-nvidia:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}-nvidia:${DATE_TAG}"
+      else
+        BRANCH_SLUG=$(echo "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
+        TAGS="${IMAGE_REGISTRY}-nvidia:${BRANCH_SLUG} ${IMAGE_REGISTRY}-nvidia:${BRANCH_SLUG}.${DATE_TAG}"
+      fi
+    - |
+      buildah build \
+        --file Containerfile.nvidia \
+        --build-arg FEDORA_VERSION=${FEDORA_VERSION} \
+        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.vendor=RakuOS" \
+        --label "containers.bootc=1" \
+        $(for t in $TAGS; do echo "--tag $t"; done) \
+        .
+    # Save computed nvidia tags to dotenv artifact so push-nvidia can read them
+    - echo "TAGS_NVIDIA=${TAGS}" > build-nvidia.env
+    - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-nvidia.env
+  artifacts:
+    # Pass the computed nvidia image tags to the push-nvidia job
+    reports:
+      dotenv: build-nvidia.env
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+
+# ============================================================
+# STAGE: push
+# ============================================================
+# Push jobs only run on main/staging — never on MR pipelines.
+# CI_REGISTRY_USER / CI_REGISTRY_PASSWORD are automatically
+# provided by GitLab for the built-in container registry.
+
+# Push the base image to the GitLab Container Registry
+push-base:
+  extends: .buildah-job
+  stage: push
+  needs:
+    - job: build-base
+      artifacts: true
+  script:
+    - buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+    - |
+      for tag in ${TAGS}; do
+        echo "Pushing ${tag}"
+        buildah push "${tag}"
+      done
+  rules:
+    # Only push on branch pipelines (not MRs)
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+
+# Push the nvidia image to the GitLab Container Registry
+push-nvidia:
+  extends: .buildah-job
+  stage: push
+  needs:
+    - job: build-nvidia
+      artifacts: true
+  script:
+    - buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+    - |
+      for tag in ${TAGS_NVIDIA}; do
+        echo "Pushing ${tag}"
+        buildah push "${tag}"
+      done
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+
+# ============================================================
+# STAGE: sign  (COMMENTED OUT — enable after Cosign setup)
+# ============================================================
+# To enable:
+#   1. Generate a Cosign key pair: cosign generate-key-pair
+#   2. Add COSIGN_PRIVATE_KEY and COSIGN_PASSWORD as
+#      masked CI/CD variables in Settings → CI/CD → Variables
+#   3. Uncomment the 'sign' stage above and these two jobs
+#
+# sign-base:
+#   stage: sign
+#   image: cgr.dev/chainguard/cosign:latest
+#   needs:
+#     - job: push-base
+#       artifacts: true
+#   script:
+#     - |
+#       for tag in ${TAGS}; do
+#         cosign sign -y --key env://COSIGN_PRIVATE_KEY "${tag}"
+#       done
+#   variables:
+#     COSIGN_EXPERIMENTAL: "false"
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#
+# sign-nvidia:
+#   stage: sign
+#   image: cgr.dev/chainguard/cosign:latest
+#   needs:
+#     - job: push-nvidia
+#       artifacts: true
+#   script:
+#     - |
+#       for tag in ${TAGS_NVIDIA}; do
+#         cosign sign -y --key env://COSIGN_PRIVATE_KEY "${tag}"
+#       done
+#   variables:
+#     COSIGN_EXPERIMENTAL: "false"
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+
+# ============================================================
+# STAGE: dispatch  (COMMENTED OUT — enable after token setup)
+# ============================================================
+# Triggers downstream image pipelines (rakuos-kde, rakuos-gnome,
+# rakuos-cosmic) once the nvidia image has been successfully pushed.
+#
+# To enable:
+#   1. In each downstream project go to Settings → CI/CD →
+#      Pipeline trigger tokens and create a token.
+#   2. Add the tokens as masked CI/CD variables here:
+#        TRIGGER_TOKEN_KDE
+#        TRIGGER_TOKEN_GNOME
+#        TRIGGER_TOKEN_COSMIC
+#   3. Replace the PROJECT_ID values below with the numeric
+#      project IDs of each downstream GitLab project.
+#   4. Uncomment the 'dispatch' stage above and this job.
+#
+# trigger-downstream:
+#   stage: dispatch
+#   image: curlimages/curl:latest
+#   needs:
+#     - job: push-nvidia
+#   script:
+#     - |
+#       for TOKEN_VAR in TRIGGER_TOKEN_KDE TRIGGER_TOKEN_GNOME TRIGGER_TOKEN_COSMIC; do
+#         TOKEN="${!TOKEN_VAR}"
+#         case "${TOKEN_VAR}" in
+#           TRIGGER_TOKEN_KDE)    PROJECT_ID="REPLACE_WITH_KDE_PROJECT_ID" ;;
+#           TRIGGER_TOKEN_GNOME)  PROJECT_ID="REPLACE_WITH_GNOME_PROJECT_ID" ;;
+#           TRIGGER_TOKEN_COSMIC) PROJECT_ID="REPLACE_WITH_COSMIC_PROJECT_ID" ;;
+#         esac
+#         echo "Triggering downstream pipeline for project ${PROJECT_ID}"
+#         curl --fail -X POST \
+#           --form "token=${TOKEN}" \
+#           --form "ref=${CI_COMMIT_BRANCH}" \
+#           --form "variables[SOURCE_REPO]=${CI_PROJECT_PATH}" \
+#           --form "variables[SOURCE_BRANCH]=${CI_COMMIT_BRANCH}" \
+#           "https://gitlab.com/api/v4/projects/${PROJECT_ID}/trigger/pipeline"
+#       done
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
