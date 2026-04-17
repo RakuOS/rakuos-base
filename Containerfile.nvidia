@@ -1,11 +1,17 @@
+# Global build arg — available to all FROM lines for image tag resolution.
+# Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
 ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
-ENV FEDORA_VERSION=${FEDORA_VERSION}
+
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
 FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION}
+# Re-declare ARG inside this stage so it is in scope, then persist it as an
+# environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
+ARG FEDORA_VERSION
+ENV FEDORA_VERSION=${FEDORA_VERSION}
 
 #RUN rm /opt && ln -s -T /var/opt /opt
 RUN mkdir -p /var/nix && ln -s /var/nix /nix
