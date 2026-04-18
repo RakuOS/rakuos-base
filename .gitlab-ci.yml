@@ -1,10 +1,6 @@
 # ============================================================
 # RakuOS Base Image — GitLab CI/CD Pipeline
 # ============================================================
-# Builds two OCI image variants (base, nvidia) using buildah
-# and pushes them to the GitLab Container Registry in a single
-# job per variant.
-# ============================================================
 
 variables:
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
@@ -15,8 +11,6 @@ variables:
 
 stages:
   - build-push
-  # - sign
-  # - dispatch
 
 .buildah-job:
   image: quay.io/buildah/stable:latest
@@ -39,6 +33,8 @@ build-push-base:
   extends: .buildah-job
   stage: build-push
   script:
+    - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base.env
+
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
@@ -48,6 +44,7 @@ build-push-base:
         TAGS="${IMAGE_REGISTRY}:${BRANCH_SLUG} ${IMAGE_REGISTRY}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
       export TAGS BRANCH_SLUG
+      printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base.env
 
     - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
 
@@ -79,9 +76,6 @@ build-push-base:
           buildah push "${tag}"
         done
       fi
-
-    - echo "TAGS=${TAGS}" > build-base.env
-    - echo "BRANCH_SLUG=${BRANCH_SLUG}" >> build-base.env
   artifacts:
     reports:
       dotenv: build-base.env
@@ -94,6 +88,8 @@ build-push-nvidia:
   extends: .buildah-job
   stage: build-push
   script:
+    - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia.env
+
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DATE_TAG}"
@@ -103,6 +99,7 @@ build-push-nvidia:
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
       export TAGS BRANCH_SLUG
+      printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia.env
 
     - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
@@ -134,9 +131,6 @@ build-push-nvidia:
           buildah push "${tag}"
         done
       fi
-
-    - echo "TAGS_NVIDIA=${TAGS}" > build-nvidia.env
-    - echo "BRANCH_SLUG=${BRANCH_SLUG}" >> build-nvidia.env
   artifacts:
     reports:
       dotenv: build-nvidia.env
@@ -144,63 +138,3 @@ build-push-nvidia:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
-
-# sign-base:
-#   stage: sign
-#   image: cgr.dev/chainguard/cosign:latest
-#   needs:
-#     - job: build-push-base
-#       artifacts: true
-#   script:
-#     - |
-#       for tag in ${TAGS}; do
-#         cosign sign -y --key env://COSIGN_PRIVATE_KEY "${tag}"
-#       done
-#   variables:
-#     COSIGN_EXPERIMENTAL: "false"
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-#     - if: '$CI_COMMIT_BRANCH == "staging"'
-#
-# sign-nvidia:
-#   stage: sign
-#   image: cgr.dev/chainguard/cosign:latest
-#   needs:
-#     - job: build-push-nvidia
-#       artifacts: true
-#   script:
-#     - |
-#       for tag in ${TAGS_NVIDIA}; do
-#         cosign sign -y --key env://COSIGN_PRIVATE_KEY "${tag}"
-#       done
-#   variables:
-#     COSIGN_EXPERIMENTAL: "false"
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-#     - if: '$CI_COMMIT_BRANCH == "staging"'
-
-# trigger-downstream:
-#   stage: dispatch
-#   image: curlimages/curl:latest
-#   needs:
-#     - job: build-push-nvidia
-#   script:
-#     - |
-#       for TOKEN_VAR in TRIGGER_TOKEN_KDE TRIGGER_TOKEN_GNOME TRIGGER_TOKEN_COSMIC; do
-#         TOKEN="${!TOKEN_VAR}"
-#         case "${TOKEN_VAR}" in
-#           TRIGGER_TOKEN_KDE) PROJECT_ID="REPLACE_WITH_KDE_PROJECT_ID" ;;
-#           TRIGGER_TOKEN_GNOME) PROJECT_ID="REPLACE_WITH_GNOME_PROJECT_ID" ;;
-#           TRIGGER_TOKEN_COSMIC) PROJECT_ID="REPLACE_WITH_COSMIC_PROJECT_ID" ;;
-#         esac
-#         echo "Triggering downstream pipeline for project ${PROJECT_ID}"
-#         curl --fail -X POST \
-#           --form "token=${TOKEN}" \
-#           --form "ref=${CI_COMMIT_BRANCH}" \
-#           --form "variables[SOURCE_REPO]=${CI_PROJECT_PATH}" \
-#           --form "variables[SOURCE_BRANCH]=${CI_COMMIT_BRANCH}" \
-#           "https://gitlab.com/api/v4/projects/${PROJECT_ID}/trigger/pipeline"
-#       done
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-#     - if: '$CI_COMMIT_BRANCH == "staging"'
