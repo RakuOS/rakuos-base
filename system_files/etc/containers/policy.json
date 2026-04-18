@@ -10,6 +10,11 @@
         {
           "type": "insecureAcceptAnything"
         }
+      ],
+      "registry.gitlab.com/rakuos/images": [
+        {
+          "type": "insecureAcceptAnything"
+        }
       ]
     },
     "containers-storage": {
