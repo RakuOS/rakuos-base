@@ -3,162 +3,141 @@
 # ============================================================
 # Builds two OCI image variants (base, nvidia) using buildah
 # and pushes them to the GitLab Container Registry in a single
-# job per variant. Build and push must run in the same container
-# because buildah's local image store is ephemeral — it does not
-# persist across separate jobs.
+# job per variant.
 # ============================================================
 
 variables:
-  # Registry prefix for this project's container images.
-  # Both base and nvidia variants live under the same project registry
-  # so the built-in CI_REGISTRY_USER / CI_REGISTRY_PASSWORD credentials
-  # work for both without any extra deploy token setup.
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
   IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
   IMAGE_DESC: "RakuOS Base"
   IMAGE_KEYWORDS: "bootc,fedora,atomic"
-  # Default tag applied to images built from the main branch
   DEFAULT_TAG: "latest"
 
 stages:
   - build-push
-  # - sign      # Uncomment when Cosign keys are configured
-  # - dispatch  # Uncomment when downstream trigger tokens are configured
+  # - sign
+  # - dispatch
 
-# ============================================================
-# Hidden base job — shared config for all buildah jobs
-# ============================================================
-# Runs in the official buildah image which ships with all
-# tools needed to build OCI images without a Docker daemon.
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
     - saas-linux-medium-amd64
   before_script:
-    # Resolve Fedora version from the branch name, mirroring
-    # the logic in the GitHub Actions workflow:
-    #   main     → Fedora 43 (stable)
-    #   staging  → Fedora 44
-    #   anything else → Fedora 44
     - |
-      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         export FEDORA_VERSION="43"
       else
         export FEDORA_VERSION="44"
       fi
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
-    # Compute a date-stamped tag (e.g. latest.20260417)
-    - export DATE_TAG=$(date -u +%Y%m%d)
+    - export DATE_TAG="$(date -u +%Y%m%d)"
   variables:
-    # Allow buildah to use overlayfs storage inside the runner
     STORAGE_DRIVER: overlay
     BUILDAH_FORMAT: docker
 
-# ============================================================
-# STAGE: build-push
-# ============================================================
-# Build and push happen in the same job so the image built by
-# buildah is still present in the local store when we push.
-# Splitting build and push across separate jobs would lose the
-# image because each job runs in a fresh, ephemeral container.
-#
-# On MR pipelines: build only (no push) — validates the image
-# builds correctly without publishing anything.
-# On main/staging: build then immediately push.
-
-# Build (and push) the standard base image
 build-push-base:
   extends: .buildah-job
   stage: build-push
   script:
-    # Compute image tags based on branch:
-    #   main    → latest, latest.YYYYMMDD, YYYYMMDD
-    #   staging → staging, staging.YYYYMMDD
-    #   other   → <branch-slug>, <branch-slug>.YYYYMMDD
     - |
-      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
+        BRANCH_SLUG="${DEFAULT_TAG}"
       else
-        BRANCH_SLUG=$(echo "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
+        BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')"
         TAGS="${IMAGE_REGISTRY}:${BRANCH_SLUG} ${IMAGE_REGISTRY}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
+      export TAGS BRANCH_SLUG
+
+    - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
+
     - |
       buildah build \
         --file Containerfile \
-        --build-arg FEDORA_VERSION=${FEDORA_VERSION} \
+        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
         --label "org.opencontainers.image.vendor=RakuOS" \
+        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
         --label "containers.bootc=1" \
-        $(for t in $TAGS; do echo "--tag $t"; done) \
+        --tag "${TEMP_TAG}" \
         .
-    # Push immediately after build while the image is still in the local store.
-    # Skipped on MR pipelines — we only validate the build, never publish.
+
     - |
-      if [[ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]]; then
+      for tag in ${TAGS}; do
+        echo "Tagging ${TEMP_TAG} as ${tag}"
+        buildah tag "${TEMP_TAG}" "${tag}"
+      done
+
+    - |
+      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
         for tag in ${TAGS}; do
           echo "Pushing ${tag}"
           buildah push "${tag}"
         done
       fi
-    # Export tags for downstream sign/dispatch stages
+
     - echo "TAGS=${TAGS}" > build-base.env
-    - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-base.env
+    - echo "BRANCH_SLUG=${BRANCH_SLUG}" >> build-base.env
   artifacts:
-    # Pass computed tags to future sign/dispatch jobs
     reports:
       dotenv: build-base.env
   rules:
-    # Run on MRs (build-only validation) and on main/staging (build + push)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
 
-# Build (and push) the nvidia variant.
-# Pushed to a sub-path of this project's registry so the built-in
-# CI_REGISTRY_USER / CI_REGISTRY_PASSWORD credentials work without
-# any extra deploy token setup.
 build-push-nvidia:
   extends: .buildah-job
   stage: build-push
   script:
     - |
-      if [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DATE_TAG}"
+        BRANCH_SLUG="${DEFAULT_TAG}"
       else
-        BRANCH_SLUG=$(echo "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
+        BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')"
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
+      export TAGS BRANCH_SLUG
+
+    - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
+
     - |
       buildah build \
         --file Containerfile.nvidia \
-        --build-arg FEDORA_VERSION=${FEDORA_VERSION} \
+        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
         --label "org.opencontainers.image.vendor=RakuOS" \
+        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
         --label "containers.bootc=1" \
-        $(for t in $TAGS; do echo "--tag $t"; done) \
+        --tag "${TEMP_TAG}" \
         .
-    # Push immediately after build while the image is still in the local store.
-    # Skipped on MR pipelines — we only validate the build, never publish.
+
     - |
-      if [[ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]]; then
+      for tag in ${TAGS}; do
+        echo "Tagging ${TEMP_TAG} as ${tag}"
+        buildah tag "${TEMP_TAG}" "${tag}"
+      done
+
+    - |
+      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
         for tag in ${TAGS}; do
           echo "Pushing ${tag}"
           buildah push "${tag}"
         done
       fi
-    # Export nvidia tags for downstream sign/dispatch stages
+
     - echo "TAGS_NVIDIA=${TAGS}" > build-nvidia.env
-    - echo "BRANCH_SLUG=${BRANCH_SLUG:-${DEFAULT_TAG}}" >> build-nvidia.env
+    - echo "BRANCH_SLUG=${BRANCH_SLUG}" >> build-nvidia.env
   artifacts:
-    # Pass computed nvidia tags to future sign/dispatch jobs
     reports:
       dotenv: build-nvidia.env
   rules:
@@ -166,15 +145,6 @@ build-push-nvidia:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
 
-# ============================================================
-# STAGE: sign  (COMMENTED OUT — enable after Cosign setup)
-# ============================================================
-# To enable:
-#   1. Generate a Cosign key pair: cosign generate-key-pair
-#   2. Add COSIGN_PRIVATE_KEY and COSIGN_PASSWORD as
-#      masked CI/CD variables in Settings → CI/CD → Variables
-#   3. Uncomment the 'sign' stage above and these two jobs
-#
 # sign-base:
 #   stage: sign
 #   image: cgr.dev/chainguard/cosign:latest
@@ -209,23 +179,6 @@ build-push-nvidia:
 #     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 #     - if: '$CI_COMMIT_BRANCH == "staging"'
 
-# ============================================================
-# STAGE: dispatch  (COMMENTED OUT — enable after token setup)
-# ============================================================
-# Triggers downstream image pipelines (rakuos-kde, rakuos-gnome,
-# rakuos-cosmic) once the nvidia image has been successfully pushed.
-#
-# To enable:
-#   1. In each downstream project go to Settings → CI/CD →
-#      Pipeline trigger tokens and create a token.
-#   2. Add the tokens as masked CI/CD variables here:
-#        TRIGGER_TOKEN_KDE
-#        TRIGGER_TOKEN_GNOME
-#        TRIGGER_TOKEN_COSMIC
-#   3. Replace the PROJECT_ID values below with the numeric
-#      project IDs of each downstream GitLab project.
-#   4. Uncomment the 'dispatch' stage above and this job.
-#
 # trigger-downstream:
 #   stage: dispatch
 #   image: curlimages/curl:latest
@@ -236,8 +189,8 @@ build-push-nvidia:
 #       for TOKEN_VAR in TRIGGER_TOKEN_KDE TRIGGER_TOKEN_GNOME TRIGGER_TOKEN_COSMIC; do
 #         TOKEN="${!TOKEN_VAR}"
 #         case "${TOKEN_VAR}" in
-#           TRIGGER_TOKEN_KDE)    PROJECT_ID="REPLACE_WITH_KDE_PROJECT_ID" ;;
-#           TRIGGER_TOKEN_GNOME)  PROJECT_ID="REPLACE_WITH_GNOME_PROJECT_ID" ;;
+#           TRIGGER_TOKEN_KDE) PROJECT_ID="REPLACE_WITH_KDE_PROJECT_ID" ;;
+#           TRIGGER_TOKEN_GNOME) PROJECT_ID="REPLACE_WITH_GNOME_PROJECT_ID" ;;
 #           TRIGGER_TOKEN_COSMIC) PROJECT_ID="REPLACE_WITH_COSMIC_PROJECT_ID" ;;
 #         esac
 #         echo "Triggering downstream pipeline for project ${PROJECT_ID}"
