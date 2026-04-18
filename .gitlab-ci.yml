@@ -138,3 +138,30 @@ build-push-nvidia:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
+
+trigger-downstream:
+  stage: dispatch
+  image: curlimages/curl:latest
+  needs:
+    - job: build-push-nvidia
+  script:
+    - |
+      trigger_pipeline() {
+        local token="$1"
+        local project_id="$2"
+
+        echo "Triggering downstream pipeline for project ${project_id} on branch ${CI_COMMIT_BRANCH}"
+        curl --fail -X POST \
+          --form "token=${token}" \
+          --form "ref=${CI_COMMIT_BRANCH}" \
+          --form "variables[SOURCE_REPO]=${CI_PROJECT_PATH}" \
+          --form "variables[SOURCE_BRANCH]=${CI_COMMIT_BRANCH}" \
+          "https://gitlab.com/api/v4/projects/${project_id}/trigger/pipeline"
+      }
+
+      trigger_pipeline "${TRIGGER_TOKEN_KDE}" "${PROJECT_ID_KDE}"
+      trigger_pipeline "${TRIGGER_TOKEN_GNOME}" "${PROJECT_ID_GNOME}"
+      trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" "${PROJECT_ID_COSMIC}"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
