@@ -11,6 +11,7 @@ variables:
 
 stages:
   - build-push
+  - dispatch
 
 .buildah-job:
   image: quay.io/buildah/stable:latest
