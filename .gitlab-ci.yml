@@ -148,15 +148,14 @@ trigger-downstream:
   script:
     - |
       trigger_pipeline() {
-        local token="$1"
-        local project_id="$2"
+        token="$1"
+        project_id="$2"
 
-        echo "Triggering downstream pipeline for project ${project_id} on branch ${CI_COMMIT_BRANCH}"
-        curl --fail -X POST \
+        echo "Triggering project_id=${project_id} ref=${CI_COMMIT_BRANCH}"
+
+        curl --fail-with-body -X POST \
           --form "token=${token}" \
           --form "ref=${CI_COMMIT_BRANCH}" \
-          --form "variables[SOURCE_REPO]=${CI_PROJECT_PATH}" \
-          --form "variables[SOURCE_BRANCH]=${CI_COMMIT_BRANCH}" \
           "https://gitlab.com/api/v4/projects/${project_id}/trigger/pipeline"
       }
 
@@ -166,3 +165,4 @@ trigger-downstream:
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
+
