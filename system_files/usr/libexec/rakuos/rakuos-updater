@@ -185,11 +185,7 @@ if [[ -z "$NEWEST_TAG" ]]; then
     exit 1
 fi
 
-if [[ "$CHANNEL_TAG" == "latest" ]]; then
-    TARGET_TAG="$NEWEST_TAG"
-else
-    TARGET_TAG="${CHANNEL_TAG}.${NEWEST_TAG}"
-fi
+TARGET_TAG="${CHANNEL_TAG}.${NEWEST_TAG}"
 
 echo "Latest version on registry: $VERSION_ANNOTATION"
 echo "Latest target tag:      $TARGET_TAG"
