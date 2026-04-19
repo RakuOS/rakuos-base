@@ -124,6 +124,7 @@ systemctl enable \
 rakuos-base-protect.service \
 rakuos-overlay-mount.service \
 rakuos-overlay-sync.service \
+rakuos-overlay-services.service \
 rakuos-flatpaks.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
