@@ -195,8 +195,8 @@ echo "Latest version on registry: $VERSION_ANNOTATION"
 echo "Latest target tag:      $TARGET_TAG"
 
 if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
-    echo "Legacy GHCR image detected — switching to GitLab target $REPO_URL:$TARGET_TAG..."
-    bootc switch "$REPO_URL:$TARGET_TAG"
+    echo "Legacy GHCR image detected — switching to GitLab channel $REPO_URL:$CHANNEL_TAG..."
+    bootc switch "$REPO_URL:$CHANNEL_TAG"
 
     echo "New deployment staged — notifying user."
 
@@ -220,7 +220,7 @@ if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINA
             --action=later="Later" \
             --wait \
             "RakuOS Update Ready" \
-        "Image $TARGET_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
+        "Image $CHANNEL_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
 
         case "$ACTION" in
             reboot)
