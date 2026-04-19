@@ -430,11 +430,7 @@ _registry_get_image_info() {
     [[ -n "$NEWEST_DATE_TAG" ]] \
         || die "Could not extract date tag from registry manifest. Got: '$version_annotation'"
 
-    if [[ "$CHANNEL_TAG" == "latest" ]]; then
-        TARGET_TAG="$NEWEST_DATE_TAG"
-    else
-        TARGET_TAG="${CHANNEL_TAG}.${NEWEST_DATE_TAG}"
-    fi
+    TARGET_TAG="${CHANNEL_TAG}.${NEWEST_DATE_TAG}"
 }
 
 cmd_check_image() {
