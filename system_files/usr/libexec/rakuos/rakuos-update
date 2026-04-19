@@ -367,14 +367,15 @@ _canonicalize_repo_url() {
 
 _registry_get_image_info() {
     # Populates globals:
-    #   IMAGE_FULL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION
+    #   IMAGE_FULL ORIGINAL_REPO_URL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION
     #   CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     local bootc_status
     bootc_status=$(sudo bootc status --json 2>/dev/null) || die "bootc status failed"
 
     IMAGE_FULL=$(echo "$bootc_status" \
         | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
-    REPO_URL=$(_canonicalize_repo_url "${IMAGE_FULL%:*}")
+    ORIGINAL_REPO_URL="${IMAGE_FULL%:*}"
+    REPO_URL=$(_canonicalize_repo_url "$ORIGINAL_REPO_URL")
     REGISTRY_HOST="${REPO_URL%%/*}"
     REPO_PATH="${REPO_URL#${REGISTRY_HOST}/}"
     CURRENT_IMAGE_TAG="${IMAGE_FULL##*:}"
@@ -439,12 +440,18 @@ _registry_get_image_info() {
 cmd_check_image() {
     echo "RakuOS: checking for system image update..." >&2
 
-    local IMAGE_FULL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
+    local IMAGE_FULL ORIGINAL_REPO_URL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     _registry_get_image_info
 
     echo "Current version: $CURRENT_VERSION" >&2
+    echo "Original repo:    $ORIGINAL_REPO_URL" >&2
     echo "Channel tag:     $CHANNEL_TAG" >&2
     echo "Latest version:  $NEWEST_VERSION"  >&2
+
+    if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
+        echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_VERSION\",\"available\":\"$TARGET_TAG\",\"repo\":\"$REPO_URL\"}"
+        exit 0
+    fi
 
     # 1. New date tag available — switch to it
     if [[ "$CURRENT_DATE_TAG" =~ ^[0-9]{8}$ ]]; then
@@ -472,8 +479,15 @@ cmd_check_image() {
 cmd_upgrade_image() {
     echo "RakuOS: checking for system image update..."
 
-    local IMAGE_FULL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
+    local IMAGE_FULL ORIGINAL_REPO_URL REPO_URL REGISTRY_HOST REPO_PATH CURRENT_IMAGE_TAG CURRENT_VERSION CHANNEL_TAG CURRENT_DATE_TAG TOKEN NEWEST_VERSION NEWEST_DATE_TAG TARGET_TAG
     _registry_get_image_info
+
+    if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
+        echo "RakuOS: migrating legacy GHCR image to GitLab target $REPO_URL:$TARGET_TAG..."
+        bootc switch "$REPO_URL:$TARGET_TAG"
+        echo "RakuOS: system image update staged. Reboot to apply."
+        exit 0
+    fi
 
     # 1. New date tag — switch to it
     if [[ "$CURRENT_DATE_TAG" =~ ^[0-9]{8}$ ]] \
