@@ -2,6 +2,9 @@
 # RakuOS Base Image — GitLab CI/CD Pipeline
 # ============================================================
 
+tags:
+  - saas-linux-2xlarge-amd64
+
 variables:
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
   IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
