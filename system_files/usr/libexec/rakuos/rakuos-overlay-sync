@@ -458,6 +458,27 @@ _plymsg() {
     plymouth --ping 2>/dev/null && plymouth display-message --text="$1" 2>/dev/null || true
 }
 
+# Return success when the system appears to have usable internet access for
+# repo-backed dnf operations.  Keep the probe lightweight so first boot does not
+# hang for long on machines with no network configured yet.
+_internet_available() {
+    command -v curl >/dev/null 2>&1 || return 1
+    curl -fsSLI --max-time 5 --connect-timeout 3 https://mirrors.fedoraproject.org/ >/dev/null 2>&1
+}
+
+# If there is no internet, skip repo-backed install work and let boot continue
+# so the user can reach the desktop, configure networking, and retry on reboot.
+_skip_if_no_internet() {
+    local context="$1"
+    if _internet_available; then
+        return 0
+    fi
+
+    echo "RakuOS overlay sync: no internet detected during ${context} — skipping package install for now."
+    _plymsg "No internet detected. Skipping package install for now."
+    return 1
+}
+
 # Acquire lock so rakuos-base-protect allows our overlay writes
 touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
@@ -496,6 +517,11 @@ if [[ "$IS_LIVE" == "true" ]]; then
     if [[ "${#PACKAGES[@]}" -gt 0 ]]; then
         echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
         _plymsg "Setting up live environment..."
+        if ! _skip_if_no_internet "live environment setup"; then
+            _plymsg "Live environment ready. Connect to the internet and reboot to continue setup."
+            plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
+            exit 0
+        fi
         _import_terra_keys
         _ensure_packages_toml
         dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
@@ -572,6 +598,12 @@ fi
 if [[ "$STATE_MISSING" == "true" ]] || [[ "$OVERLAY_HAS_CONTENT" == "false" ]]; then
     echo "RakuOS overlay sync: overlay empty or state missing — performing full install..."
     _plymsg "Wiping overlay and reinstalling default applications..."
+    if ! _skip_if_no_internet "first boot or reset install"; then
+        _plymsg "Connect to the internet, then reboot to finish installing default applications."
+        echo "RakuOS overlay sync: deferring full install until network is available."
+        plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
+        exit 0
+    fi
     _save_overlay_gpg_keys
     _seed_overlay_rpmdb
     # Restore third-party keys (COPR, etc.) saved before the seed, then re-import
@@ -604,6 +636,12 @@ elif [[ "$CURRENT_DIGEST" != "$SAVED_DIGEST" ]]; then
 elif [[ -f "$DIRTY_FILE" ]]; then
     echo "RakuOS overlay sync: package changes detected — syncing..."
     _plymsg "Wiping overlay and reinstalling user applications..."
+    if ! _skip_if_no_internet "overlay reinstall"; then
+        _plymsg "Connect to the internet, then reboot to finish reinstalling applications."
+        echo "RakuOS overlay sync: deferring dirty overlay reinstall until network is available."
+        plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
+        exit 0
+    fi
     _ensure_packages_toml
     dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
         "${PACKAGES[@]}"
