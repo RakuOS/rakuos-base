@@ -449,7 +449,7 @@ cmd_check_image() {
     echo "Latest version:  $NEWEST_VERSION"  >&2
 
     if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
-        echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_VERSION\",\"available\":\"$TARGET_TAG\",\"repo\":\"$REPO_URL\"}"
+        echo "{\"update\":true,\"type\":\"switch\",\"booted\":\"$CURRENT_VERSION\",\"available\":\"$CHANNEL_TAG\",\"repo\":\"$REPO_URL\"}"
         exit 0
     fi
 
@@ -483,8 +483,8 @@ cmd_upgrade_image() {
     _registry_get_image_info
 
     if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
-        echo "RakuOS: migrating legacy GHCR image to GitLab target $REPO_URL:$TARGET_TAG..."
-        bootc switch "$REPO_URL:$TARGET_TAG"
+        echo "RakuOS: migrating legacy GHCR image to GitLab channel $REPO_URL:$CHANNEL_TAG..."
+        bootc switch "$REPO_URL:$CHANNEL_TAG"
         echo "RakuOS: system image update staged. Reboot to apply."
         exit 0
     fi
