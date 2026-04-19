@@ -119,6 +119,10 @@ systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 
+# sudo requires drop-in files to be owned by root and not be writable by others
+chown root:root /etc/sudoers.d/rakuos-software
+chmod 0440 /etc/sudoers.d/rakuos-software
+
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \
