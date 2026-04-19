@@ -44,7 +44,8 @@ BOOTC_STATUS=$(bootc status --json)
 IMAGE_FULL=$(echo "$BOOTC_STATUS" | jq -r '.status.booted.image.image.image // empty' | tr -d '[:space:]')
 
 # Strip :tag to get base repo URL
-REPO_URL=$(canonicalize_repo_url "${IMAGE_FULL%:*}")
+ORIGINAL_REPO_URL="${IMAGE_FULL%:*}"
+REPO_URL=$(canonicalize_repo_url "$ORIGINAL_REPO_URL")
 CURRENT_IMAGE_TAG="${IMAGE_FULL##*:}"
 
 # Get current version field e.g. "latest.20260306" or "staging.20260306"
@@ -83,6 +84,7 @@ else
 fi
 
 echo "Current image repo: $REPO_URL"
+echo "Original image repo: $ORIGINAL_REPO_URL"
 echo "Current image tag:  $CURRENT_IMAGE_TAG"
 echo "Current version:    $CURRENT_VERSION"
 echo "Channel tag:        $CHANNEL_TAG"
@@ -191,6 +193,51 @@ fi
 
 echo "Latest version on registry: $VERSION_ANNOTATION"
 echo "Latest target tag:      $TARGET_TAG"
+
+if [[ "$ORIGINAL_REPO_URL" == ghcr.io/rakuos/* ]] && [[ "$REPO_URL" != "$ORIGINAL_REPO_URL" ]]; then
+    echo "Legacy GHCR image detected — switching to GitLab target $REPO_URL:$TARGET_TAG..."
+    bootc switch "$REPO_URL:$TARGET_TAG"
+
+    echo "New deployment staged — notifying user."
+
+    ACTIVE_USER=$(loginctl list-sessions --no-legend | awk '{print $3}' | head -n1)
+
+    if [[ -n "$ACTIVE_USER" ]] && command -v notify-send &>/dev/null; then
+        USER_UID=$(id -u "$ACTIVE_USER")
+        USER_RUNTIME="/run/user/$USER_UID"
+
+        echo "Sending notification to: $ACTIVE_USER"
+
+        ACTION=$(sudo -u "$ACTIVE_USER" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=$USER_RUNTIME/bus" \
+            DISPLAY=:0 \
+            notify-send \
+            --app-name="RakuOS Updater" \
+            --icon=system-software-update \
+            --urgency=normal \
+            --expire-time=0 \
+            --action=reboot="Reboot Now" \
+            --action=later="Later" \
+            --wait \
+            "RakuOS Update Ready" \
+        "Image $TARGET_TAG is staged. Layered packages will be upgraded on Reboot. Reboot to apply." 2>/dev/null || echo "later")
+
+        case "$ACTION" in
+            reboot)
+                echo "User chose reboot — rebooting now."
+                systemctl reboot
+                exit 0
+            ;;
+            *)
+                echo "User chose later or dismissed."
+                exit 0
+            ;;
+        esac
+    else
+        echo "No active graphical session — skipping notification."
+        exit 0
+    fi
+fi
 
 # -------------------------------
 # Compare tags — skip if already on newest
