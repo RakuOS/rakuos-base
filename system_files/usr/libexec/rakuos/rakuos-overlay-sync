@@ -617,44 +617,6 @@ else
     echo "RakuOS overlay sync: nothing to do."
 fi
 
-echo "Reload udev..."
-udevadm control --reload-rules && udevadm trigger
-
-echo "RakuOS overlay services: running daemon-reload..."
-systemctl daemon-reload
-
-echo "RakuOS overlay services: scanning for enabled overlay services..."
-while IFS= read -r -d '' service_file; do
-    service=$(basename "$service_file")
-
-    # Skip template units
-    [[ "$service" == *@* ]] && continue
-
-    # Skip non-service units
-    [[ "$service" == *.service ]] || continue
-
-    # Check if the unit file is known to systemd
-    if ! systemctl cat "$service" &>/dev/null; then
-        echo "RakuOS overlay services: $service not found by systemd, skipping."
-        continue
-    fi
-
-    if systemctl is-active --quiet "$service"; then
-        echo "RakuOS overlay services: $service already active, skipping."
-        continue
-    fi
-
-    echo "RakuOS overlay services: enabling and starting $service..."
-    # Re-enable to repair any broken symlinks, then start
-    systemctl enable "$service" 2>/dev/null || true
-    systemctl start "$service" \
-        && echo "RakuOS overlay services: $service started OK." \
-        || echo "RakuOS overlay services: WARNING — failed to start $service"
-
-done < <(find "$SERVICE_DIR" -maxdepth 1 -name "*.service" -type f -print0 2>/dev/null)
-
-echo "RakuOS overlay services: done."
-
 # Save digest
 echo "$CURRENT_DIGEST" > "$STATE_FILE"
 
@@ -669,7 +631,6 @@ if [[ -f /etc/os-release ]]; then
 else
     echo "unknown" > "$OS_VERSION_FILE"
 fi
-
 
 # Hand Plymouth back — the display manager will take over the screen now.
 # plymouth-quit.service will do this too, but signalling it here lets the DM
