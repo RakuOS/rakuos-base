@@ -3,8 +3,6 @@ name: Build container image
 on:
   pull_request:
     branches: [ main ]
-  schedule:
-    - cron: '5 10 * * 3'
   workflow_dispatch:
 
 env:
