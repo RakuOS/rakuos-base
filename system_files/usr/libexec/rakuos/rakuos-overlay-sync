@@ -484,55 +484,15 @@ touch "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
 
-# Place an Install RakuOS shortcut on the live user's desktop.
-_place_installer_shortcut() {
-    local desktop_dir="/var/home/liveuser/Desktop"
-    local src="/usr/share/applications/rakuos-installer.desktop"
-    local dest="${desktop_dir}/rakuos-installer.desktop"
-    [[ -f "$src" ]] || return 0
-    mkdir -p "$desktop_dir"
-    cp "$src" "$dest"
-    # Mark as trusted (required by GNOME/COSMIC to show as launchable)
-    chmod +x "$dest"
-    chown liveuser:liveuser "$desktop_dir" "$dest"
-    echo "RakuOS overlay sync: installer shortcut placed on liveuser's desktop."
-}
-
-# ── Live environment — install packages without overlay mount ─────────────────
+# ── Live environment — go straight to desktop ─────────────────────────────────
 if [[ "$IS_LIVE" == "true" ]]; then
     echo "RakuOS overlay sync: live environment..."
-    # Always place installer shortcut regardless of whether there are packages
-    _place_installer_shortcut
-
-    # Read packages into array
-    mapfile -t PACKAGES < <(
-        grep -v '^\s*#' "$PACKAGES_LIST" \
-        | grep -v '^\s*$' \
-        | sed 's/\s*#.*//' \
-        | tr -s ' \t' '\n' \
-        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-        | grep -v '^$'
-    ) || true
-
-    if [[ "${#PACKAGES[@]}" -gt 0 ]]; then
-        echo "RakuOS overlay sync: live environment — installing packages without overlay mount..."
-        _plymsg "Setting up live environment..."
-        if ! _skip_if_no_internet "live environment setup"; then
-            _plymsg "Live environment ready. Connect to the internet and reboot to continue setup."
-            plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
-            exit 0
-        fi
-        _import_terra_keys
-        _ensure_packages_toml
-        dnf5.real install -y --refresh --config="/usr/share/rakuos/dnf.conf" \
-            "${PACKAGES[@]}"
-        _install_local_rpms
-        rm -f "$DIRTY_FILE"
-        _plymsg "Live environment ready."
-        echo "RakuOS overlay sync: live install complete."
-    else
-        echo "RakuOS overlay sync: no packages in list — skipping install."
-    fi
+    # The live squashfs now carries the default app set directly. Do not try to
+    # perform overlay/package setup here; installed systems will handle the real
+    # overlay on first boot after install. Anaconda already places its own
+    # installer shortcuts in the live session.
+    _plymsg "Live environment ready."
+    echo "RakuOS overlay sync: live environment ready — skipping overlay sync."
     plymouth --ping 2>/dev/null && plymouth quit 2>/dev/null || true
     exit 0
 fi
