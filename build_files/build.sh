@@ -123,6 +123,46 @@ systemctl mask systemd-remount-fs.service
 chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
 
+# Clone rakuos-scripts repo
+rm -rf /tmp/rakuos-scripts
+git clone --depth 1 https://gitlab.com/rakuos/images/rakuos-scripts.git /tmp/rakuos-scripts
+
+# Make target dirs
+mkdir -p /usr/bin
+mkdir -p /usr/share/rakuos
+mkdir -p /usr/libexec/rakuos
+mkdir -p /usr/lib/systemd/system
+mkdir -p /usr/lib/systemd/user
+
+#copy to /usr/bin
+cp -a /tmp/rakuos-scripts/bin/* /usr/bin/
+rm -rf /tmp/rakuos-scripts/bin
+
+# Copy systemd units into the proper locations
+if [ -d /tmp/rakuos-scripts/systemd/system ]; then
+    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
+fi
+
+if [ -d /tmp/rakuos-scripts/systemd/user ]; then
+    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
+fi
+rm -rf /tmp/rakuos-scripts/systemd
+
+# Copy everything except the systemd folder into /usr/libexec/rakuos
+cp -a /tmp/rakuos-scripts/. /usr/libexec/rakuos/
+
+# Copy systemd units into the proper locations
+if [ -d /tmp/rakuos-scripts/systemd/system ]; then
+    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
+fi
+
+if [ -d /tmp/rakuos-scripts/systemd/user ]; then
+    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
+fi
+
+# Clean up
+rm -rf /tmp/rakuos-scripts
+
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \

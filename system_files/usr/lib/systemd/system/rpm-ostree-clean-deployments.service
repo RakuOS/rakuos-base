@@ -1,6 +1,0 @@
-[Unit]
-Description=Remove old rpm-ostree deployments
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/rpm-ostree cleanup -r
