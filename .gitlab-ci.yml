@@ -45,7 +45,7 @@ stages:
           ;;
         "rakuosel")
           # Temporary until this branch switches to the CentOS Stream flow.
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="10"
           export BRANCH_SLUG="rakuosel"
           ;;
         *)

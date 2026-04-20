@@ -7,7 +7,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION}
+FROM quay.io/centos-bootc/centos-bootc:c${FEDORA_VERSION}s
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
