@@ -1,9 +1,0 @@
-[Desktop Entry]
-Categories=Game;Emulator;
-Encoding=UTF-8
-Name=Cemu
-GenericName=Wii U Emulator
-Type=Application
-Exec=cemu
-Icon=cemu
-
