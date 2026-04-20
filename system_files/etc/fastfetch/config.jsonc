@@ -1,0 +1,6 @@
+{
+  "logo": {
+    "type": "file",
+    "source": "/usr/share/rakuos/logo.txt"
+  }
+}
