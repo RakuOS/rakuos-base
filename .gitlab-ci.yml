@@ -40,7 +40,7 @@ stages:
           export BRANCH_SLUG="staging"
           ;;
         "rawhide")
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="rawhide"
           export BRANCH_SLUG="rawhide"
           ;;
         "rakuosel")
