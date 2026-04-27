@@ -74,6 +74,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 dnf5 -y install ananicy-cpp \
 cachyos-ananicy-rules \
 cachyos-settings \
+cabextract \
 bore-sysctl \
 scx-scheds \
 scx-tools \
