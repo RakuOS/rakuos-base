@@ -68,6 +68,13 @@ if [[ ! -d "$NVIDIA_SRC_DIR" ]]; then
 fi
 
 echo "Installing NVIDIA userspace and building kernel modules for ${QUALIFIED_KERNEL}..."
+module_type_args=()
+if [[ -d "$NVIDIA_SRC_DIR/kernel-open" ]]; then
+    module_type_args+=(--kernel-module-type=open)
+else
+    echo "WARNING: NVIDIA installer payload does not include kernel-open; using installer default kernel module type."
+fi
+
 LD=ld.bfd "$NVIDIA_SRC_DIR/nvidia-installer" \
     --silent \
     --accept-license \
@@ -77,7 +84,7 @@ LD=ld.bfd "$NVIDIA_SRC_DIR/nvidia-installer" \
     --no-network \
     --no-check-for-alternate-installs \
     --install-libglvnd \
-    --kernel-module-type=open \
+    "${module_type_args[@]}" \
     --kernel-name="${QUALIFIED_KERNEL}" \
     --kernel-source-path="${KERNEL_SOURCE}" \
     --utility-prefix=/usr \
