@@ -11,11 +11,6 @@ NVIDIA_LATEST_URL="https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt"
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 KERNEL_SOURCE="/usr/src/kernels/${QUALIFIED_KERNEL}"
 
-if [[ ! -d "$KERNEL_SOURCE" ]]; then
-    echo "ERROR: missing kernel source path: $KERNEL_SOURCE"
-    exit 1
-fi
-
 # Snapshot installed packages before NVIDIA setup so protected-packages.txt can
 # still include build/runtime deps pulled in by this script.
 rpm -qa --qf '%{NAME}\n' | sort > /tmp/pre-nvidia-pkgs.txt
@@ -37,6 +32,11 @@ dnf5 install -y \
     selinux-policy-devel \
     bzip2 \
     curl
+
+if [[ ! -d "$KERNEL_SOURCE" ]]; then
+    echo "ERROR: missing kernel source path after installing devel package: $KERNEL_SOURCE"
+    exit 1
+fi
 
 if [[ -z "${NVIDIA_VERSION:-}" ]]; then
     latest_info="$(curl -fsSL "$NVIDIA_LATEST_URL")"
