@@ -77,6 +77,7 @@ LD=ld.bfd "$NVIDIA_SRC_DIR/nvidia-installer" \
     --no-network \
     --no-check-for-alternate-installs \
     --install-libglvnd \
+    --kernel-module-type=open \
     --kernel-name="${QUALIFIED_KERNEL}" \
     --kernel-source-path="${KERNEL_SOURCE}" \
     --utility-prefix=/usr \
