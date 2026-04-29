@@ -113,7 +113,7 @@ chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
 dnf5 remove -y --no-autoremove \
     dkms \
-    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    kernel-cachyos-devel-matched \
     gcc \
     make \
     bluez || true
