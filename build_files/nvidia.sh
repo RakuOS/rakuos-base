@@ -15,7 +15,7 @@ KERNEL_SOURCE="/usr/src/kernels/${QUALIFIED_KERNEL}"
 # still include build/runtime deps pulled in by this script.
 rpm -qa --qf '%{NAME}\n' | sort > /tmp/pre-nvidia-pkgs.txt
 
-dnf5 install -y \
+dnf5.real install -y \
     dkms \
     gcc \
     make \
@@ -145,7 +145,7 @@ depmod "${QUALIFIED_KERNEL}"
 
 chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
 
-dnf5 remove -y --no-autoremove \
+dnf5.real remove -y --no-autoremove \
     dkms \
     gcc \
     make \
