@@ -71,7 +71,7 @@ fi
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/build.sh)
-dnf5-plugins
+dnf-plugins
 dnf-plugins-core
 kernel-cachyos
 kernel-cachyos-devel-matched
@@ -81,8 +81,6 @@ cachyos-settings
 bore-sysctl
 scx-scheds
 scx-tools
-gamemode
-gamemode.i686
 pulseaudio-utils
 dkms
 akmods
