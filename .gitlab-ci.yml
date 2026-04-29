@@ -21,7 +21,8 @@ variables:
   DEFAULT_TAG: "latest"
 
 stages:
-  - build-push
+  - build-push-base
+  - build-push-nvidia
   - dispatch
 
 .buildah-job:
@@ -62,7 +63,7 @@ stages:
 
 build-push-base:
   extends: .buildah-job
-  stage: build-push
+  stage: build-push-base
   script:
     - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base.env
 
@@ -117,7 +118,9 @@ build-push-base:
 
 build-push-nvidia:
   extends: .buildah-job
-  stage: build-push
+  stage: build-push-nvidia
+  needs:
+    - job: build-push-base
   script:
     - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia.env
 
@@ -133,9 +136,14 @@ build-push-nvidia:
     - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
+      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      fi
+
+    - |
       buildah build \
         --file Containerfile.nvidia \
-        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
@@ -164,7 +172,6 @@ build-push-nvidia:
     reports:
       dotenv: build-nvidia.env
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'

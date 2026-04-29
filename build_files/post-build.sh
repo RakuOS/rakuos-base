@@ -76,8 +76,6 @@ scx-tools
 gamemode
 gamemode.i686
 pulseaudio-utils
-dkms
-akmods
 mokutil
 elfutils-libelf-devel
 openssl-devel
@@ -110,11 +108,6 @@ appstream-data
 fwupd
 ffmpeg
 fedora-logos
-dkms-xpadneo
-dkms-xpad-noone
-dkms-xone
-xone-firmware
-dkms-zenergy
 EOF
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."

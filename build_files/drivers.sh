@@ -6,6 +6,16 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 XPADNEO_VERSION="0.10.2"
 
+dnf5 install -y \
+    dkms \
+    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    gcc \
+    make \
+    git \
+    bluez \
+    cabextract \
+    curl
+
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -100,3 +110,11 @@ depmod "$QUALIFIED_KERNEL"
 --add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
+
+dnf5 remove -y --no-autoremove \
+    dkms \
+    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    gcc \
+    make \
+    bluez || true
+rm -rf /var/lib/dkms /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/VERSION
