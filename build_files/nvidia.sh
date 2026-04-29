@@ -11,7 +11,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 rpm -qa --qf '%{NAME}\n' | sort > /tmp/pre-nvidia-pkgs.txt
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5 install -y --setopt=tsflags=noscripts \
+dnf install -y --setopt=tsflags=noscripts \
     dkms-nvidia \
     nvidia-driver \
     nvidia-persistenced

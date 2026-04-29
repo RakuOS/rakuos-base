@@ -2,9 +2,11 @@
 
 set -ouex pipefail
 
-# Rename real dnf5 and dnf binaries
-mv /usr/bin/dnf5 /usr/bin/dnf5.real
+# Rename real dnf and dnf4 binaries.  On the rakuosel branch, dnf4 is the real
+# backend, while dnf/dnf5 are kept as wrapper-compatible entrypoints.
+mv /usr/bin/dnf4 /usr/bin/dnf4.real
 mv /usr/bin/dnf /usr/bin/dnf.real
+ln -sf /usr/bin/dnf4.real /usr/bin/dnf5.real
 
 # Mark all base image packages as dependency so PackageKit only manages overlay packages
 dnf5.real -y mark dependency $(rpm -qa --qf '%{NAME} ') --skip-unavailable
@@ -38,8 +40,14 @@ cat > /usr/bin/dnf << 'WRAPPER'
 exec /usr/bin/dnf5 "$@"
 WRAPPER
 
+# Create dnf4 wrapper
+cat > /usr/bin/dnf4 << 'WRAPPER'
+#!/usr/bin/env bash
+exec /usr/bin/dnf5 "$@"
+WRAPPER
+
 # Make all wrappers executable
-chmod +x /usr/bin/dnf5 /usr/bin/dnf
+chmod +x /usr/bin/dnf5 /usr/bin/dnf4 /usr/bin/dnf
 
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service

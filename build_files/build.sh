@@ -3,19 +3,19 @@
 set -ouex pipefail
 CENTOS_VERSION=$(rpm -E %rhel)
 ## Enable repos
-dnf5 -y install dnf5-plugins
-dnf5 -y copr enable tohur/RakuOS epel-${CENTOS_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos epel-${CENTOS_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos-addons epel-${CENTOS_VERSION}-x86_64
+dnf -y install dnf-plugins
+dnf -y copr enable tohur/RakuOS epel-${CENTOS_VERSION}-x86_64
+dnf -y copr enable bieszczaders/kernel-cachyos epel-${CENTOS_VERSION}-x86_64
+dnf -y copr enable bieszczaders/kernel-cachyos-addons epel-${CENTOS_VERSION}-x86_64
 
-dnf5 -y install \
+dnf -y install \
 https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${CENTOS_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${CENTOS_VERSION}.noarch.rpm
 
-dnf5 -y config-manager addrepo --from-repofile=https://negativo17.org/repos/epel-nvidia.repo
+dnf -y config-manager addrepo --from-repofile=https://negativo17.org/repos/epel-nvidia.repo
 rpm --import https://repos.fyralabs.com/terrael${CENTOS_VERSION}/key.asc
 
-dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terrael${CENTOS_VERSION}' terra-release
+dnf -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terrael${CENTOS_VERSION}' terra-release
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
@@ -47,17 +47,17 @@ echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yum
 
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
+dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
+dnf -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # install packages
-dnf5 -y install ananicy-cpp \
+dnf -y install ananicy-cpp \
 cachyos-ananicy-rules \
 cachyos-settings \
 cabextract \
@@ -95,7 +95,7 @@ v4l-utils \
 unzip
 
 ## Remove packages
-dnf5 -y remove firefox* nss
+dnf -y remove firefox* nss
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
