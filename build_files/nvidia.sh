@@ -21,11 +21,12 @@ fi
 rpm -qa --qf '%{NAME}\n' | sort > /tmp/pre-nvidia-pkgs.txt
 
 dnf5 install -y \
+    dkms \
     gcc \
     make \
     perl \
     elfutils-libelf-devel \
-    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    kernel-cachyos-devel-matched \
     libglvnd \
     libglvnd-egl \
     libglvnd-gles \
@@ -145,11 +146,12 @@ depmod "${QUALIFIED_KERNEL}"
 chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
 
 dnf5 remove -y --no-autoremove \
+    dkms \
     gcc \
     make \
     perl \
     elfutils-libelf-devel \
-    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    kernel-cachyos-devel-matched \
     checkpolicy \
     selinux-policy-devel || true
 rm -rf /var/lib/dkms /usr/src/nvidia-* /usr/src/kernels/"${QUALIFIED_KERNEL}"

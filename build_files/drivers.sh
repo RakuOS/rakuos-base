@@ -8,7 +8,7 @@ XPADNEO_VERSION="0.10.2"
 
 dnf5 install -y \
     dkms \
-    kernel-cachyos-devel-"${QUALIFIED_KERNEL}" \
+    kernel-cachyos-devel-matched \
     gcc \
     make \
     git \
