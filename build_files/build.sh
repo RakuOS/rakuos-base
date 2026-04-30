@@ -83,6 +83,7 @@ cachyos-ananicy-rules \
 cachyos-settings \
 bore-sysctl \
 fastfetch \
+flatpak \
 scx-scheds \
 scx-tools \
 gamemode \
