@@ -112,9 +112,6 @@ virtualbox-guest-additions \
 v4l-utils \
 unzip
 
-## Remove packages
-dnf5 -y remove firefox* nss
-
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
