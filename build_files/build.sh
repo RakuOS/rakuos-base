@@ -84,6 +84,7 @@ cachyos-ananicy-rules \
 cachyos-settings \
 bore-sysctl \
 fastfetch \
+fedora-logos \
 flatpak \
 scx-scheds \
 scx-tools \
