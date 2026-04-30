@@ -11,6 +11,7 @@ dnf5 install -y \
     kernel-cachyos-devel-matched \
     gcc \
     make \
+    cabextract \
     git \
     bluez \
     cabextract \

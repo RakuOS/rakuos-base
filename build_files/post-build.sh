@@ -41,6 +41,9 @@ WRAPPER
 # Make all wrappers executable
 chmod +x /usr/bin/dnf5 /usr/bin/dnf
 
+# Provide neofetch compatibility via fastfetch.
+ln -sf /usr/bin/fastfetch /usr/bin/neofetch
+
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 
