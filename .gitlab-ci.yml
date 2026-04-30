@@ -33,11 +33,11 @@ stages:
     - |
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}")
-          export FEDORA_VERSION="43"
+          export FEDORA_VERSION="44"
           export BRANCH_SLUG="${DEFAULT_TAG}"
           ;;
         "staging")
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="45"
           export BRANCH_SLUG="staging"
           ;;
         "rawhide")
@@ -50,7 +50,7 @@ stages:
           export BRANCH_SLUG="rakuosel"
           ;;
         *)
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="45"
           export BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')"
           ;;
       esac
