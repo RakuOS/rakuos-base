@@ -117,5 +117,6 @@ dnf5 remove -y --no-autoremove \
     kernel-cachyos-devel-matched \
     gcc \
     make \
+    cabextract \
     bluez || true
 rm -rf /var/lib/dkms /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/VERSION
