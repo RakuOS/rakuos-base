@@ -17,7 +17,7 @@ https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
-#rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
+
 dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
 #dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
 dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
@@ -26,7 +26,7 @@ sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
-TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-nvidia terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
+TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
 mkdir -p /usr/share/swcatalog/xml
 for REPO in $TERRA_REPOS; do
     BASE_URL="${TERRA_BASE}/${REPO}/latest/appstream"
@@ -75,7 +75,6 @@ cachyos-settings \
 bore-sysctl \
 dmemcg-booster \
 fastfetch \
-fedora-logos \
 flatpak \
 scx-scheds \
 scx-tools \
@@ -147,15 +146,6 @@ rm -rf /tmp/rakuos-scripts/systemd
 
 # Copy everything except the systemd folder into /usr/libexec/rakuos
 cp -a /tmp/rakuos-scripts/. /usr/libexec/rakuos/
-
-# Copy systemd units into the proper locations
-if [ -d /tmp/rakuos-scripts/systemd/system ]; then
-    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
-fi
-
-if [ -d /tmp/rakuos-scripts/systemd/user ]; then
-    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
-fi
 
 # Clean up
 rm -rf /tmp/rakuos-scripts
