@@ -27,6 +27,9 @@ dnf5.real install -y \
     libglvnd-gles \
     libglvnd-glx \
     libglvnd-opengl \
+    egl-x11 \
+    egl-wayland2 \
+    egl-gbm \
     policycoreutils \
     checkpolicy \
     selinux-policy-devel \
@@ -155,3 +158,6 @@ dnf5.real remove -y --no-autoremove \
     checkpolicy \
     selinux-policy-devel || true
 rm -rf /var/lib/dkms /usr/src/nvidia-* /usr/src/kernels/"${QUALIFIED_KERNEL}"
+
+echo "Generating base file manifest..."
+/usr/libexec/rakuos/generate-base-manifest
