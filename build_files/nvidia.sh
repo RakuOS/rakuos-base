@@ -22,8 +22,6 @@ dnf5.real install -y \
     perl \
     elfutils-libelf-devel \
     kernel-cachyos-devel-matched \
-    pkgconf-pkg-config \
-    xorg-x11-server-devel \
     libglvnd \
     libglvnd-egl \
     libglvnd-gles \
@@ -32,6 +30,7 @@ dnf5.real install -y \
     egl-x11 \
     egl-wayland2 \
     egl-gbm \
+    xorg-x11-server-Xorg \
     policycoreutils \
     checkpolicy \
     selinux-policy-devel \
@@ -157,8 +156,6 @@ dnf5.real remove -y --no-autoremove \
     perl \
     elfutils-libelf-devel \
     kernel-cachyos-devel-matched \
-    pkgconf-pkg-config \
-    xorg-x11-server-devel \
     checkpolicy \
     selinux-policy-devel || true
 rm -rf /var/lib/dkms /usr/src/nvidia-* /usr/src/kernels/"${QUALIFIED_KERNEL}"
