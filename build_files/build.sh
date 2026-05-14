@@ -52,6 +52,10 @@ echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yum
 # Enable Chrome repo
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/google-chrome.repo
 
+# Enable Brave origin Beta and Nightly
+dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-beta.s3.brave.com/brave-browser-beta.repo
+dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-nightly.s3.brave.com/brave-browser-nightly.repo
+
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
