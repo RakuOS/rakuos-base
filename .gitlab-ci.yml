@@ -28,7 +28,7 @@ stages:
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - saas-linux-2xlarge-amd64
   before_script:
     - |
       case "${CI_COMMIT_BRANCH}" in
