@@ -84,8 +84,6 @@ fastfetch \
 flatpak \
 scx-scheds \
 scx-tools \
-gamemode \
-gamemode.i686 \
 pulseaudio-utils \
 git \
 flatpak \
@@ -114,7 +112,7 @@ rsms-inter-fonts \
 unzip
 
 ## Remove packages
-dnf5 -y remove firefox* nss
+dnf5 -y remove firefox* nss gamemode gamemode.i686
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
