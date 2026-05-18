@@ -182,7 +182,7 @@ build-push-nvidia:
 # RPM DB Stress Tests + Immediate Failure Response
 # ============================================================
 # Requires group CI/CD variables:
-#   TRIGGER_TOKEN_SELF  — pipeline trigger token for this project
+#   TRIGGER_TOKEN_BASE  — pipeline trigger token for this project
 #   GITLAB_API_TOKEN    — api-scoped token for pipeline cancellation
 
 .image-test-job:
@@ -260,7 +260,7 @@ test-image-nvidia:
       dnf install -y curl
       echo "Re-triggering ${CI_PROJECT_NAME} pipeline on ${CI_COMMIT_BRANCH}..."
       curl -sf -X POST \
-        --form "token=${TRIGGER_TOKEN_SELF}" \
+        --form "token=${TRIGGER_TOKEN_BASE}" \
         --form "ref=${CI_COMMIT_BRANCH}" \
         "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/trigger/pipeline"
       echo "Pipeline re-triggered."
