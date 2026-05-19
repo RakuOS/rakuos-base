@@ -46,18 +46,12 @@
      r="222"
      fill="#1f62b4"
      id="circle2" />
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:normal;font-size:315.663px;line-height:1.4;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';text-align:center;writing-mode:lr-tb;direction:ltr;text-anchor:middle;fill:#ffffff;stroke-width:0.916471"
-     x="243.47536"
-     y="359.91483"
+  <path
+     style="font-weight:800;font-size:315.663px;line-height:1.4;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';text-align:center;direction:rtl;text-anchor:middle;fill:#ffffff;stroke-width:0.916471"
+     d="m 148.77649,359.91483 v -220.9641 h 98.80252 q 48.29644,0 74.18081,22.09641 26.20002,21.78075 26.20002,59.6603 0,24.93738 -11.99519,43.24584 -11.99519,17.99279 -34.0916,27.77834 -21.78075,9.46989 -52.0844,9.46989 h -66.28923 l 27.77835,-26.20003 v 84.91335 z m 136.68208,0 -54.92536,-80.49407 h 66.60489 l 55.24103,80.49407 z m -74.1808,-78.28443 -27.77835,-28.72533 h 62.50128 q 19.5711,0 29.04099,-8.5229 9.78556,-8.5229 9.78556,-23.67473 0,-15.46748 -9.78556,-23.99038 -9.46989,-8.5229 -29.04099,-8.5229 h -62.50128 l 27.77835,-28.72534 z"
      id="text2"
-     transform="matrix(0.99834534,6.1473861e-4,-6.541359e-4,1.001657,0,0)"
      inkscape:transform-center-x="0.33501929"
-     inkscape:transform-center-y="0.012013533"><tspan
-       sodipodi:role="line"
-       id="tspan2"
-       x="243.47536"
-       y="359.91483"
-       style="font-style:normal;font-variant:normal;font-weight:800;font-stretch:normal;font-size:315.663px;line-height:1.4;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';writing-mode:lr-tb;direction:rtl;stroke-width:0.916471">R</tspan></text>
+     inkscape:transform-center-y="0.012013533"
+     transform="matrix(0.99834534,6.1473861e-4,-6.541359e-4,1.001657,0,0)"
+     aria-label="R" />
 </svg>
