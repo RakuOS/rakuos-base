@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=OrigamiPaperLight
+Comment=Origami Paper Light theme for GTK
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=OrigamiPaperLight
+MetacityTheme=OrigamiPaperLight
+IconTheme=WhiteSur-dark
+CursorTheme=Bibata-Modern-Classic
+ButtonLayout=:minimize,maximize,close

@@ -1,0 +1,391 @@
+/* Origami Paper Light - GTK3 */
+
+/* ── Color definitions ──────────────────────────────────────────────────── */
+@define-color theme_bg_color          #DFE1E4;
+@define-color theme_fg_color          #262A31;
+@define-color theme_base_color        #ECEFF4;
+@define-color theme_text_color        #262A31;
+@define-color theme_selected_bg_color #5E81AC;
+@define-color theme_selected_fg_color #FFFFFF;
+@define-color theme_unfocused_bg_color   #DFE1E4;
+@define-color theme_unfocused_fg_color   #6C7080;
+@define-color theme_unfocused_base_color #ECEFF4;
+@define-color theme_unfocused_text_color #6C7080;
+@define-color theme_unfocused_selected_bg_color rgba(94,129,172,0.5);
+@define-color theme_unfocused_selected_fg_color #FFFFFF;
+@define-color insensitive_bg_color   rgba(223,225,228,0.6);
+@define-color insensitive_fg_color   rgba(38,42,49,0.35);
+@define-color insensitive_base_color rgba(236,239,244,0.6);
+@define-color borders                #C4C7CD;
+@define-color unfocused_borders      #C4C7CD;
+@define-color warning_color  #BF6A00;
+@define-color error_color    #C0392B;
+@define-color success_color  #2E7D32;
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+* {
+  outline-width: 0;
+  -GtkScrolledWindow-overlay-scrolling: false;
+}
+
+.background, window, .window {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+}
+
+.background:backdrop, window:backdrop {
+  background-color: @theme_unfocused_bg_color;
+  color: @theme_unfocused_fg_color;
+}
+
+/* ── Views & text areas ─────────────────────────────────────────────────── */
+.view, textview, treeview, iconview, flowbox {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+}
+
+.view:backdrop, textview:backdrop, treeview:backdrop {
+  background-color: @theme_unfocused_base_color;
+  color: @theme_unfocused_text_color;
+}
+
+textview text {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+}
+
+/* ── Selection ──────────────────────────────────────────────────────────── */
+*:selected,
+.view:selected,
+row:selected,
+entry selection,
+textview text selection {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+*:selected:backdrop,
+row:selected:backdrop {
+  background-color: @theme_unfocused_selected_bg_color;
+  color: @theme_unfocused_selected_fg_color;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+button {
+  background-color: #D0D3D8;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+  border-radius: 4px;
+  padding: 5px 10px;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+button:hover {
+  background-color: #C6C9CF;
+  border-color: #B0B3B9;
+}
+
+button:active, button:checked {
+  background-color: rgba(94,129,172,0.2);
+  border-color: @theme_selected_bg_color;
+}
+
+button:disabled {
+  background-color: @insensitive_bg_color;
+  color: @insensitive_fg_color;
+  border-color: @borders;
+}
+
+button:backdrop {
+  background-color: @theme_unfocused_bg_color;
+  color: @theme_unfocused_fg_color;
+}
+
+button.suggested-action {
+  background-color: @theme_selected_bg_color;
+  color: #FFFFFF;
+  border-color: @theme_selected_bg_color;
+}
+
+button.suggested-action:hover {
+  background-color: #4D70A0;
+}
+
+button.destructive-action {
+  background-color: rgba(192,57,43,0.15);
+  color: #C0392B;
+  border-color: #C0392B;
+}
+
+button.destructive-action:hover {
+  background-color: rgba(192,57,43,0.28);
+}
+
+button.flat {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+button.flat:hover {
+  background-color: rgba(0,0,0,0.08);
+  border-color: transparent;
+}
+
+/* ── Entries ────────────────────────────────────────────────────────────── */
+entry {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+  border: 1px solid @borders;
+  border-radius: 4px;
+  padding: 5px 8px;
+  box-shadow: none;
+}
+
+entry:focus {
+  border-color: @theme_selected_bg_color;
+}
+
+entry:disabled {
+  background-color: @insensitive_base_color;
+  color: @insensitive_fg_color;
+}
+
+entry:backdrop {
+  background-color: @theme_unfocused_base_color;
+  color: @theme_unfocused_text_color;
+  border-color: @unfocused_borders;
+}
+
+/* ── Headerbar ──────────────────────────────────────────────────────────── */
+headerbar {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border-bottom: 1px solid @borders;
+  padding: 4px 8px;
+  min-height: 46px;
+}
+
+headerbar:backdrop {
+  background-color: @theme_unfocused_bg_color;
+  color: @theme_unfocused_fg_color;
+}
+
+headerbar .title {
+  font-weight: bold;
+}
+
+headerbar .subtitle {
+  font-size: smaller;
+  color: @theme_unfocused_fg_color;
+}
+
+headerbar button {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+headerbar button:hover {
+  background-color: rgba(0,0,0,0.08);
+  border-color: transparent;
+}
+
+headerbar button:active {
+  background-color: rgba(0,0,0,0.14);
+}
+
+/* ── Menus ──────────────────────────────────────────────────────────────── */
+menu, .menu, .context-menu {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 4px 0;
+}
+
+menuitem {
+  padding: 6px 12px;
+  border-radius: 0;
+}
+
+menuitem:hover {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+menuitem:disabled {
+  color: @insensitive_fg_color;
+}
+
+menu separator, menuitem separator {
+  background-color: @borders;
+  min-height: 1px;
+  margin: 4px 0;
+}
+
+/* ── Popovers ───────────────────────────────────────────────────────────── */
+popover.background {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+/* ── Tooltips ───────────────────────────────────────────────────────────── */
+tooltip, .tooltip {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────── */
+scrollbar {
+  background-color: transparent;
+}
+
+scrollbar slider {
+  background-color: rgba(38,42,49,0.25);
+  border-radius: 9999px;
+  min-width: 6px;
+  min-height: 6px;
+}
+
+scrollbar slider:hover {
+  background-color: rgba(38,42,49,0.4);
+}
+
+scrollbar slider:active {
+  background-color: @theme_selected_bg_color;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.sidebar {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border-right: 1px solid @borders;
+}
+
+.sidebar row {
+  padding: 6px 12px;
+}
+
+.sidebar row:selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+.sidebar row:hover:not(:selected) {
+  background-color: rgba(0,0,0,0.05);
+}
+
+/* ── Notebook / Tabs ────────────────────────────────────────────────────── */
+notebook > header {
+  background-color: @theme_bg_color;
+  border-bottom: 1px solid @borders;
+}
+
+notebook > header tab {
+  padding: 6px 16px;
+  color: @theme_unfocused_fg_color;
+}
+
+notebook > header tab:checked {
+  color: @theme_fg_color;
+  border-bottom: 2px solid @theme_selected_bg_color;
+}
+
+notebook > header tab:hover:not(:checked) {
+  color: @theme_fg_color;
+  background-color: rgba(0,0,0,0.04);
+}
+
+/* ── Check & Radio ──────────────────────────────────────────────────────── */
+check, radio {
+  background-color: @theme_base_color;
+  border: 1px solid #B0B3B9;
+  border-radius: 3px;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+radio { border-radius: 50%; }
+
+check:checked, radio:checked {
+  background-color: @theme_selected_bg_color;
+  border-color: @theme_selected_bg_color;
+}
+
+check:hover, radio:hover {
+  border-color: @theme_selected_bg_color;
+}
+
+/* ── Progress & Scale ───────────────────────────────────────────────────── */
+progressbar trough {
+  background-color: #C4C7CD;
+  border-radius: 9999px;
+  min-height: 4px;
+}
+
+progressbar progress {
+  background-color: @theme_selected_bg_color;
+  border-radius: 9999px;
+}
+
+scale trough {
+  background-color: #C4C7CD;
+  border-radius: 9999px;
+  min-height: 4px;
+}
+
+scale highlight {
+  background-color: @theme_selected_bg_color;
+  border-radius: 9999px;
+}
+
+scale slider {
+  background-color: @theme_selected_bg_color;
+  border-radius: 50%;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+/* ── Separator ──────────────────────────────────────────────────────────── */
+separator {
+  background-color: @borders;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+/* ── Statusbar / Infobar ────────────────────────────────────────────────── */
+infobar {
+  background-color: #D0D3D8;
+  border-bottom: 1px solid @borders;
+}
+
+/* ── Spinbutton ─────────────────────────────────────────────────────────── */
+spinbutton {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+  border: 1px solid @borders;
+  border-radius: 4px;
+}
+
+spinbutton:focus {
+  border-color: @theme_selected_bg_color;
+}
+
+/* ── Frame / Card ───────────────────────────────────────────────────────── */
+frame > border, .frame {
+  border: 1px solid @borders;
+  border-radius: 6px;
+}
+
+/* ── Dim label ──────────────────────────────────────────────────────────── */
+.dim-label {
+  opacity: 0.55;
+}
