@@ -102,6 +102,39 @@ dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
 )
 popd
 
+# Sign all DKMS extra modules with MOK key (skipped silently if key not present)
+MOK_KEY="/run/secrets/mok_key"
+MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
+SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
+if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
+    echo "Signing all extra kernel modules..."
+    while IFS= read -r ko; do
+        case "$ko" in
+            *.ko.xz)
+                bare="${ko%.xz}"
+                xz -dk "$ko"
+                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
+                xz -f "$bare"
+                ;;
+            *.ko.zst)
+                bare="${ko%.zst}"
+                zstd -dq "$ko" -o "$bare"
+                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
+                zstd -qf "$bare" -o "$ko"
+                rm -f "$bare"
+                ;;
+            *.ko)
+                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$ko"
+                ;;
+        esac
+        echo "  Signed: $(basename "$ko")"
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
+        \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
+    echo "Module signing complete."
+else
+    echo "MOK key or sign-file not available — skipping module signing."
+fi
+
 #Build initramfs
 # Generate module dependencies
 depmod "$QUALIFIED_KERNEL"

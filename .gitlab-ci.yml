@@ -58,6 +58,7 @@ stages:
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
       echo "Using branch slug: ${BRANCH_SLUG}"
     - export DATE_TAG="$(date -u +%Y%m%d)"
+    - dnf install -y --quiet jq
   variables:
     STORAGE_DRIVER: overlay
     BUILDAH_FORMAT: docker
@@ -80,9 +81,28 @@ build-push-base:
     - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
+      MOK_SECRET_FLAG=""
+      SECURE_FILE_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+          curl --silent \
+              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+              -o /tmp/MOK.key \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+          chmod 600 /tmp/MOK.key
+          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+          echo "MOK.key downloaded — modules will be signed"
+      else
+          echo "MOK.key not found in Secure Files — skipping module signing"
+      fi
+
+    - |
       buildah build \
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+        ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
@@ -137,6 +157,24 @@ build-push-nvidia:
     - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
+      MOK_SECRET_FLAG=""
+      SECURE_FILE_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+          curl --silent \
+              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+              -o /tmp/MOK.key \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+          chmod 600 /tmp/MOK.key
+          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+          echo "MOK.key downloaded — NVIDIA modules will be signed"
+      else
+          echo "MOK.key not found in Secure Files — skipping module signing"
+      fi
+
+    - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
       fi
@@ -145,6 +183,7 @@ build-push-nvidia:
       buildah build \
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+        ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
