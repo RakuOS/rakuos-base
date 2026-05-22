@@ -23,6 +23,7 @@ variables:
 stages:
   - build-push-base
   - build-push-nvidia
+  - test
   - dispatch
 
 .buildah-job:
@@ -57,6 +58,7 @@ stages:
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
       echo "Using branch slug: ${BRANCH_SLUG}"
     - export DATE_TAG="$(date -u +%Y%m%d)"
+    - dnf install -y --quiet jq
   variables:
     STORAGE_DRIVER: overlay
     BUILDAH_FORMAT: docker
@@ -79,9 +81,28 @@ build-push-base:
     - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
+      MOK_SECRET_FLAG=""
+      SECURE_FILE_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+          curl --silent \
+              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+              -o /tmp/MOK.key \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+          chmod 600 /tmp/MOK.key
+          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+          echo "MOK.key downloaded — modules will be signed"
+      else
+          echo "MOK.key not found in Secure Files — skipping module signing"
+      fi
+
+    - |
       buildah build \
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+        ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
@@ -136,6 +157,24 @@ build-push-nvidia:
     - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
+      MOK_SECRET_FLAG=""
+      SECURE_FILE_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+          curl --silent \
+              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+              -o /tmp/MOK.key \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+          chmod 600 /tmp/MOK.key
+          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+          echo "MOK.key downloaded — NVIDIA modules will be signed"
+      else
+          echo "MOK.key not found in Secure Files — skipping module signing"
+      fi
+
+    - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
       fi
@@ -144,6 +183,7 @@ build-push-nvidia:
       buildah build \
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+        ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
@@ -177,11 +217,126 @@ build-push-nvidia:
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
+# ============================================================
+# RPM DB Stress Tests + Immediate Failure Response
+# ============================================================
+# Requires group CI/CD variables:
+#   TRIGGER_TOKEN_BASE  — pipeline trigger token for this project
+#   GITLAB_API_TOKEN    — api-scoped token for pipeline cancellation
+
+.image-test-job:
+  extends: .buildah-job
+  timeout: 30 minutes
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+test-image-standard:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-base
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY}:${BRANCH_SLUG}"
+      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        dnf5.real install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test passed."
+
+test-image-nvidia:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-nvidia
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}"
+      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        dnf5.real install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      echo "=== Image stress test: NVIDIA packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do dnf5.real reinstall -y --allowerasing "$pkg" || dnf5.real install -y --allowerasing "$pkg"; done'
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test (NVIDIA) passed."
+
+.trigger-on-test-fail:
+  stage: test
+  image: quay.io/fedora/fedora:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  allow_failure: true
+  script:
+    - |
+      set -euo pipefail
+      dnf install -y curl
+      echo "Re-triggering ${CI_PROJECT_NAME} pipeline on ${CI_COMMIT_BRANCH}..."
+      curl -sf -X POST \
+        --form "token=${TRIGGER_TOKEN_BASE}" \
+        --form "ref=${CI_COMMIT_BRANCH}" \
+        "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/trigger/pipeline"
+      echo "Pipeline re-triggered."
+      echo "Cancelling own pipeline ${CI_PIPELINE_ID}..."
+      curl -sf -X POST \
+        --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+        "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/cancel" || true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_failure
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+      when: on_failure
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+      when: on_failure
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+      when: on_failure
+
+trigger-on-image-standard-fail:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-standard
+      artifacts: false
+
+trigger-on-image-nvidia-fail:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-nvidia
+      artifacts: false
+
 trigger-downstream:
   stage: dispatch
   image: curlimages/curl:latest
   needs:
-    - job: build-push-nvidia
+    - job: test-image-standard
+      artifacts: false
+    - job: test-image-nvidia
+      artifacts: false
   script:
     - |
       trigger_pipeline() {
