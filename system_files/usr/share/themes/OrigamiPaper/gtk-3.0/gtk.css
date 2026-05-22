@@ -389,3 +389,231 @@ frame > border, .frame {
 .dim-label {
   opacity: 0.55;
 }
+
+/* ── Label states ───────────────────────────────────────────────────────── */
+label.separator { color: @theme_fg_color; }
+label:backdrop  { color: @theme_unfocused_text_color; }
+label:disabled  { color: @insensitive_fg_color; }
+
+/* ── Links ──────────────────────────────────────────────────────────────── */
+button:link, button:visited           { color: #81A1C1; }
+button:link > label, button:visited > label { text-decoration-line: underline; }
+button:link:hover                     { color: #92B0CB; }
+button:visited:hover                  { color: #8C7BAD; }
+button.image-button   { min-height: 16px; min-width: 16px; padding: 6px; }
+button.text-button    { padding-left: 6px; padding-right: 6px; }
+button.circular       { min-width: 18px; min-height: 18px; border-radius: 9999px; }
+
+/* ── Menubar ────────────────────────────────────────────────────────────── */
+menubar, .menubar {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border-bottom: 1px solid @borders;
+  padding: 2px 0;
+}
+menubar > menuitem, .menubar > menuitem {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+menubar > menuitem:hover, .menubar > menuitem:hover {
+  background-color: rgba(129,161,193,0.15);
+}
+
+/* ── Switch ─────────────────────────────────────────────────────────────── */
+switch {
+  background-color: #2A2D34;
+  border: 1px solid @borders;
+  border-radius: 12px;
+  min-width: 40px;
+  min-height: 20px;
+  margin: 2px;
+}
+switch:checked {
+  background-color: @theme_selected_bg_color;
+  border-color: @theme_selected_bg_color;
+}
+switch:disabled {
+  background-color: @insensitive_bg_color;
+  border-color: @borders;
+}
+switch:backdrop {
+  background-color: #222530;
+  border-color: @unfocused_borders;
+}
+switch slider {
+  background-color: #D7DADF;
+  border-radius: 9999px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 2px;
+}
+switch:checked slider { background-color: #FFFFFF; }
+switch:disabled slider { background-color: @insensitive_fg_color; }
+
+/* ── Calendar ───────────────────────────────────────────────────────────── */
+calendar {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+  border: 1px solid @borders;
+  border-radius: 4px;
+  padding: 4px;
+}
+calendar:selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+  border-radius: 3px;
+}
+calendar:disabled      { color: @insensitive_fg_color; }
+calendar:backdrop      { background-color: @theme_unfocused_base_color; color: @theme_unfocused_text_color; }
+calendar.header        { background-color: @theme_bg_color; color: @theme_fg_color; font-weight: bold; padding: 4px; }
+calendar.button        { background: transparent; color: @theme_fg_color; border: none; }
+calendar.button:hover  { background-color: rgba(129,161,193,0.15); }
+calendar:indeterminate, calendar.highlight { color: @theme_selected_bg_color; }
+
+/* ── Treeview extras ────────────────────────────────────────────────────── */
+treeview.view rubberband {
+  border: 1px solid @theme_selected_bg_color;
+  background-color: rgba(129,161,193,0.2);
+}
+treeview.view.progressbar  { background-color: @theme_selected_bg_color; }
+treeview.view.trough       { background-color: #2A2D34; }
+treeview acceleditor > label { background-color: @theme_selected_bg_color; }
+treeview entry.flat, treeview entry {
+  background-color: @theme_base_color;
+  border: 1px solid @theme_selected_bg_color;
+}
+
+/* ── List ───────────────────────────────────────────────────────────────── */
+list {
+  background-color: @theme_base_color;
+  color: @theme_text_color;
+  border-radius: 3px;
+}
+list.content { border: 1px solid @borders; }
+list row     { padding: 4px 8px; }
+list row:hover:not(:selected) { background-color: rgba(255,255,255,0.05); }
+
+/* ── Rubberband / flowbox selection ─────────────────────────────────────── */
+.rubberband, rubberband {
+  border: 1px solid @theme_selected_bg_color;
+  background-color: rgba(129,161,193,0.2);
+}
+rubberband:backdrop   { border-color: @theme_unfocused_selected_bg_color; }
+flowbox rubberband    { border: 1px solid @theme_selected_bg_color; background-color: rgba(129,161,193,0.2); }
+
+/* ── Row activatable ────────────────────────────────────────────────────── */
+row.activatable:hover,
+row.activatable.has-open-popup         { background-color: rgba(129,161,193,0.12); }
+row.activatable:active                 { background-color: rgba(129,161,193,0.2); box-shadow: none; }
+row.activatable:selected:active,
+row.activatable:selected.has-open-popup { background-color: @theme_selected_bg_color; }
+row.activatable:selected:backdrop      { background-color: @theme_unfocused_selected_bg_color; }
+
+/* ── Expander ───────────────────────────────────────────────────────────── */
+expander arrow {
+  min-width: 16px;
+  min-height: 16px;
+  -gtk-icon-source: -gtk-icontheme("go-next-symbolic");
+  color: @theme_unfocused_fg_color;
+}
+expander arrow:dir(rtl)  { -gtk-icon-source: -gtk-icontheme("go-next-rtl-symbolic"); }
+expander arrow:hover     { color: @theme_selected_bg_color; }
+expander arrow:checked   { -gtk-icon-source: -gtk-icontheme("go-down-symbolic"); color: @theme_fg_color; }
+
+/* ── Paned ──────────────────────────────────────────────────────────────── */
+paned > separator {
+  min-width: 1px;
+  min-height: 1px;
+  background-color: @borders;
+}
+paned > separator.wide        { min-width: 5px; min-height: 5px; }
+paned.horizontal > separator  { background-repeat: repeat-y; margin: 0 2px; }
+paned.vertical > separator    { background-repeat: repeat-x; margin: 2px 0; }
+
+/* ── Combobox ───────────────────────────────────────────────────────────── */
+combobox arrow {
+  -gtk-icon-source: -gtk-icontheme("go-down-symbolic");
+  min-height: 16px;
+  min-width: 16px;
+  color: @theme_fg_color;
+}
+combobox button                              { padding-top: 4px; padding-bottom: 4px; }
+combobox > box > button.combo:only-child arrow { min-width: 14px; }
+
+/* ── Tooltip background ─────────────────────────────────────────────────── */
+tooltip.background {
+  background-color: #1A1D24;
+  background-clip: padding-box;
+}
+tooltip *, tooltip button { padding: 0; }
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { -gtk-icon-transform: rotate(1turn); } }
+
+/* ── Scale detailed states ──────────────────────────────────────────────── */
+scale               { padding: 12px; }
+scale slider        { border: 1px solid @borders; box-shadow: none; }
+scale slider:hover  { border-color: @theme_selected_bg_color; }
+scale slider:active { background-color: #92B0CB; }
+scale trough        { border: 1px solid @borders; }
+scale.fine-tune.trough { margin: 3px; border-radius: 4px; }
+
+/* ── Progressbar detailed states ────────────────────────────────────────── */
+progressbar             { font-size: smaller; color: @theme_unfocused_fg_color; }
+progressbar.horizontal trough, progressbar.horizontal progress { min-height: 4px; }
+progressbar.vertical trough, progressbar.vertical progress     { min-width:  4px; }
+progressbar trough      { border: 1px solid @borders; }
+progressbar progress    { border: 1px solid @theme_selected_bg_color; }
+
+/* ── Check/Radio detailed states ────────────────────────────────────────── */
+check, radio {
+  transition: all 0.1s;
+  margin: 0 4px;
+  animation-timing-function: ease-in-out;
+}
+check:only-child, radio:only-child { margin: 0; }
+check:disabled, radio:disabled     { background-color: @insensitive_bg_color; border-color: @borders; }
+check:checked, radio:checked       { color: @theme_selected_fg_color; }
+menu menuitem check, menu menuitem radio { margin: 0; min-height: 14px; min-width: 14px; }
+
+/* ── Spinbutton vertical ────────────────────────────────────────────────── */
+spinbutton.vertical button          { padding: 4px; min-height: 20px; }
+spinbutton.vertical:disabled        { background-color: @insensitive_bg_color; color: @insensitive_fg_color; }
+
+/* ── Frame flat ─────────────────────────────────────────────────────────── */
+frame > border.flat, .frame.flat    { border-style: none; }
+
+/* ── OSD ────────────────────────────────────────────────────────────────── */
+.osd {
+  background-color: rgba(16,18,22,0.85);
+  color: @theme_fg_color;
+  border-radius: 8px;
+  border: 1px solid @borders;
+}
+
+/* ── Colorswatch ────────────────────────────────────────────────────────── */
+colorswatch             { border-radius: 4px; border: 1px solid @borders; }
+colorswatch:hover       { border-color: @theme_selected_bg_color; }
+colorswatch:selected    { border-color: @theme_selected_bg_color; border-width: 2px; }
+colorswatch.dark        { color: #FFFFFF; }
+colorswatch.light       { color: #000000; }
+colorswatch overlay     { border-radius: 3px; }
+
+/* ── Floating bar / path bar ────────────────────────────────────────────── */
+.floating-bar {
+  background-color: @theme_bg_color;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 2px 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.path-bar button, .location-bar button {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.path-bar button:hover, .location-bar button:hover {
+  background-color: rgba(255,255,255,0.08);
+}
