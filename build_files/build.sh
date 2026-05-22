@@ -67,9 +67,9 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
-dnf5 -y install  mesa-dri-drivers.i686 mesa-va-drivers-freeworld.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
+dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-va-drivers-freeworld.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
+dnf5 -y swap mesa-va-drivers.{i686,x86_64} mesa-va-drivers-freeworld.{i686,x86_64} --allowerasing
 dnf5 -y upgrade --best 'mesa-*'
-dnf5 -y install mesa-va-drivers.{i686,x86_64}
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
