@@ -70,7 +70,7 @@ dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-va-drivers-freeworld.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
 dnf5 -y remove mesa-va-drivers-freeworld.{i686,x86_64}
 dnf5 -y upgrade --best 'mesa-*'
-dnf5 -y install mesa-va-drivers.{i686,x86_64}
+#dnf5 -y install mesa-va-drivers.{i686,x86_64}
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
