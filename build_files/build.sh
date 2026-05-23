@@ -12,7 +12,6 @@ dnf -y install \
 https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${CENTOS_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${CENTOS_VERSION}.noarch.rpm
 
-dnf -y config-manager addrepo --from-repofile=https://negativo17.org/repos/epel-nvidia.repo
 rpm --import https://repos.fyralabs.com/terrael${CENTOS_VERSION}/key.asc
 
 dnf -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terrael${CENTOS_VERSION}' terra-release
@@ -45,6 +44,16 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
 echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yumrepos/edge\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/edge.repo > /dev/null
 
+# Enable Brave Stable, Beta and Nightly repos & Brave origin Beta and Nightly repos
+dnf -y config-manager --add-repo https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+dnf -y config-manager --add-repo https://brave-browser-rpm-beta.s3.brave.com/brave-browser-beta.repo
+dnf -y config-manager --add-repo https://brave-browser-rpm-nightly.s3.brave.com/brave-browser-nightly.repo
+
+# Add the tailscale repository
+dnf -y config-manager --add-repo https://pkgs.tailscale.com/stable/centos/10/tailscale.repo
+
+# Add the Mullvad repository server
+dnf -y config-manager --add-repo https://repository.mullvad.net/rpm/stable/mullvad.repo
 
 #remove fedora kernel and zram config
 dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
