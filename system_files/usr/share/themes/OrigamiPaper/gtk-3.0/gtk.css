@@ -163,8 +163,8 @@ headerbar {
   background-color: @theme_bg_color;
   color: @theme_fg_color;
   border-bottom: 1px solid @borders;
-  padding: 4px 8px;
-  min-height: 46px;
+  padding: 2px 8px;
+  min-height: 32px;
 }
 
 headerbar:backdrop {
@@ -194,6 +194,37 @@ headerbar button:hover {
 
 headerbar button:active {
   background-color: rgba(255,255,255,0.18);
+}
+
+/* ── Titlebar (CSD fallback for dialogs without custom headerbar) ────────── */
+.titlebar {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+  border-bottom: 1px solid @borders;
+  padding: 2px 8px;
+  min-height: 32px;
+}
+
+.titlebar:backdrop {
+  background-color: @theme_unfocused_bg_color;
+  color: @theme_unfocused_fg_color;
+}
+
+.titlebar .title {
+  font-weight: bold;
+}
+
+window.csd {
+  border-radius: 6px;
+}
+
+window.csd decoration {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  border-radius: 6px;
+}
+
+window.csd decoration:backdrop {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 /* ── Menus ──────────────────────────────────────────────────────────────── */
