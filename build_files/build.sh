@@ -204,3 +204,8 @@ ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="
 ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", \
     ATTR{queue/scheduler}="adios"
 EOF
+
+## Add custom icons
+git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme
+/tmp/WhiteSur-icon-theme/install.sh -b -a -t all
+rm -rf /tmp/WhiteSur-icon-theme
