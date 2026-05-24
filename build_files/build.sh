@@ -91,6 +91,7 @@ dmemcg-booster \
 fastfetch \
 flatpak \
 fish \
+zsh \
 starship \
 zoxide \
 sudo-rs \
