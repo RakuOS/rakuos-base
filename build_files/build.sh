@@ -92,6 +92,8 @@ fastfetch \
 flatpak \
 fish \
 starship \
+zoxide \
+sudo-rs \
 scx-scheds \
 scx-tools \
 gamemode \
