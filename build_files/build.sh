@@ -90,6 +90,7 @@ bore-sysctl \
 dmemcg-booster \
 fastfetch \
 flatpak \
+fish \
 scx-scheds \
 scx-tools \
 gamemode \
