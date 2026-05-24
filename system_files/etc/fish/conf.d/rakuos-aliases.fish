@@ -1,7 +1,7 @@
 #!/usr/bin/env fish
 
 # ============================================================================ #
-# RakuOS shell convenience layer (Fish Port)
+# RakuOS shell convenience layer (Fish Port) ported from Origami Linux
 # ============================================================================ #
 
 # --- Environment guard -------------------------------------------------------

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ============================================================================ #
-# RakuOS shell convenience layer (Bash Port)
+# RakuOS shell convenience layer (Bash Port) ported from Origami Linux
 # ============================================================================ #
 
 # --- Environment guard -------------------------------------------------------

@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
 # ============================================================================ #
-# RakuOS shell convenience layer (Zsh Port)
+# RakuOS shell convenience layer (Zsh Port) ported from Origami Linux
 # ============================================================================ #
 
 # --- Environment guard -------------------------------------------------------
