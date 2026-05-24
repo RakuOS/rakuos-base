@@ -14,7 +14,7 @@ ARG FEDORA_VERSION
 ENV FEDORA_VERSION=${FEDORA_VERSION}
 
 #RUN rm /opt && ln -s -T /var/opt /opt
-RUN mkdir -p /var/nix && ln -s /var/nix /nix
+RUN mkdir -vp /nix
 COPY system_files /
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
