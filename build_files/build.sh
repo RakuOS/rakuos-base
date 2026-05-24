@@ -91,6 +91,7 @@ dmemcg-booster \
 fastfetch \
 flatpak \
 fish \
+starship \
 scx-scheds \
 scx-tools \
 gamemode \
