@@ -52,13 +52,6 @@ unset _f
 ZSHRC
 fi
 
-# Provide neofetch compatibility via fastfetch.
-ln -sf /usr/bin/fastfetch /usr/bin/neofetch
-
-# Point fastfetch system config to the RakuOS preset.
-mkdir -p /etc/fastfetch
-ln -sf /usr/share/fastfetch/presets/rakuos/rakuos-fastfetch.jsonc /etc/fastfetch/config.jsonc
-
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 

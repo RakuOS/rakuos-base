@@ -43,8 +43,6 @@ fastfetch() {
         local config_dir="/usr/share/fastfetch/presets/rakuos"
         if [[ -f "$config_dir/rakuos-ascii.txt" && -f "$config_dir/rakuos-fastfetch.jsonc" ]]; then
             command fastfetch \
-                -l "$config_dir/rakuos-ascii.txt" \
-                --logo-color-1 blue \
                 -c "$config_dir/rakuos-fastfetch.jsonc"
         else
             command fastfetch

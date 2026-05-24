@@ -75,8 +75,6 @@ function fastfetch
         set -l config_dir "/usr/share/fastfetch/presets/rakuos"
         if test -f "$config_dir/rakuos-ascii.txt"; and test -f "$config_dir/rakuos-fastfetch.jsonc"
             command fastfetch \
-                -l "$config_dir/rakuos-ascii.txt" \
-                --logo-color-1 blue \
                 -c "$config_dir/rakuos-fastfetch.jsonc"
         else
             command fastfetch
@@ -91,8 +89,6 @@ function neofetch
         set -l config_dir "/usr/share/fastfetch/presets/rakuos"
         if test -f "$config_dir/rakuos-ascii.txt"; and test -f "$config_dir/rakuos-fastfetch.jsonc"
             command fastfetch \
-                -l "$config_dir/rakuos-ascii.txt" \
-                --logo-color-1 blue \
                 -c "$config_dir/rakuos-fastfetch.jsonc"
         else
             command fastfetch
