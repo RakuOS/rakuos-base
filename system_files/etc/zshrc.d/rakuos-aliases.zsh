@@ -10,33 +10,6 @@
 # --- Helper utilities --------------------------------------------------------
 _command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-_should_nag() {
-    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-    [[ -f "$config_dir/rakuos/nags_disabled" ]] && return 1
-    [[ ! -o interactive ]] && return 1
-    [[ ! -t 2 ]] && return 1
-    for arg in "$@"; do
-        [[ "$arg" == "--help" ]] && return 1
-    done
-    return 0
-}
-
-_nag_and_exec() {
-    local tip="$1"; shift
-    local target="$1"; shift
-    _should_nag "$@" && printf '%s\n' "$tip" >&2
-    command "$target" "$@"
-}
-
-nag() {
-    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-    case "${1:-}" in
-        off) mkdir -p "$config_dir/rakuos"; touch "$config_dir/rakuos/nags_disabled"; echo "Nags disabled." ;;
-        on)  rm -f "$config_dir/rakuos/nags_disabled"; echo "Nags enabled." ;;
-        *)   echo "Usage: nag {on|off}" ;;
-    esac
-}
-
 # --- Wrappers ----------------------------------------------------------------
 fastfetch() {
     if [[ $# -eq 0 ]]; then
