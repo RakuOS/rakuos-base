@@ -92,6 +92,7 @@ fastfetch \
 flatpak \
 fish \
 zsh \
+fzf \
 starship \
 zoxide \
 sudo-rs \
