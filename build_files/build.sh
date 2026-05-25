@@ -90,6 +90,7 @@ bat \
 bat-extras \
 bibata-cursor-theme \
 bore-sysctl \
+btop \
 cachyos-ananicy-rules \
 cachyos-settings \
 cava \
@@ -103,6 +104,7 @@ fastfetch \
 figlet \
 fish \
 flatpak \
+fresh \
 fuse \
 fwupd \
 fzf \
@@ -110,6 +112,7 @@ git \
 google-noto-sans-myanmar-fonts \
 google-noto-serif-myanmar-fonts \
 inotify-tools \
+lazygit \
 libnotify \
 libxcrypt-compat \
 lm_sensors \
@@ -128,10 +131,12 @@ rsms-inter-fonts \
 rsync \
 scx-scheds \
 scx-tools \
+ShellCheck \
 sqlite3 \
 squashfuse \
 starship \
 sudo-rs \
+surge \
 termflix \
 unrar \
 unzip \
