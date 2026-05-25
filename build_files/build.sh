@@ -204,6 +204,7 @@ rakuos-overlay-services.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
+nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
 rpm-ostree-clean-metadata.timer \
