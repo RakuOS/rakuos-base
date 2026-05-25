@@ -122,6 +122,9 @@ fuse \
 squashfuse \
 virtualbox-guest-additions \
 v4l-utils \
+maple-fonts \
+bibata-cursor-theme \
+rsms-inter-fonts \
 unzip
 
 ## Remove packages
