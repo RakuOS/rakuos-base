@@ -119,6 +119,7 @@ lm_sensors \
 lolcat \
 lsd \
 maple-fonts \
+opendoas \
 openssl \
 podman \
 podman-compose \
