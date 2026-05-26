@@ -20,3 +20,12 @@ rakuos-setup ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-overlay-sync --initi
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc switch *
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc rollback
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc install *
+
+# Detached bootc image operations via systemd one-shot units.
+# Exact argument match — no wildcards — so ONLY these two units can be started
+# without a password. Any other unit name or systemctl subcommand requires auth.
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl start rakuos-bootc-upgrade.service
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl start rakuos-bootc-switch.service
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl reset-failed rakuos-bootc-upgrade.service
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl reset-failed rakuos-bootc-switch.service
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/tee /run/rakuos/bootc-switch-target
