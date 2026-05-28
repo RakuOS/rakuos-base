@@ -44,10 +44,17 @@ function neofetch
 end
 
 # --- Modern replacements -----------------------------------------------------
-alias docker podman
-alias docker-compose podman-compose
-alias sudo sudo-rs
-alias su su-rs
+alias cat='bat'
+alias ls='lsd'
+alias l='lsd -l'
+alias la='lsd -a'
+alias lla='lsd -la'
+alias lt='lsd --tree'
+
+alias sudo="sudo-rs"
+alias sudoedit="sudoedit-rs"
+alias visudo="visudo-rs"
+alias su="su-rs"
 
 # --- Interactive tooling -----------------------------------------------------
 if status is-interactive
