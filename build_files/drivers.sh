@@ -114,6 +114,9 @@ rm -rf /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
 cp -a . /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
 sed -i "s/#MODULE_VERSION#/${V4L2LOOPBACK_VERSION}/g" \
     /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
+# Remove BUILD_EXCLUSIVE_KERNEL — it only allows 5.x/6.x and blocks kernel 7.x+
+sed -i '/^BUILD_EXCLUSIVE_KERNEL/d' \
+    /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
 dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed for v4l2loopback ${V4L2LOOPBACK_VERSION} — make.log:"
     cat "/var/lib/dkms/v4l2loopback/${V4L2LOOPBACK_VERSION}/build/make.log" 2>/dev/null || true
