@@ -72,7 +72,7 @@ rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
-dnf5 -y install intel-vaapi-driver \
+dnf5 -y --skip-unavailable install intel-vaapi-driver \
 libopenjph \
 libva-utils \
 pipewire-libs-extra \
