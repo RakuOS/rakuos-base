@@ -111,6 +111,7 @@ fzf \
 git \
 google-noto-sans-myanmar-fonts \
 google-noto-serif-myanmar-fonts \
+htop \
 inotify-tools \
 lazygit \
 libnotify \
