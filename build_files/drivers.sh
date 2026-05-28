@@ -5,6 +5,7 @@ set -ouex pipefail
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 XPADNEO_VERSION="0.10.2"
+V4L2LOOPBACK_VERSION="0.12.7"
 
 dnf5 install -y \
     dkms \
@@ -103,6 +104,23 @@ dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
 )
 popd
 
+echo "Building v4l2loopback ${V4L2LOOPBACK_VERSION} from upstream source..."
+git clone --depth 1 --branch "v${V4L2LOOPBACK_VERSION}" \
+    https://github.com/v4l2loopback/v4l2loopback.git "$tmpdir/v4l2loopback"
+
+pushd "$tmpdir/v4l2loopback"
+echo "Installing v4l2loopback ${V4L2LOOPBACK_VERSION} DKMS source tree..."
+rm -rf /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
+cp -a . /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
+sed -i "s/#MODULE_VERSION#/${V4L2LOOPBACK_VERSION}/g" \
+    /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
+dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+    echo "DKMS build failed for v4l2loopback ${V4L2LOOPBACK_VERSION} — make.log:"
+    cat "/var/lib/dkms/v4l2loopback/${V4L2LOOPBACK_VERSION}/build/make.log" 2>/dev/null || true
+    exit 1
+}
+popd
+
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 MOK_KEY="/run/secrets/mok_key"
 MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
@@ -169,4 +187,4 @@ dnf5 remove -y --no-autoremove \
     make \
     cabextract \
     bluez || true
-rm -rf /var/lib/dkms /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/VERSION
+rm -rf /var/lib/dkms /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
