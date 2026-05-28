@@ -79,9 +79,8 @@ pipewire-libs-extra \
 heif-pixbuf-loader
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
-dnf5 -y swap libfdk-aac libfdk-aac-free --allowerasing
-dnf5 -y swap libavcodec libavcodec-free --allowerasing
-
+dnf5 -y install libfdk-aac
+dnf5 -y install libavcodec
 dnf5 -y install ffmpeg-libs
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
