@@ -10,8 +10,10 @@ rakuos-setup ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-overlay-sync --initi
 %wheel ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-update
 
 # Flatpak system-wide operations
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/flatpak install --noninteractive -y *
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/flatpak install --bundle --noninteractive -y *
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/flatpak install --from --noninteractive -y *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/flatpak uninstall -y *
 
 # bootc image operations
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/bootc status --json
