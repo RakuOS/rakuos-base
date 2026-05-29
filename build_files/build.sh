@@ -226,6 +226,7 @@ chmod +x ${CSFG}
 # Clean up some .desktops for command line utils
 rm /usr/share/applications/btop.desktop
 rm /usr/share/applications/io.github.sinelaw.fresh.desktop
+rm /usr/share/applications/htop.desktop
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
