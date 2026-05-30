@@ -109,6 +109,7 @@ build-push-base:
         ${MOK_SECRET_FLAG} \
         --squash \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
@@ -198,6 +199,7 @@ build-push-nvidia:
         ${MOK_SECRET_FLAG} \
         --squash \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
