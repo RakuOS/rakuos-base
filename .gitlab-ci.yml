@@ -58,10 +58,10 @@ stages:
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
       echo "Using branch slug: ${BRANCH_SLUG}"
     - export DATE_TAG="$(date -u +%Y%m%d)"
-    - dnf install -y --quiet jq skopeo
+    - dnf install -y --quiet jq
   variables:
     STORAGE_DRIVER: overlay
-    BUILDAH_FORMAT: docker
+    BUILDAH_FORMAT: oci
 
 build-push-base:
   extends: .buildah-job
@@ -122,19 +122,9 @@ build-push-base:
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-        # Push the primary tag once (full manifest + layers)
-        PRIMARY_TAG=$(echo "${TAGS}" | awk '{print $1}')
-        echo "Pushing primary tag: ${PRIMARY_TAG}"
-        buildah push "${PRIMARY_TAG}"
-        # Copy remaining tags via skopeo — reuses existing manifest, no new layer refs
         for tag in ${TAGS}; do
-          if [ "${tag}" != "${PRIMARY_TAG}" ]; then
-            echo "Copying manifest to ${tag}"
-            skopeo copy \
-              --src-creds "${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" \
-              --dest-creds "${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" \
-              "docker://${PRIMARY_TAG}" "docker://${tag}"
-          fi
+          echo "Pushing ${tag}"
+          buildah push "${tag}"
         done
       fi
   artifacts:
@@ -213,17 +203,9 @@ build-push-nvidia:
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-        PRIMARY_TAG=$(echo "${TAGS}" | awk '{print $1}')
-        echo "Pushing primary tag: ${PRIMARY_TAG}"
-        buildah push "${PRIMARY_TAG}"
         for tag in ${TAGS}; do
-          if [ "${tag}" != "${PRIMARY_TAG}" ]; then
-            echo "Copying manifest to ${tag}"
-            skopeo copy \
-              --src-creds "${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" \
-              --dest-creds "${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" \
-              "docker://${PRIMARY_TAG}" "docker://${tag}"
-          fi
+          echo "Pushing ${tag}"
+          buildah push "${tag}"
         done
       fi
   artifacts:
