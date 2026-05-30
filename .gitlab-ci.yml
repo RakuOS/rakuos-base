@@ -16,6 +16,8 @@ workflow:
 variables:
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
   IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
+  IMAGE_REGISTRY_QUAY: "quay.io/rakuos/rakuos-base"
+  IMAGE_REGISTRY_QUAY_NVIDIA: "quay.io/rakuos/rakuos-base-nvidia"
   IMAGE_DESC: "RakuOS Base"
   IMAGE_KEYWORDS: "bootc,fedora,atomic"
   DEFAULT_TAG: "latest"
@@ -72,10 +74,12 @@ build-push-base:
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY}:${DATE_TAG}"
       else
         TAGS="${IMAGE_REGISTRY}:${BRANCH_SLUG} ${IMAGE_REGISTRY}:${BRANCH_SLUG}.${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
-      export TAGS BRANCH_SLUG
+      export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base.env
 
     - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
@@ -123,9 +127,14 @@ build-push-base:
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
         for tag in ${TAGS}; do
           echo "Pushing ${tag}"
           buildah push --compression-format zstd:chunked "${tag}"
+        done
+        for tag in ${QUAY_TAGS}; do
+          echo "Pushing ${tag}"
+          buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${tag}"
         done
       fi
   artifacts:
@@ -149,10 +158,12 @@ build-push-nvidia:
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DATE_TAG}"
       else
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
-      export TAGS BRANCH_SLUG
+      export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia.env
 
     - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
@@ -205,9 +216,14 @@ build-push-nvidia:
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
         buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
         for tag in ${TAGS}; do
           echo "Pushing ${tag}"
           buildah push --compression-format zstd:chunked "${tag}"
+        done
+        for tag in ${QUAY_TAGS}; do
+          echo "Pushing ${tag}"
+          buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${tag}"
         done
       fi
   artifacts:
