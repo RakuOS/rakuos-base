@@ -103,7 +103,6 @@ build-push-base:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         ${MOK_SECRET_FLAG} \
-        --squash \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
