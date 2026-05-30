@@ -58,7 +58,39 @@ stages:
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
       echo "Using branch slug: ${BRANCH_SLUG}"
     - export DATE_TAG="$(date -u +%Y%m%d)"
-    - dnf install -y --quiet jq
+    - dnf install -y --quiet jq curl
+    - |
+      # Delete old date-tagged manifests for this branch before pushing new ones.
+      # Prevents "too many manifest references" accumulation in GitLab registry.
+      cleanup_registry_tags() {
+        local registry_path="$1"
+        local slug="$2"
+        local project_path="rakuos%2Fimages%2Frakuos-base"
+        if [[ -z "${GITLAB_API_TOKEN:-}" ]]; then
+          echo "[registry-cleanup] GITLAB_API_TOKEN not set — skipping cleanup"
+          return 0
+        fi
+        # Find the repository ID matching this registry path
+        local repo_id
+        repo_id=$(curl -sf \
+          --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+          "https://gitlab.com/api/v4/projects/${project_path}/registry/repositories?per_page=50" \
+          | jq -r --arg loc "$registry_path" '.[] | select(.location == $loc) | .id')
+        if [[ -z "$repo_id" ]]; then
+          echo "[registry-cleanup] Could not find repository for ${registry_path} — skipping"
+          return 0
+        fi
+        echo "[registry-cleanup] Deleting old ${slug}.* tags from repository ${repo_id}..."
+        curl -sf --request DELETE \
+          --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+          --data "name_regex_delete=${slug}\\..*" \
+          --data 'keep_n=2' \
+          --data 'older_than=0d' \
+          "https://gitlab.com/api/v4/projects/${project_path}/registry/repositories/${repo_id}/tags" || true
+        echo "[registry-cleanup] Done."
+      }
+      cleanup_registry_tags "${IMAGE_REGISTRY}" "${BRANCH_SLUG}"
+      cleanup_registry_tags "${IMAGE_REGISTRY_NVIDIA}" "${BRANCH_SLUG}"
   variables:
     STORAGE_DRIVER: overlay
     BUILDAH_FORMAT: docker
