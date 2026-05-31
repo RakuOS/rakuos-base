@@ -403,16 +403,11 @@ sign-image-standard:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      REPO_PATH="${IMAGE_REGISTRY_QUAY#quay.io/}"
-      DIGEST=$(curl -sf \
-        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-        | jq -r '.tags[0].manifest_digest')
+      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
@@ -449,16 +444,11 @@ sign-image-nvidia:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      REPO_PATH="${IMAGE_REGISTRY_QUAY_NVIDIA#quay.io/}"
-      DIGEST=$(curl -sf \
-        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-        | jq -r '.tags[0].manifest_digest')
+      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
