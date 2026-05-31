@@ -394,28 +394,27 @@ sign-image-standard:
       chmod +x /usr/local/bin/cosign
       cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") BRANCH_SLUG="${DEFAULT_TAG}" ;;
-        "staging")              BRANCH_SLUG="staging"        ;;
-        "rawhide")              BRANCH_SLUG="rawhide"        ;;
-        "rakuosel")             BRANCH_SLUG="rakuosel"       ;;
-        *) BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DATE_TAG="$(date -u +%Y%m%d)"
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY}:${DATE_TAG}"
-      else
-        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
+      REPO_PATH="${IMAGE_REGISTRY_QUAY#quay.io/}"
+      DIGEST=$(curl -sf \
+        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+        | jq -r '.tags[0].manifest_digest')
+      echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      for tag in ${QUAY_TAGS}; do
-        echo "Signing ${tag}..."
-        COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes --key /tmp/cosign.key \
-          -a "repo=${CI_PROJECT_URL}" \
-          -a "branch=${CI_COMMIT_BRANCH}" \
-          "${tag}"
-      done
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+        --key /tmp/cosign.key \
+        --registry-referrers-mode=oci-1-1 \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
       rm -f /tmp/cosign.key
-      echo "All standard tags signed."
+      echo "Image signed."
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
@@ -438,28 +437,27 @@ sign-image-nvidia:
       chmod +x /usr/local/bin/cosign
       cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") BRANCH_SLUG="${DEFAULT_TAG}" ;;
-        "staging")              BRANCH_SLUG="staging"        ;;
-        "rawhide")              BRANCH_SLUG="rawhide"        ;;
-        "rakuosel")             BRANCH_SLUG="rakuosel"       ;;
-        *) BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DATE_TAG="$(date -u +%Y%m%d)"
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DATE_TAG}"
-      else
-        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
+      REPO_PATH="${IMAGE_REGISTRY_QUAY_NVIDIA#quay.io/}"
+      DIGEST=$(curl -sf \
+        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+        | jq -r '.tags[0].manifest_digest')
+      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      for tag in ${QUAY_TAGS}; do
-        echo "Signing ${tag}..."
-        COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes --key /tmp/cosign.key \
-          -a "repo=${CI_PROJECT_URL}" \
-          -a "branch=${CI_COMMIT_BRANCH}" \
-          "${tag}"
-      done
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+        --key /tmp/cosign.key \
+        --registry-referrers-mode=oci-1-1 \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
       rm -f /tmp/cosign.key
-      echo "All nvidia tags signed."
+      echo "Image signed."
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'

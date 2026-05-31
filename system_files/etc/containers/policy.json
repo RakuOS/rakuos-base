@@ -13,7 +13,11 @@
       ],
       "quay.io/rakuos": [
         {
-          "type": "insecureAcceptAnything"
+          "type": "sigstoreSigned",
+          "keyPath": "/etc/pki/containers/rakuos-cosign.pub",
+          "signedIdentity": {
+            "type": "matchRepository"
+          }
         }
       ],
       "registry.gitlab.com/rakuos/images": [
