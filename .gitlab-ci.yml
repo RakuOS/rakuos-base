@@ -392,7 +392,7 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq
+      dnf install -y --quiet jq skopeo
       mkdir -p /tmp/cosign-auth
       DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       export DOCKER_CONFIG=/tmp/cosign-auth
@@ -433,7 +433,7 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq
+      dnf install -y --quiet jq skopeo
       mkdir -p /tmp/cosign-auth
       DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       export DOCKER_CONFIG=/tmp/cosign-auth
