@@ -1,7 +1,7 @@
 {
   "default": [
     {
-      "type": "reject"
+      "type": "insecureAcceptAnything"
     }
   ],
   "transports": {
@@ -9,6 +9,15 @@
       "ghcr.io/rakuos": [
         {
           "type": "insecureAcceptAnything"
+        }
+      ],
+      "quay.io/rakuos": [
+        {
+          "type": "sigstoreSigned",
+          "keyPath": "/etc/pki/containers/rakuos-cosign.pub",
+          "signedIdentity": {
+            "type": "matchRepository"
+          }
         }
       ],
       "registry.gitlab.com/rakuos/images": [
