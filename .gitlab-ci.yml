@@ -26,6 +26,7 @@ stages:
   - build-push-base
   - build-push-nvidia
   - test
+  - sign
   - dispatch
 
 .buildah-job:
@@ -334,6 +335,94 @@ trigger-on-image-nvidia-fail:
   needs:
     - job: test-image-nvidia
       artifacts: false
+
+sign-image-standard:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-standard
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") BRANCH_SLUG="${DEFAULT_TAG}" ;;
+        "staging")              BRANCH_SLUG="staging"        ;;
+        "rawhide")              BRANCH_SLUG="rawhide"        ;;
+        "rakuosel")             BRANCH_SLUG="rakuosel"       ;;
+        *) BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      DATE_TAG="$(date -u +%Y%m%d)"
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY}:${DATE_TAG}"
+      else
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}.${DATE_TAG}"
+      fi
+      printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
+      for tag in ${QUAY_TAGS}; do
+        echo "Signing ${tag}..."
+        COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes --key /tmp/cosign.key \
+          -a "repo=${CI_PROJECT_URL}" \
+          -a "branch=${CI_COMMIT_BRANCH}" \
+          "${tag}"
+      done
+      rm -f /tmp/cosign.key
+      echo "All standard tags signed."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-nvidia:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-nvidia
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") BRANCH_SLUG="${DEFAULT_TAG}" ;;
+        "staging")              BRANCH_SLUG="staging"        ;;
+        "rawhide")              BRANCH_SLUG="rawhide"        ;;
+        "rakuosel")             BRANCH_SLUG="rakuosel"       ;;
+        *) BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      DATE_TAG="$(date -u +%Y%m%d)"
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DATE_TAG}"
+      else
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
+      fi
+      printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
+      for tag in ${QUAY_TAGS}; do
+        echo "Signing ${tag}..."
+        COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes --key /tmp/cosign.key \
+          -a "repo=${CI_PROJECT_URL}" \
+          -a "branch=${CI_COMMIT_BRANCH}" \
+          "${tag}"
+      done
+      rm -f /tmp/cosign.key
+      echo "All nvidia tags signed."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 trigger-downstream:
   stage: dispatch
