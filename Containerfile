@@ -31,7 +31,7 @@ FROM quay.io/coreos/chunkah AS chunkah
 ARG CHUNKAH_CONFIG_STR
 RUN --mount=from=builder,src=/,target=/chunkah,ro \
     --mount=type=bind,target=/run/src,rw \
-        chunkah build --prune /sysroot/ --max-layers 128 \
+        chunkah build --prune /sysroot/ --max-layers 128 --compressed --threads 16 \
           --label ostree.commit- --label ostree.final-diffid- \
           > /run/src/out.ociarchive
 
