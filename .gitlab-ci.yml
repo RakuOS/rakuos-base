@@ -394,7 +394,7 @@ sign-image-standard:
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
       mkdir -p /tmp/cosign-auth
-      printf '{"auths":{"quay.io":{"auth":"%s"}}}'         "$(printf '%s' "${QUAY_USER}:${QUAY_TOKEN}" | base64 -w 0)"         > /tmp/cosign-auth/config.json
+      DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       export DOCKER_CONFIG=/tmp/cosign-auth
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -440,7 +440,7 @@ sign-image-nvidia:
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
       mkdir -p /tmp/cosign-auth
-      printf '{"auths":{"quay.io":{"auth":"%s"}}}'         "$(printf '%s' "${QUAY_USER}:${QUAY_TOKEN}" | base64 -w 0)"         > /tmp/cosign-auth/config.json
+      DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       export DOCKER_CONFIG=/tmp/cosign-auth
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
