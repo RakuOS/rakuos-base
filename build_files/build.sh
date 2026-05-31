@@ -237,9 +237,10 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 systemctl mask rpm-ostreed-automatic.timer
 
-# sudo requires drop-in files to be owned by root and not be writable by others
+# sudo requires the drop-in directory to be root-owned, non-world-writable,
+# and executable (0750), and drop-in files to be 0440.
 chown root:root /etc/sudoers.d
-chmod 0440 /etc/sudoers.d
+chmod 0750 /etc/sudoers.d
 chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
 
