@@ -408,7 +408,7 @@ sign-image-standard:
         | jq -r '.tags[0].manifest_digest')
       echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+      COSIGN_EXPERIMENTAL=1 COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         --registry-referrers-mode=oci-1-1 \
         -a "repo=${CI_PROJECT_URL}" \
@@ -452,7 +452,7 @@ sign-image-nvidia:
         | jq -r '.tags[0].manifest_digest')
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+      COSIGN_EXPERIMENTAL=1 COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         --registry-referrers-mode=oci-1-1 \
         -a "repo=${CI_PROJECT_URL}" \
