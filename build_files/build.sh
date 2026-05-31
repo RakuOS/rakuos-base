@@ -238,6 +238,8 @@ systemctl mask systemd-remount-fs.service
 systemctl mask rpm-ostreed-automatic.timer
 
 # sudo requires drop-in files to be owned by root and not be writable by others
+chown root:root /etc/sudoers.d
+chmod 0440 /etc/sudoers.d
 chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
 
