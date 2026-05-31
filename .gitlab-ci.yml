@@ -82,7 +82,7 @@ build-push-base:
       export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
+    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
       MOK_SECRET_FLAG=""
@@ -107,7 +107,6 @@ build-push-base:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         ${MOK_SECRET_FLAG} \
-        --squash \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
@@ -120,19 +119,8 @@ build-push-base:
         .
 
     - |
-      for tag in ${TAGS}; do
-        echo "Tagging ${TEMP_TAG} as ${tag}"
-        buildah tag "${TEMP_TAG}" "${tag}"
-      done
-
-    - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        for tag in ${TAGS}; do
-          echo "Pushing ${tag}"
-          buildah push --compression-format zstd:chunked "${tag}"
-        done
         for tag in ${QUAY_TAGS}; do
           echo "Pushing ${tag}"
           buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${tag}"
@@ -167,7 +155,7 @@ build-push-nvidia:
       export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
+    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
       MOK_SECRET_FLAG=""
@@ -197,7 +185,6 @@ build-push-nvidia:
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         ${MOK_SECRET_FLAG} \
-        --squash \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
@@ -217,12 +204,7 @@ build-push-nvidia:
 
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        for tag in ${TAGS}; do
-          echo "Pushing ${tag}"
-          buildah push --compression-format zstd:chunked "${tag}"
-        done
         for tag in ${QUAY_TAGS}; do
           echo "Pushing ${tag}"
           buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${tag}"
@@ -262,8 +244,8 @@ test-image-standard:
   script:
     - |
       set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY}:${BRANCH_SLUG}"
-      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       buildah pull "docker://${IMAGE_REF}"
       CTR=$(buildah from "${IMAGE_REF}")
 
@@ -287,8 +269,8 @@ test-image-nvidia:
   script:
     - |
       set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}"
-      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       buildah pull "docker://${IMAGE_REF}"
       CTR=$(buildah from "${IMAGE_REF}")
 

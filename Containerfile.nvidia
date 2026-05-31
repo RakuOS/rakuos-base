@@ -7,7 +7,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Start from the freshly built RakuOS base image for this branch.
-FROM registry.gitlab.com/rakuos/images/rakuos-base:${BASE_IMAGE_TAG}
+FROM quay.io/rakuos/rakuos-base:${BASE_IMAGE_TAG}
 ARG BASE_IMAGE_TAG
 ENV BASE_IMAGE_TAG=${BASE_IMAGE_TAG}
 
