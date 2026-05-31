@@ -107,6 +107,7 @@ build-push-base:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --skip-unused-stages=false \
+        -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
@@ -186,6 +187,7 @@ build-push-nvidia:
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --skip-unused-stages=false \
+        -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
