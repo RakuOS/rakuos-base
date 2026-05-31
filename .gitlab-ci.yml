@@ -393,7 +393,9 @@ sign-image-standard:
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
-      cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      mkdir -p /tmp/cosign-auth
+      printf '{"auths":{"quay.io":{"auth":"%s"}}}'         "$(printf '%s' "${QUAY_USER}:${QUAY_TOKEN}" | base64 -w 0)"         > /tmp/cosign-auth/config.json
+      export DOCKER_CONFIG=/tmp/cosign-auth
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -408,9 +410,9 @@ sign-image-standard:
         | jq -r '.tags[0].manifest_digest')
       echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      COSIGN_EXPERIMENTAL=1 COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-        --registry-referrers-mode=oci-1-1 \
+        --tlog-upload=false \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
@@ -437,7 +439,9 @@ sign-image-nvidia:
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
-      cosign login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      mkdir -p /tmp/cosign-auth
+      printf '{"auths":{"quay.io":{"auth":"%s"}}}'         "$(printf '%s' "${QUAY_USER}:${QUAY_TOKEN}" | base64 -w 0)"         > /tmp/cosign-auth/config.json
+      export DOCKER_CONFIG=/tmp/cosign-auth
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -452,9 +456,9 @@ sign-image-nvidia:
         | jq -r '.tags[0].manifest_digest')
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
-      COSIGN_EXPERIMENTAL=1 COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-        --registry-referrers-mode=oci-1-1 \
+        --tlog-upload=false \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
