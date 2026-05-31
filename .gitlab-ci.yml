@@ -412,7 +412,7 @@ sign-image-standard:
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-        --tlog-upload=false \
+
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
@@ -458,7 +458,7 @@ sign-image-nvidia:
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
-        --tlog-upload=false \
+
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
         "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
