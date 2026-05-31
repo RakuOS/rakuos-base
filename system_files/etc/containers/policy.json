@@ -11,6 +11,11 @@
           "type": "insecureAcceptAnything"
         }
       ],
+      "quay.io/rakuos": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
       "registry.gitlab.com/rakuos/images": [
         {
           "type": "insecureAcceptAnything"
