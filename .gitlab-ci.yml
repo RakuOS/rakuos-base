@@ -392,7 +392,6 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet skopeo
       cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -401,14 +400,13 @@ sign-image-standard:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}")
-      echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
+      echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
+        "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
       rm -f /tmp/cosign.key
       echo "Image signed."
   rules:
@@ -431,7 +429,6 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet skopeo
       cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -440,14 +437,13 @@ sign-image-nvidia:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}")
-      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
+      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
+        "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
       rm -f /tmp/cosign.key
       echo "Image signed."
   rules:
@@ -460,9 +456,9 @@ trigger-downstream:
   stage: dispatch
   image: curlimages/curl:latest
   needs:
-    - job: test-image-standard
+    - job: sign-image-standard
       artifacts: false
-    - job: test-image-nvidia
+    - job: sign-image-nvidia
       artifacts: false
   script:
     - |
