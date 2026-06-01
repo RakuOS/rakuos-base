@@ -392,6 +392,7 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet podman
       export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
       mkdir -p "${XDG_RUNTIME_DIR}/containers"
       podman login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
@@ -434,6 +435,7 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet podman
       export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
       mkdir -p "${XDG_RUNTIME_DIR}/containers"
       podman login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
