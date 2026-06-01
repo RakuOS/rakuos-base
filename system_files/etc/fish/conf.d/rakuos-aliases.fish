@@ -56,6 +56,9 @@ alias sudoedit="sudoedit-rs"
 alias visudo="visudo-rs"
 alias su="su-rs"
 
+# -- Convience Alias's --------------------------------------------------------
+alias update="sudo rakuos system-upgrade"
+
 # --- Interactive tooling -----------------------------------------------------
 if status is-interactive
     set -g fish_greeting "" # Disable welcome message
