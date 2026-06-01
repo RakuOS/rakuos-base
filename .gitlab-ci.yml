@@ -392,6 +392,7 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq
       cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -401,7 +402,15 @@ sign-image-standard:
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
       echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
-      printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
@@ -429,6 +438,7 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq
       cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -438,7 +448,15 @@ sign-image-nvidia:
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
-      printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
