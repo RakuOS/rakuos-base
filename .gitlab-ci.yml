@@ -389,12 +389,11 @@ sign-image-standard:
   script:
     - |
       set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq podman
-      mkdir -p /root/.docker
-      podman login --authfile /root/.docker/config.json \
+      podman login --authfile ~/.docker/config.json \
         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -412,18 +411,12 @@ sign-image-standard:
           -o /tmp/cosign.key \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
-      REPO_PATH="${IMAGE_REGISTRY_QUAY#quay.io/}"
-      DIGEST=$(curl -sf \
-        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-        | jq -r '.tags[0].manifest_digest')
-      [[ -n "${DIGEST}" && "${DIGEST}" != "null" ]] || { echo "ERROR: Could not fetch digest for ${PRIMARY_TAG_NAME}"; exit 1; }
-      echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
-        --key /tmp/cosign.key \
+      echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign \
+        -key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
+        "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
       rm -f /tmp/cosign.key
       echo "Image signed successfully."
   rules:
@@ -443,12 +436,11 @@ sign-image-nvidia:
   script:
     - |
       set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq podman
-      mkdir -p /root/.docker
-      podman login --authfile /root/.docker/config.json \
+      podman login --authfile ~/.docker/config.json \
         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
@@ -466,18 +458,12 @@ sign-image-nvidia:
           -o /tmp/cosign.key \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
-      REPO_PATH="${IMAGE_REGISTRY_QUAY_NVIDIA#quay.io/}"
-      DIGEST=$(curl -sf \
-        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-        | jq -r '.tags[0].manifest_digest')
-      [[ -n "${DIGEST}" && "${DIGEST}" != "null" ]] || { echo "ERROR: Could not fetch digest for ${PRIMARY_TAG_NAME}"; exit 1; }
-      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
-        --key /tmp/cosign.key \
+      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign \
+        -key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
+        "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
       rm -f /tmp/cosign.key
       echo "Image signed successfully."
   rules:
