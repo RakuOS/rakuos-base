@@ -392,10 +392,9 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq skopeo
-      mkdir -p /tmp/cosign-auth
-      DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
-      export DOCKER_CONFIG=/tmp/cosign-auth
+      export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+      mkdir -p "${XDG_RUNTIME_DIR}/containers"
+      podman login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -403,8 +402,10 @@ sign-image-standard:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}")
+      podman pull "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
+      DIGEST=$(podman inspect --format '{{.Digest}}' "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
+      DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/" cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
@@ -433,10 +434,9 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq skopeo
-      mkdir -p /tmp/cosign-auth
-      DOCKER_CONFIG=/tmp/cosign-auth cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
-      export DOCKER_CONFIG=/tmp/cosign-auth
+      export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+      mkdir -p "${XDG_RUNTIME_DIR}/containers"
+      podman login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -444,8 +444,10 @@ sign-image-nvidia:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}")
+      podman pull "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
+      DIGEST=$(podman inspect --format '{{.Digest}}' "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
+      DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/" cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
