@@ -393,7 +393,10 @@ sign-image-standard:
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
-      cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
+      mkdir -p /root/.docker
+      printf '{"auths":{"quay.io":{"auth":"%s"}}}' \
+        "$(printf '%s:%s' "${QUAY_USER}" "${QUAY_TOKEN}" | base64 -w0)" \
+        > /root/.docker/config.json
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -401,7 +404,6 @@ sign-image-standard:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
       COSIGN_KEY_ID=$(curl --silent \
           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
@@ -411,13 +413,20 @@ sign-image-standard:
           -o /tmp/cosign.key \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
+      REPO_PATH="${IMAGE_REGISTRY_QUAY#quay.io/}"
+      DIGEST=$(curl -sf \
+        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+        | jq -r '.tags[0].manifest_digest')
+      [[ -n "${DIGEST}" && "${DIGEST}" != "null" ]] || { echo "ERROR: Could not fetch digest for ${PRIMARY_TAG_NAME}"; exit 1; }
+      echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
+        "${IMAGE_REGISTRY_QUAY}@${DIGEST}"
       rm -f /tmp/cosign.key
-      echo "Image signed."
+      echo "Image signed successfully."
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
@@ -439,7 +448,10 @@ sign-image-nvidia:
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
       dnf install -y --quiet jq
-      cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
+      mkdir -p /root/.docker
+      printf '{"auths":{"quay.io":{"auth":"%s"}}}' \
+        "$(printf '%s:%s' "${QUAY_USER}" "${QUAY_TOKEN}" | base64 -w0)" \
+        > /root/.docker/config.json
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -447,7 +459,6 @@ sign-image-nvidia:
         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
       esac
-      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
       COSIGN_KEY_ID=$(curl --silent \
           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
@@ -457,13 +468,20 @@ sign-image-nvidia:
           -o /tmp/cosign.key \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
+      REPO_PATH="${IMAGE_REGISTRY_QUAY_NVIDIA#quay.io/}"
+      DIGEST=$(curl -sf \
+        -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+        "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+        | jq -r '.tags[0].manifest_digest')
+      [[ -n "${DIGEST}" && "${DIGEST}" != "null" ]] || { echo "ERROR: Could not fetch digest for ${PRIMARY_TAG_NAME}"; exit 1; }
+      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
+        "${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}"
       rm -f /tmp/cosign.key
-      echo "Image signed."
+      echo "Image signed successfully."
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
