@@ -406,7 +406,8 @@ sign-image-standard:
       podman pull "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
       DIGEST=$(podman inspect --format '{{.Digest}}' "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY}@${DIGEST}..."
-      DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/" cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
+      export DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/"
+      cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
@@ -449,7 +450,8 @@ sign-image-nvidia:
       podman pull "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
       DIGEST=$(podman inspect --format '{{.Digest}}' "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}")
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}@${DIGEST}..."
-      DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/" cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
+      export DOCKER_CONFIG="${XDG_RUNTIME_DIR}/containers/"
+      cosign login quay.io -u "${QUAY_USER}" -p "${QUAY_TOKEN}"
       printf '%s' "${COSIGN_PRIVATE_KEY}" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign --yes \
         --key /tmp/cosign.key \
