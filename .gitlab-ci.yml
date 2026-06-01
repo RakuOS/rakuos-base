@@ -412,7 +412,7 @@ sign-image-standard:
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
       echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign \
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
         -key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
@@ -459,7 +459,7 @@ sign-image-nvidia:
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
       chmod 600 /tmp/cosign.key
       echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD}" cosign sign \
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
         -key /tmp/cosign.key \
         -a "repo=${CI_PROJECT_URL}" \
         -a "branch=${CI_COMMIT_BRANCH}" \
