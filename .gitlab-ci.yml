@@ -392,11 +392,10 @@ sign-image-standard:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq
+      dnf install -y --quiet jq podman
       mkdir -p /root/.docker
-      printf '{"auths":{"quay.io":{"auth":"%s"}}}' \
-        "$(printf '%s:%s' "${QUAY_USER}" "${QUAY_TOKEN}" | base64 -w0)" \
-        > /root/.docker/config.json
+      podman login --authfile /root/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
@@ -447,11 +446,10 @@ sign-image-nvidia:
       curl -fsSL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
         -o /usr/local/bin/cosign
       chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq
+      dnf install -y --quiet jq podman
       mkdir -p /root/.docker
-      printf '{"auths":{"quay.io":{"auth":"%s"}}}' \
-        "$(printf '%s:%s' "${QUAY_USER}" "${QUAY_TOKEN}" | base64 -w0)" \
-        > /root/.docker/config.json
+      podman login --authfile /root/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
         "staging")              PRIMARY_TAG_NAME="staging"        ;;
