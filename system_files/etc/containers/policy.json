@@ -6,7 +6,7 @@
   ],
   "transports": {
     "docker": {
-      "ghcr.io/rakuos": [
+      "ghcr.io": [
         {
           "type": "insecureAcceptAnything"
         }
@@ -20,7 +20,7 @@
           }
         }
       ],
-      "registry.gitlab.com/rakuos/images": [
+      "registry.gitlab.com": [
         {
           "type": "insecureAcceptAnything"
         }
