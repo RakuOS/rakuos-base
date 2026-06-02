@@ -1,7 +1,7 @@
 # Global build arg — available to all FROM lines for image tag resolution.
 # Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
 ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
-#ARG CHUNKAH_CONFIG_STR
+ARG CHUNKAH_CONFIG_STR
 
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
@@ -27,13 +27,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 
 RUN bootc container lint
 
-# FROM quay.io/coreos/chunkah AS chunkah
-# ARG CHUNKAH_CONFIG_STR
-# RUN --mount=from=builder,src=/,target=/chunkah,ro \
-#     --mount=type=bind,target=/run/src,rw \
-#         chunkah build --prune /sysroot/ --max-layers 128 --compressed --threads 16 \
-#           --label ostree.commit- --label ostree.final-diffid- \
-#           > /run/src/out.ociarchive
+FROM quay.io/coreos/chunkah AS chunkah
+ARG CHUNKAH_CONFIG_STR
+RUN --mount=from=builder,src=/,target=/chunkah,ro \
+    --mount=type=bind,target=/run/src,rw \
+        chunkah build --prune /sysroot/ --max-layers 128 --compressed --threads 16 \
+          --label ostree.commit- --label ostree.final-diffid- \
+          > /run/src/out.ociarchive
 
-# FROM oci-archive:out.ociarchive
-# LABEL containers.bootc=1
+FROM oci-archive:out.ociarchive
+LABEL containers.bootc=1

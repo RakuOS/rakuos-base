@@ -180,7 +180,6 @@ scx-scheds \
 scx-tools \
 selinux-policy-targeted \
 ShellCheck \
-smartmontools \
 solaar-udev \
 sqlite3 \
 squashfs-tools \
