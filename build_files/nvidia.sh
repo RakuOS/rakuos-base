@@ -195,18 +195,3 @@ rm -rf /var/lib/dkms /usr/src/nvidia-* /usr/src/kernels/"${QUALIFIED_KERNEL}"
 
 echo "Generating base file manifest..."
 /usr/libexec/rakuos/generate-base-manifest
-
-echo "Cleaning up corrupted SELinux build states..."
-
-# 1. Purge the leftover tmp working directories
-rm -rf /etc/selinux/targeted/tmp/*
-rm -rf /var/lib/selinux/targeted/tmp/*
-
-# 2. Prune any empty module directories created by failed %post scripts
-find /etc/selinux/targeted/active/modules/ -type d -empty -delete || true
-find /var/lib/selinux/targeted/active/modules/ -type d -empty -delete || true
-
-# 3. Forcefully rebuild the SELinux policy store for the image
-/usr/sbin/semodule -B
-
-echo "SELinux policy successfully rebuilt!""
