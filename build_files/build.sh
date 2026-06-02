@@ -10,6 +10,8 @@ dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-
 dnf5 -y copr enable faugus/faugus-launcher fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y copr enable wehagy/protonplus fedora-${FEDORA_VERSION}-x86_64
+dnf5 -y copr enable ublue-os/packages fedora-${FEDORA_VERSION}-x86_64
+dnf5 -y copr enable ublue-os/staging fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
@@ -70,10 +72,17 @@ rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
+dnf5 -y install --skip-unavailable intel-vaapi-driver \
+libopenjph \
+libva-utils \
+pipewire-libs-extra \
+heif-pixbuf-loader
+
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
-dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
+dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libva libheif
+
 dnf5 -y remove mesa-va-drivers-freeworld.{i686,x86_64}
 dnf5 -y upgrade --best 'mesa-*'
 #dnf5 -y install mesa-va-drivers.{i686,x86_64}
@@ -82,44 +91,145 @@ dnf5 -y upgrade --best 'mesa-*'
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # install packages
-dnf5 -y install ananicy-cpp \
-cachyos-ananicy-rules \
-cachyos-settings \
-cabextract \
-bore-sysctl \
-dmemcg-booster \
-fastfetch \
-flatpak \
-scx-scheds \
-scx-tools \
-gamemode \
-gamemode.i686 \
-pulseaudio-utils \
-git \
-flatpak \
-libxcrypt-compat \
-rsync \
-podman \
-distrobox \
-lm_sensors \
-sqlite3 \
-openssl \
-libnotify \
-inotify-tools \
-podman-compose \
-python3-pip \
-python3-setuptools \
+dnf5 -y install alsa-firmware \
+ananicy-cpp \
 appstream \
 appstream-data \
-fwupd \
+apr \
+apr-util \
+aria2 \
+bat \
+bat-extras \
+bibata-cursor-theme \
+bind \
+bind-utils \
+bootc \
+bore-sysctl \
+btop \
+cachyos-ananicy-rules \
+cachyos-settings \
+cava \
+cbonsai \
+cowsay \
+distrobox \
+dmemcg-booster \
+du-dust \
+dysk \
+fastfetch \
+fedora-repos-archive \
+ffmpegthumbnailer \
+figlet \
+fish \
+flatpak \
+flatpak-spawn \
+fresh \
 fuse \
+fwupd \
+fzf \
+git \
+google-noto-sans-balinese-fonts \
+google-noto-sans-cjk-fonts \
+google-noto-sans-javanese-fonts \
+google-noto-sans-myanmar-fonts \
+google-noto-sans-sundanese-fonts \
+google-noto-serif-myanmar-fonts \
+grub2-tools-extra \
+gvfs-fuse \
+gvfs-mtp \
+gvfs-nfs \
+gvfs-smb \
+htop \
+inotify-tools \
+just \
+lazygit \
+libcamera \
+libcamera-gstreamer \
+libcamera-ipa \
+libcamera-tools \
+libimobiledevice-utils \
+libnotify \
+libratbag-ratbagd \
+libxcrypt-compat \
+lm_sensors \
+lolcat \
+lshw \
+lsd \
+maple-fonts \
+net-tools \
+nvme-cli \
+nvtop \
+opendoas \
+openrgb-udev-rules \
+openssh-askpass \
+openssl \
+oversteer-udev \
+pam-u2f \
+pam_yubico \
+pamu2fcfg \
+pipewire-plugin-libcamera \
+podman \
+podman-compose \
+powerstat \
+procs \
+pulseaudio-utils \
+python3-pip \
+python3-setuptools \
+ripgrep \
+rsms-inter-fonts \
+rsync \
+scx-scheds \
+scx-tools \
+selinux-policy-targeted \
+ShellCheck \
+solaar-udev \
+sqlite3 \
+squashfs-tools \
 squashfuse \
-virtualbox-guest-additions \
+starship \
+sudo-rs \
+surge \
+symlinks \
+tcpdump \
+termflix \
+tmux \
+traceroute \
+ublue-os-udev-rules \
+unrar \
+unzip \
+usbmuxd \
 v4l-utils \
-unzip
+vim \
+virtualbox-guest-additions \
+wireguard-tools \
+wl-clipboard \
+xhost \
+xorg-x11-xauth \
+yubikey-manager \
+zellij \
+zoxide \
+zsh \
+zstd
 
 ## Remove packages
-dnf5 -y remove firefox* nss
+dnf5 -y remove firefox* \
+nss \
+toolbox \
+fedora-flathub-remote \
+fedora-third-party \
+fedora-workstation-repositories
+
+dnf5 -y swap ocl-icd OpenCL-ICD-Loader --allowerasing
+
+# use CoreOS' generator for emergency/rescue boot
+# see detail: https://github.com/ublue-os/main/issues/653
+CSFG="/usr/lib/systemd/system-generators/coreos-sulogin-force-generator"
+curl -sSLo ${CSFG} https://raw.githubusercontent.com/coreos/fedora-coreos-config/refs/heads/stable/overlay.d/05core/usr/lib/systemd/system-generators/coreos-sulogin-force-generator
+chmod +x ${CSFG}
+
+# Clean up some .desktops for command line utils
+rm /usr/share/applications/btop.desktop
+rm /usr/share/applications/io.github.sinelaw.fresh.desktop
+rm /usr/share/applications/htop.desktop
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
@@ -128,8 +238,12 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
+systemctl mask rpm-ostreed-automatic.timer
 
-# sudo requires drop-in files to be owned by root and not be writable by others
+# sudo requires the drop-in directory to be root-owned, non-world-writable,
+# and executable (0750), and drop-in files to be 0440.
+chown root:root /etc/sudoers.d
+chmod 0750 /etc/sudoers.d
 chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
 
@@ -174,6 +288,7 @@ rakuos-overlay-services.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
+nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
 rpm-ostree-clean-metadata.timer \
@@ -198,3 +313,8 @@ ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="
 ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", \
     ATTR{queue/scheduler}="adios"
 EOF
+
+## Add custom icons
+git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme
+/tmp/WhiteSur-icon-theme/install.sh -b -a -t all
+rm -rf /tmp/WhiteSur-icon-theme

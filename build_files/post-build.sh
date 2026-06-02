@@ -41,8 +41,16 @@ WRAPPER
 # Make all wrappers executable
 chmod +x /usr/bin/dnf5 /usr/bin/dnf
 
-# Provide neofetch compatibility via fastfetch.
-ln -sf /usr/bin/fastfetch /usr/bin/neofetch
+# Wire up /etc/zshrc.d/ fragment sourcing (Fedora's zsh doesn't do this by default).
+mkdir -p /etc/zshrc.d
+if ! grep -q 'zshrc.d' /etc/zshrc 2>/dev/null; then
+    cat >> /etc/zshrc << 'ZSHRC'
+
+# Source RakuOS zsh configuration fragments
+for _f in /etc/zshrc.d/*.zsh; do [[ -r "$_f" ]] && source "$_f"; done
+unset _f
+ZSHRC
+fi
 
 # Point fastfetch system config to the RakuOS preset.
 mkdir -p /etc/fastfetch
