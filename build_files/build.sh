@@ -100,6 +100,8 @@ aria2 \
 bat \
 bat-extras \
 bibata-cursor-theme \
+bind \
+bind-utils \
 bootc \
 bore-sysctl \
 btop \
