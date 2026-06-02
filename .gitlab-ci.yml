@@ -16,6 +16,8 @@ workflow:
 variables:
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
   IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
+  IMAGE_REGISTRY_QUAY: "quay.io/rakuos/rakuos-base"
+  IMAGE_REGISTRY_QUAY_NVIDIA: "quay.io/rakuos/rakuos-base-nvidia"
   IMAGE_DESC: "RakuOS Base"
   IMAGE_KEYWORDS: "bootc,fedora,atomic"
   DEFAULT_TAG: "latest"
@@ -24,6 +26,7 @@ stages:
   - build-push-base
   - build-push-nvidia
   - test
+  - sign
   - dispatch
 
 .buildah-job:
@@ -61,7 +64,7 @@ stages:
     - dnf install -y --quiet jq
   variables:
     STORAGE_DRIVER: overlay
-    BUILDAH_FORMAT: docker
+    BUILDAH_FORMAT: oci
 
 build-push-base:
   extends: .buildah-job
@@ -72,13 +75,15 @@ build-push-base:
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY}:${DEFAULT_TAG} ${IMAGE_REGISTRY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY}:${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY}:${DATE_TAG}"
       else
         TAGS="${IMAGE_REGISTRY}:${BRANCH_SLUG} ${IMAGE_REGISTRY}:${BRANCH_SLUG}.${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
-      export TAGS BRANCH_SLUG
+      export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY}:ci-temp-${CI_PIPELINE_ID}"
+    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
       MOK_SECRET_FLAG=""
@@ -102,9 +107,11 @@ build-push-base:
       buildah build \
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
-        --squash \
+        --skip-unused-stages=false \
+        -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
@@ -115,18 +122,33 @@ build-push-base:
         .
 
     - |
-      for tag in ${TAGS}; do
-        echo "Tagging ${TEMP_TAG} as ${tag}"
-        buildah tag "${TEMP_TAG}" "${tag}"
-      done
-
-    - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-        for tag in ${TAGS}; do
-          echo "Pushing ${tag}"
-          buildah push "${tag}"
+        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY}:${DEFAULT_TAG}"
+          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+        else
+          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}"
+          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+        fi
+        echo "Pushing ${PRIMARY_QUAY_TAG}"
+        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+        REPO_PATH="${IMAGE_REGISTRY_QUAY#quay.io/}"
+        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+        DIGEST=$(curl -sf \
+          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+          | jq -r '.tags[0].manifest_digest')
+        echo "Manifest digest: ${DIGEST}"
+        for alias in ${ALIAS_TAGS}; do
+          echo "Aliasing :${alias} → ${DIGEST}"
+          curl -sf -X PUT \
+            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
         done
+        echo "All tags pushed and aliased."
       fi
   artifacts:
     reports:
@@ -149,13 +171,15 @@ build-push-nvidia:
     - |
       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_NVIDIA}:${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${DATE_TAG}"
       else
         TAGS="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
+        QUAY_TAGS="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}.${DATE_TAG}"
       fi
-      export TAGS BRANCH_SLUG
+      export TAGS QUAY_TAGS BRANCH_SLUG
       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
+    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_NVIDIA}:ci-temp-${CI_PIPELINE_ID}"
 
     - |
       MOK_SECRET_FLAG=""
@@ -184,9 +208,11 @@ build-push-nvidia:
       buildah build \
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --squash \
+        --skip-unused-stages=false \
+        -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
@@ -204,11 +230,32 @@ build-push-nvidia:
 
     - |
       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
-        for tag in ${TAGS}; do
-          echo "Pushing ${tag}"
-          buildah push "${tag}"
+        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_NVIDIA}:${DEFAULT_TAG}"
+          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+        else
+          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}"
+          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+        fi
+        echo "Pushing ${PRIMARY_QUAY_TAG}"
+        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+        REPO_PATH="${IMAGE_REGISTRY_QUAY_NVIDIA#quay.io/}"
+        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+        DIGEST=$(curl -sf \
+          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+          | jq -r '.tags[0].manifest_digest')
+        echo "Manifest digest: ${DIGEST}"
+        for alias in ${ALIAS_TAGS}; do
+          echo "Aliasing :${alias} → ${DIGEST}"
+          curl -sf -X PUT \
+            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
         done
+        echo "All tags pushed and aliased."
       fi
   artifacts:
     reports:
@@ -244,8 +291,8 @@ test-image-standard:
   script:
     - |
       set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY}:${BRANCH_SLUG}"
-      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       buildah pull "docker://${IMAGE_REF}"
       CTR=$(buildah from "${IMAGE_REF}")
 
@@ -269,8 +316,8 @@ test-image-nvidia:
   script:
     - |
       set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_NVIDIA}:${BRANCH_SLUG}"
-      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" registry.gitlab.com
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_NVIDIA}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
       buildah pull "docker://${IMAGE_REF}"
       CTR=$(buildah from "${IMAGE_REF}")
 
@@ -331,13 +378,107 @@ trigger-on-image-nvidia-fail:
     - job: test-image-nvidia
       artifacts: false
 
+sign-image-standard:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-standard
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-nvidia:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-nvidia
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_NVIDIA}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
 trigger-downstream:
   stage: dispatch
   image: curlimages/curl:latest
   needs:
-    - job: test-image-standard
+    - job: sign-image-standard
       artifacts: false
-    - job: test-image-nvidia
+    - job: sign-image-nvidia
       artifacts: false
   script:
     - |
