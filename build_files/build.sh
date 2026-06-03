@@ -74,14 +74,13 @@ dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-m
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \
-libva-utils \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
-dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libva libheif
+dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
 dnf5 -y remove mesa-va-drivers-freeworld.{i686,x86_64}
 dnf5 -y upgrade --best 'mesa-*'
