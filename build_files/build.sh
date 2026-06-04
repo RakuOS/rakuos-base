@@ -193,6 +193,7 @@ termflix \
 tmux \
 traceroute \
 ublue-os-udev-rules \
+udisks2 \
 unrar \
 unzip \
 usbmuxd \
