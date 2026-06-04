@@ -189,6 +189,7 @@ sudo-rs \
 surge \
 symlinks \
 tcpdump \
+tealdeer \
 termflix \
 tmux \
 traceroute \
