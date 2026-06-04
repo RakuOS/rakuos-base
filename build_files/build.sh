@@ -212,7 +212,6 @@ zstd
 
 ## Remove packages
 dnf5 -y remove firefox* \
-nss \
 toolbox \
 fedora-flathub-remote \
 fedora-third-party \
