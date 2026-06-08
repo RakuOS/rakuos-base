@@ -8,7 +8,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION} AS builder
+FROM quay.io/fedora/fedora-bootc:${FEDORA_VERSION} AS builder
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
@@ -25,6 +25,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
     /ctx/build.sh && /ctx/drivers.sh && /ctx/post-build.sh
 
+COPY system_files /
 RUN bootc container lint
 
 FROM quay.io/coreos/chunkah AS chunkah
