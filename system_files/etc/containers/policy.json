@@ -6,21 +6,18 @@
   ],
   "transports": {
     "docker": {
-      "ghcr.io/rakuos": [
+      "quay.io/rakuos": [{"type": "sigstoreSigned", "keyPath": "/etc/pki/containers/rakuos-cosign.pub", "signedIdentity": {"type": "matchRepository"}}],
+      "ghcr.io": [
         {
           "type": "insecureAcceptAnything"
         }
       ],
-      "quay.io/rakuos": [
+      "quay.io": [
         {
-          "type": "sigstoreSigned",
-          "keyPath": "/etc/pki/containers/rakuos-cosign.pub",
-          "signedIdentity": {
-            "type": "matchRepository"
-          }
+          "type": "insecureAcceptAnything"
         }
       ],
-      "registry.gitlab.com/rakuos/images": [
+      "docker.io": [
         {
           "type": "insecureAcceptAnything"
         }
