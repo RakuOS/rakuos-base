@@ -2,6 +2,10 @@
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
+
+## DNF5 Speedup
+sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
+
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
