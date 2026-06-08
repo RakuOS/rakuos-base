@@ -13,7 +13,7 @@ dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-sudo rpm --import https://repo.rakuos.org/pubkey.gpg
+rpm --import https://repo.rakuos.org/pubkey.gpg
 
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 
