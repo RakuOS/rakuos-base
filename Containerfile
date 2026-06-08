@@ -14,7 +14,8 @@ FROM quay.io/fedora/fedora-bootc:${FEDORA_VERSION} AS builder
 ARG FEDORA_VERSION
 ENV FEDORA_VERSION=${FEDORA_VERSION}
 
-#RUN rm /opt && ln -s -T /var/opt /opt
+RUN rm /opt && ln -s -T /var/opt /opt
+RUN rm /usr/local && ln -s -T /var/usrlocal /usr/local
 RUN mkdir -vp /nix
 COPY system_files /
 
