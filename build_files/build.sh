@@ -82,6 +82,7 @@ dmemcg-booster \
 du-dust \
 dysk \
 fastfetch \
+fedora-logos \
 fedora-repos-archive \
 ffmpegthumbnailer \
 figlet \
@@ -197,6 +198,7 @@ chmod +x ${CSFG}
 rm /usr/share/applications/btop.desktop
 rm /usr/share/applications/io.github.sinelaw.fresh.desktop
 rm /usr/share/applications/htop.desktop
+rm /usr/share/applications/nvtop.desktop
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
