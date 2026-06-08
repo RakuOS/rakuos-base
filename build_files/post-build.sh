@@ -216,20 +216,18 @@ EOF
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 
-# ── SELinux: rebuild the policy module store before commit ────────────────────
-# Packages like NetworkManager-ssh-gnome pull in an SELinux subpackage whose
-# %post runs `semodule -i`. That transaction can leave the module store in a
-# state ostree's deploy-time `semodule -N --refresh` can't rebuild — e.g.
-# ".../active/modules/100/bind/lang_ext: No such file" — which fails
-# ostree-finalize-staged and bricks the deploy.
-#
-# Rebuild + commit the store HERE so the committed image is consistent and the
-# deploy-time refresh is a clean no-op. No `|| true`: if the store can't
-# reconcile we want the BUILD to fail loudly (debuggable) rather than ship an
-# image that fails on deploy. (SELinux is disabled in the build container, so
-# `semodule -B` rebuilds the store and skips the kernel reload, exiting 0.)
+# ── SELinux: regenerate the policy module store before commit ─────────────────
+# A package transaction in build.sh leaves a base policy module dir missing its
+# lang_ext metadata (observed: active/modules/100/bind/lang_ext absent). Any
+# `semodule` rebuild then fails with "Unable to open bind module lang ext file"
+# — including ostree's deploy-time `semodule -N --refresh`, which bricks the
+# deploy. Documented remedy for a corrupt store: drop the stale sandbox,
+# reinstall the policy package to lay down a clean store, then rebuild the
+# binary policy. No `|| true`: if it still can't reconcile, fail the build loudly.
 if command -v semodule >/dev/null 2>&1; then
     rm -rf /etc/selinux/targeted/tmp /var/lib/selinux/targeted/tmp
+    DNF=dnf5.real; command -v dnf5.real >/dev/null 2>&1 || DNF=dnf5  # dnf5 is wrapped in our images
+    "$DNF" -y reinstall selinux-policy-targeted
     semodule -B
     rm -rf /etc/selinux/targeted/tmp /var/lib/selinux/targeted/tmp
 fi
