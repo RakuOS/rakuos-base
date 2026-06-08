@@ -5,26 +5,13 @@ FEDORA_VERSION=$(rpm -E %fedora)
 ## Enable repos
 dnf5 -y install dnf5-plugins
 dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable faugus/faugus-launcher fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable wehagy/protonplus fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ublue-os/packages fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ublue-os/staging fedora-${FEDORA_VERSION}-x86_64
 dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
+sudo rpm --import https://repo.rakuos.org/pubkey.gpg
 
-dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
-dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
-# Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
-sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
+dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
@@ -44,26 +31,6 @@ for REPO in $TERRA_REPOS; do
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
 
-# VS Code
-rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
-echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/vscode.repo > /dev/null
-# MS Edge
-rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
-echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yumrepos/edge\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/edge.repo > /dev/null
-
-# Enable Chrome repo
-sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/google-chrome.repo
-
-# Enable Brave Stable, Beta and Nightly repos & Brave origin Beta and Nightly repos
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-beta.s3.brave.com/brave-browser-beta.repo
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-nightly.s3.brave.com/brave-browser-nightly.repo
-
-# Add the tailscale repository
-dnf5 -y config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
-
-# Add the Mullvad repository server
-dnf5 -y config-manager addrepo --from-repofile=https://repository.mullvad.net/rpm/stable/mullvad.repo
 
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
