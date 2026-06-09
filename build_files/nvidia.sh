@@ -105,22 +105,22 @@ KERNEL=="nvidia", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"
 KERNEL=="nvidia_uvm", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"
 EOF
 
-# Generate a copyable SELinux policy package artifact.  This gives downstream
-# images a stable path to copy while we iterate on the exact policy contents.
-NVIDIA_SELINUX_DIR="/usr/share/selinux/packages/targeted"
-NVIDIA_SELINUX_PKG="$NVIDIA_SELINUX_DIR/nvidia-driver.pp.bz2"
-SELINUX_BUILD_DIR="$tmpdir/selinux"
-mkdir -p "$SELINUX_BUILD_DIR" "$NVIDIA_SELINUX_DIR"
+# # Generate a copyable SELinux policy package artifact.  This gives downstream
+# # images a stable path to copy while we iterate on the exact policy contents.
+# NVIDIA_SELINUX_DIR="/usr/share/selinux/packages/targeted"
+# NVIDIA_SELINUX_PKG="$NVIDIA_SELINUX_DIR/nvidia-driver.pp.bz2"
+# SELINUX_BUILD_DIR="$tmpdir/selinux"
+# mkdir -p "$SELINUX_BUILD_DIR" "$NVIDIA_SELINUX_DIR"
 
-cat > "$SELINUX_BUILD_DIR/nvidia-driver.te" <<'EOF'
-policy_module(nvidia-driver, 1.0)
-EOF
+# cat > "$SELINUX_BUILD_DIR/nvidia-driver.te" <<'EOF'
+# policy_module(nvidia-driver, 1.0)
+# EOF
 
-if make -f /usr/share/selinux/devel/Makefile -C "$SELINUX_BUILD_DIR" nvidia-driver.pp; then
-    bzip2 -c "$SELINUX_BUILD_DIR/nvidia-driver.pp" > "$NVIDIA_SELINUX_PKG"
-else
-    echo "WARNING: failed to build NVIDIA SELinux policy package artifact."
-fi
+# if make -f /usr/share/selinux/devel/Makefile -C "$SELINUX_BUILD_DIR" nvidia-driver.pp; then
+#     bzip2 -c "$SELINUX_BUILD_DIR/nvidia-driver.pp" > "$NVIDIA_SELINUX_PKG"
+# else
+#     echo "WARNING: failed to build NVIDIA SELinux policy package artifact."
+# fi
 
 # Diff pre/post for package protection.  The NVIDIA files themselves are not RPM
 # owned when installed from the upstream .run payload, but build/runtime deps are.
