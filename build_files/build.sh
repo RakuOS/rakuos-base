@@ -172,6 +172,7 @@ udisks2 \
 unrar \
 unzip \
 usbmuxd \
+uutils-coreutils \
 v4l-utils \
 vim \
 virtualbox-guest-additions \

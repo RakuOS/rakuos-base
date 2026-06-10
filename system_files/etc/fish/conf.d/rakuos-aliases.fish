@@ -43,6 +43,22 @@ function neofetch
     end
 end
 
+# --- uutils-coreutils aliases ------------------------------------------------
+function _register_uutils_aliases
+    for uu_bin in /usr/bin/uu-*
+        if test -e "$uu_bin"
+            set -l base_cmd (basename "$uu_bin")
+            set -l std_cmd (string replace -r '^uu-' '' "$base_cmd")
+            switch "$std_cmd"
+                case ls cat test \[
+                    continue
+            end
+            alias "$std_cmd" "$uu_bin"
+        end
+    end
+end
+_register_uutils_aliases
+
 # --- Modern replacements -----------------------------------------------------
 alias cat='bat'
 alias ls='lsd'

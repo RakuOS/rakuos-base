@@ -29,6 +29,20 @@ neofetch() {
     fastfetch "$@"
 }
 
+# --- uutils-coreutils aliases ------------------------------------------------
+_register_uutils_aliases() {
+    local uu_bin base_cmd std_cmd
+    for uu_bin in /usr/bin/uu-*; do
+        [[ -e "$uu_bin" ]] || continue
+        base_cmd="${uu_bin:t}"
+        std_cmd="${base_cmd#uu-}"
+        case "$std_cmd" in ls|cat|test|\[) continue ;; esac
+        alias "$std_cmd"="$uu_bin"
+    done
+}
+_register_uutils_aliases
+unset -f _register_uutils_aliases
+
 # --- Modern replacements -----------------------------------------------------
 alias cat='bat'
 alias ls='lsd'
