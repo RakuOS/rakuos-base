@@ -83,7 +83,7 @@ exec /usr/bin/dnf5 "$@"
 WRAPPER
 
 # Make all wrappers executable
-chmod +x /usr/bin/dnf5 /usr/bin/dnf
+chmod +x /usr/bin/dnf5 /usr/bin/dnf /usr/bin/rpm-ostree
 
 # Wire up /etc/zshrc.d/ fragment sourcing (Fedora's zsh doesn't do this by default).
 mkdir -p /etc/zshrc.d
