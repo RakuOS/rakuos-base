@@ -51,10 +51,7 @@ alias la='lsd -a'
 alias lla='lsd -la'
 alias lt='lsd --tree'
 
-alias sudo='sudo-rs'
 alias sudoedit='sudoedit-rs'
-alias visudo='visudo-rs'
-alias su='su-rs'
 
 # --- Interactive tooling -----------------------------------------------------
 if [[ $- == *i* ]]; then

@@ -100,6 +100,16 @@ fi
 mkdir -p /etc/fastfetch
 ln -sf /usr/share/fastfetch/presets/rakuos/rakuos-fastfetch.jsonc /etc/fastfetch/config.jsonc
 
+# ── sudo-rs bootstrap ─────────────────────────────────────────────────────────
+# Preserve the originals under .og so setup-sudo can register them with
+# `alternatives`, then wire sudo-rs as the system default.
+for bin in /usr/bin/sudo /usr/bin/su /usr/bin/visudo; do
+    if [[ -f "$bin" && ! -f "${bin}.og" ]]; then
+        mv "$bin" "${bin}.og"
+    fi
+done
+/usr/libexec/rakuos/setup-sudo sudo-rs
+
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 
