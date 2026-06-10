@@ -53,6 +53,8 @@ dnf5 -y install libfdk-aac
 dnf5 -y swap libavcodec libavcodec-free --allowerasing
 dnf5 -y swap libavformat libavformat-free --allowerasing
 dnf5 -y swap libavutil libavutil-free --allowerasing
+dnf5 -y swap libavfilter libavfilter-free --allowerasing
+dnf5 -y swap libswscale libswscale-free --allowerasing
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
 dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
