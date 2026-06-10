@@ -110,6 +110,16 @@ for bin in /usr/bin/sudo /usr/bin/su /usr/bin/visudo; do
 done
 /usr/libexec/rakuos/setup-sudo sudo-rs
 
+# Belt-and-suspenders: explicitly stamp uid 0 + setuid on the sudo-rs binaries
+# so the bits are correct in the committed image regardless of how alternatives
+# or the RPM installed them.
+for _bin in /usr/bin/sudo-rs /usr/bin/su-rs; do
+    [[ -f "$_bin" ]] || continue
+    chown root:root "$_bin"
+    chmod 4755 "$_bin"
+done
+[[ -f /usr/bin/visudo-rs ]] && chown root:root /usr/bin/visudo-rs && chmod 0755 /usr/bin/visudo-rs
+
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 
