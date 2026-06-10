@@ -5,9 +5,53 @@ set -ouex pipefail
 # Rename real dnf5 and dnf binaries
 mv /usr/bin/dnf5 /usr/bin/dnf5.real
 mv /usr/bin/dnf /usr/bin/dnf.real
+mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
 
 # Mark all base image packages as dependency so PackageKit only manages overlay packages
 dnf5.real -y mark dependency $(rpm -qa --qf '%{NAME} ') --skip-unavailable
+
+# Create rpm-ostree wrapper
+cat > /usr/bin/rpm-ostree << 'WRAPPER'
+#!/usr/bin/env bash
+COMMAND="${1:-}"
+case "$COMMAND" in
+    reset)
+        shift
+        exec rakuos reset-overlay --confirm
+        ;; 
+    status)
+        shift
+        exec bootc status "$@"
+        ;;    
+    install)
+        shift
+        exec rakuos install "$@"
+        ;;
+    upgrade)
+        shift
+        exec bootc upgrade "$@"
+        ;;
+    rollback)
+        shift
+        exec bootc rollback "$@"
+        ;;
+    rebase)
+        shift
+        exec bootc switch "$@"
+        ;;
+    uninstall)
+        shift
+        exec rakuos remove "$@"
+        ;;
+    search)
+        shift
+        exec /usr/bin/dnf5.real search "$@"
+        ;;
+    *)
+        exec bootc "$@"
+        ;;
+esac
+WRAPPER
 
 # Create dnf5 wrapper
 cat > /usr/bin/dnf5 << 'WRAPPER'
