@@ -21,6 +21,41 @@
         {
           "type": "insecureAcceptAnything"
         }
+      ],
+      "container-registry.oracle.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "invent-registry.kde.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "public.ecr.aws": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.access.redhat.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.fedoraproject.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.gitlab.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.opensuse.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
       ]
     },
     "containers-storage": {
