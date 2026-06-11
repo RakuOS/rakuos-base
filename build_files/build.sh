@@ -50,11 +50,11 @@ heif-pixbuf-loader
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
 dnf5 -y install libfdk-aac
-dnf5 -y swap libavcodec libavcodec-free --allowerasing
-dnf5 -y swap libavformat libavformat-free --allowerasing
-dnf5 -y swap libavutil libavutil-free --allowerasing
-dnf5 -y swap libavfilter libavfilter-free --allowerasing
-dnf5 -y swap libswscale libswscale-free --allowerasing
+dnf5 -y swap libavcodec-free libavcodec --allowerasing
+dnf5 -y swap libavformat-free libavformat --allowerasing
+dnf5 -y swap libavutil-free libavutil --allowerasing
+dnf5 -y swap libavfilter-free libavfilter --allowerasing
+dnf5 -y swap libswscale-free libswscale --allowerasing
 
 #dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
 dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
