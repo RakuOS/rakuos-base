@@ -8,7 +8,7 @@ sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
 ## Enable repos
 dnf5 -y install dnf5-plugins
-dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
+
 dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
