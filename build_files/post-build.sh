@@ -138,9 +138,11 @@ _GNU_COREUTILS=(
     tee timeout touch tr true truncate tsort tty uname unexpand uniq unlink
     users vdir wc who whoami yes
 )
+# Move mv first so the loop can use uu_mv for all subsequent renames.
+[[ -f /usr/bin/mv && ! -L /usr/bin/mv && ! -f /usr/bin/mv.og ]] && /usr/bin/mv /usr/bin/mv /usr/bin/mv.og
 for _name in "${_GNU_COREUTILS[@]}"; do
     _gnu="/usr/bin/${_name}"
-    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
+    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && /usr/bin/uu_mv "$_gnu" "${_gnu}.og"
 done
 unset _GNU_COREUTILS _name _gnu
 /usr/libexec/rakuos/setup-uutils uutils
