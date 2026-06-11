@@ -123,6 +123,17 @@ done
 # Remove ostree boot condition from PackageKit so it starts on RakuOS
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 
+# ── uutils-coreutils bootstrap ────────────────────────────────────────────────
+# Move GNU originals to .og so setup-uutils can register them with alternatives.
+for _uu in /usr/bin/uu-*; do
+    [[ -x "$_uu" ]] || continue
+    _name="${_uu#/usr/bin/uu-}"
+    case "$_name" in test|\[|ls|cat) continue ;; esac
+    _gnu="/usr/bin/$_name"
+    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
+done
+/usr/libexec/rakuos/setup-uutils uutils
+
 echo "RakuOS post-build complete."
 
 # ── Build protected-packages.txt ──────────────────────────────────────────────
