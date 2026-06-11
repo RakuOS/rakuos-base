@@ -103,11 +103,13 @@ ln -sf /usr/share/fastfetch/presets/rakuos/rakuos-fastfetch.jsonc /etc/fastfetch
 # ── sudo-rs bootstrap ─────────────────────────────────────────────────────────
 # Preserve the originals under .og so setup-sudo can register them with
 # `alternatives`, then wire sudo-rs as the system default.
-for bin in /usr/bin/sudo /usr/bin/su /usr/bin/visudo; do
-    if [[ -f "$bin" && ! -f "${bin}.og" ]]; then
-        mv "$bin" "${bin}.og"
+for bin in sudo su visudo; do
+    _bin="/usr/bin/${bin}"
+    if [[ -f "$_bin" && ! -f "/usr/bin/gnu_${bin}" ]]; then
+        mv "$_bin" "/usr/bin/gnu_${bin}"
     fi
 done
+unset bin _bin
 /usr/libexec/rakuos/setup-sudo sudo-rs
 
 # Belt-and-suspenders: explicitly stamp uid 0 + setuid on the sudo-rs binaries
@@ -139,10 +141,10 @@ _GNU_COREUTILS=(
     unexpand uniq unlink uptime users vdir wc who whoami yes
 )
 # Move mv first so the loop can use uu_mv for all subsequent renames.
-[[ -f /usr/bin/mv && ! -L /usr/bin/mv && ! -f /usr/bin/mv.og ]] && /usr/bin/mv /usr/bin/mv /usr/bin/mv.og
+[[ -f /usr/bin/mv && ! -L /usr/bin/mv && ! -f /usr/bin/gnu_mv ]] && /usr/bin/mv /usr/bin/mv /usr/bin/gnu_mv
 for _name in "${_GNU_COREUTILS[@]}"; do
     _gnu="/usr/bin/${_name}"
-    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && /usr/bin/uu_mv "$_gnu" "${_gnu}.og"
+    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "/usr/bin/gnu_${_name}" ]] && /usr/bin/uu_mv "$_gnu" "/usr/bin/gnu_${_name}"
 done
 unset _GNU_COREUTILS _name _gnu
 /usr/libexec/rakuos/setup-uutils uutils
