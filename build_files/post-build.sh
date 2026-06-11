@@ -132,6 +132,12 @@ for _uu in /usr/bin/uu-*; do
     _gnu="/usr/bin/$_name"
     [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
 done
+# ls and cat have no uu-* counterparts — move them explicitly so lsd/bat can
+# be wired via alternatives without hitting a non-symlink at those paths.
+for _name in ls cat; do
+    _gnu="/usr/bin/$_name"
+    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
+done
 /usr/libexec/rakuos/setup-uutils uutils
 
 echo "RakuOS post-build complete."
