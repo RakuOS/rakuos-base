@@ -128,7 +128,7 @@ done
 for _uu in /usr/bin/uu-*; do
     [[ -x "$_uu" ]] || continue
     _name="${_uu#/usr/bin/uu-}"
-    case "$_name" in test|\[|ls|cat) continue ;; esac
+    case "$_name" in test|\[) continue ;; esac
     _gnu="/usr/bin/$_name"
     [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
 done
