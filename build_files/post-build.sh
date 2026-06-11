@@ -124,20 +124,25 @@ done
 #sed -i '/ConditionPathExists=!\/run\/ostree-booted/d' /usr/lib/systemd/system/packagekit.service
 
 # ── uutils-coreutils bootstrap ────────────────────────────────────────────────
-# Move GNU originals to .og so setup-uutils can register them with alternatives.
-for _uu in /usr/bin/uu-*; do
-    [[ -x "$_uu" ]] || continue
-    _name="${_uu#/usr/bin/uu-}"
-    case "$_name" in test|\[) continue ;; esac
-    _gnu="/usr/bin/$_name"
+# Move ALL GNU coreutils to .og so setup-uutils can register them with
+# alternatives. Explicit list — don't rely on uu_* iteration which misses bins
+# that exist in GNU but have no uu_ counterpart or vice versa.
+_GNU_COREUTILS=(
+    arch b2sum base32 base64 basename basenc cat chcon chgrp chmod chown
+    chroot cksum comm cp csplit cut date dd df dir dircolors dirname du
+    echo env expand expr factor false fmt fold groups head hostid id install
+    join link ln logname ls md5sum mkdir mkfifo mknod mktemp mv nice nl
+    nohup numfmt od paste pathchk pinky pr printenv printf ptx pwd readlink
+    realpath rm rmdir runcon seq sha1sum sha224sum sha256sum sha384sum
+    sha512sum shred shuf sleep sort split stat stdbuf stty sum sync tac tail
+    tee timeout touch tr true truncate tsort tty uname unexpand uniq unlink
+    users vdir wc who whoami yes
+)
+for _name in "${_GNU_COREUTILS[@]}"; do
+    _gnu="/usr/bin/${_name}"
     [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
 done
-# ls and cat have no uu-* counterparts — move them explicitly so lsd/bat can
-# be wired via alternatives without hitting a non-symlink at those paths.
-for _name in ls cat; do
-    _gnu="/usr/bin/$_name"
-    [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "${_gnu}.og" ]] && mv "$_gnu" "${_gnu}.og"
-done
+unset _GNU_COREUTILS _name _gnu
 /usr/libexec/rakuos/setup-uutils uutils
 
 echo "RakuOS post-build complete."
