@@ -2,196 +2,42 @@
 
 set -ouex pipefail
 
-# Build/install the full NVIDIA stack from the upstream .run payload instead of
-# relying on repo-packaged dkms-nvidia/nvidia-driver payloads. Set
-# NVIDIA_VERSION in CI to pin; otherwise use NVIDIA's official latest pointer.
-NVIDIA_LATEST_URL="https://download.nvidia.com/XFree86/Linux-x86_64/latest.txt"
-
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
-KERNEL_SOURCE="/usr/src/kernels/${QUALIFIED_KERNEL}"
 
-# Snapshot installed packages before NVIDIA setup so protected-packages.txt can
-# still include build/runtime deps pulled in by this script.
-rpm -qa --qf '%{NAME}\n' | sort > /tmp/pre-nvidia-pkgs.txt
+# Install NVIDIA stack — skip systemd scriptlets that fail in containers
+dnf5.real install -y --setopt=tsflags=noscripts \
+    dkms-nvidia \
+    nvidia-modprobe \
+    nvidia-driver \
+    nvidia-settings \
+    nvidia-persistenced \
+    libva-nvidia-driver
 
-dnf5.real install -y \
-    dkms \
-    gcc \
-    make \
-    perl \
-    elfutils-libelf-devel \
-    kernel-cachyos-devel-matched \
-    libglvnd \
-    libglvnd-egl \
-    libglvnd-gles \
-    libglvnd-glx \
-    libglvnd-opengl \
-    egl-x11 \
-    egl-wayland2 \
-    egl-gbm \
-    xorg-x11-server-Xorg \
-    policycoreutils \
-    checkpolicy \
-    selinux-policy-devel \
-    bzip2 \
-    curl
-
-if [[ ! -d "$KERNEL_SOURCE" ]]; then
-    echo "ERROR: missing kernel source path after installing devel package: $KERNEL_SOURCE"
+# Build DKMS module for the installed kernel
+# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
+NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
+LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+    echo "DKMS build failed — make.log:"
+    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
     exit 1
-fi
+}
 
-if [[ -z "${NVIDIA_VERSION:-}" ]]; then
-    latest_info="$(curl -fsSL "$NVIDIA_LATEST_URL")"
-    NVIDIA_VERSION="$(awk '{print $1}' <<< "$latest_info")"
-    NVIDIA_RUN_PATH="$(awk '{print $2}' <<< "$latest_info")"
-    NVIDIA_RUN="${NVIDIA_RUN_PATH##*/}"
-    NVIDIA_URL="${NVIDIA_URL:-https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_RUN_PATH}}"
-else
-    NVIDIA_RUN="NVIDIA-Linux-x86_64-${NVIDIA_VERSION}.run"
-    NVIDIA_URL="${NVIDIA_URL:-https://download.nvidia.com/XFree86/Linux-x86_64/${NVIDIA_VERSION}/${NVIDIA_RUN}}"
-fi
-
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "$tmpdir"' EXIT
-
-echo "Downloading NVIDIA ${NVIDIA_VERSION} installer..."
-curl -fL "$NVIDIA_URL" -o "$tmpdir/$NVIDIA_RUN"
-chmod +x "$tmpdir/$NVIDIA_RUN"
-
-echo "Extracting NVIDIA installer payload..."
-(
-    cd "$tmpdir"
-    "./$NVIDIA_RUN" --extract-only
-)
-
-NVIDIA_SRC_DIR="$tmpdir/NVIDIA-Linux-x86_64-${NVIDIA_VERSION}"
-if [[ ! -d "$NVIDIA_SRC_DIR" ]]; then
-    echo "ERROR: extracted NVIDIA source directory not found: $NVIDIA_SRC_DIR"
-    exit 1
-fi
-
-LD=ld.bfd "$NVIDIA_SRC_DIR/nvidia-installer" \
-    --silent \
-    --accept-license \
-    --no-questions \
-    --no-runlevel-check \
-    --no-nouveau-check \
-    --no-network \
-    --no-check-for-alternate-installs \
-    --install-libglvnd \
-    --kernel-name="${QUALIFIED_KERNEL}" \
-    --kernel-source-path="${KERNEL_SOURCE}" \
-    --utility-prefix=/usr \
-    --opengl-prefix=/usr \
-    --compat32-prefix=/usr \
-    --x-prefix=/usr
-
-# Basic config that distro packages normally provide.
-install -Dm644 /dev/stdin /usr/lib/modprobe.d/nvidia.conf <<'EOF'
-blacklist nouveau
-options nouveau modeset=0
-options nvidia-drm modeset=1 fbdev=1
-EOF
-
-install -Dm644 /dev/stdin /usr/lib/dracut/dracut.conf.d/nvidia.conf <<'EOF'
-add_drivers+=" nvidia nvidia_modeset nvidia_uvm nvidia_drm "
-omit_drivers+=" nouveau "
-EOF
-
-install -Dm644 /dev/stdin /usr/lib/udev/rules.d/60-nvidia.rules <<'EOF'
-KERNEL=="nvidia", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"
-KERNEL=="nvidia_uvm", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"
-EOF
-
-# # Generate a copyable SELinux policy package artifact.  This gives downstream
-# # images a stable path to copy while we iterate on the exact policy contents.
-# NVIDIA_SELINUX_DIR="/usr/share/selinux/packages/targeted"
-# NVIDIA_SELINUX_PKG="$NVIDIA_SELINUX_DIR/nvidia-driver.pp.bz2"
-# SELINUX_BUILD_DIR="$tmpdir/selinux"
-# mkdir -p "$SELINUX_BUILD_DIR" "$NVIDIA_SELINUX_DIR"
-
-# cat > "$SELINUX_BUILD_DIR/nvidia-driver.te" <<'EOF'
-# policy_module(nvidia-driver, 1.0)
-# EOF
-
-# if make -f /usr/share/selinux/devel/Makefile -C "$SELINUX_BUILD_DIR" nvidia-driver.pp; then
-#     bzip2 -c "$SELINUX_BUILD_DIR/nvidia-driver.pp" > "$NVIDIA_SELINUX_PKG"
-# else
-#     echo "WARNING: failed to build NVIDIA SELinux policy package artifact."
-# fi
-
-# Diff pre/post for package protection.  The NVIDIA files themselves are not RPM
-# owned when installed from the upstream .run payload, but build/runtime deps are.
-PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
-mkdir -p /usr/share/rakuos
-{
-    [[ -f "$PROTECTED_FILE" ]] && cat "$PROTECTED_FILE"
-    echo
-    echo "# NVIDIA build/runtime package dependencies (generated by nvidia.sh)"
-    rpm -qa --qf '%{NAME}\n' | sort | comm -13 /tmp/pre-nvidia-pkgs.txt -
-} > "${PROTECTED_FILE}.tmp"
-mv "${PROTECTED_FILE}.tmp" "$PROTECTED_FILE"
-rm -f /tmp/pre-nvidia-pkgs.txt
-echo "Recorded $(wc -l < "$PROTECTED_FILE") protected package line(s)."
-
-# Enable NVIDIA power management services when present.
-systemctl enable nvidia-powerd.service 2>/dev/null || true
-systemctl enable nvidia-persistenced.service 2>/dev/null || true
-
-# Sign all extra kernel modules with MOK key (covers nvidia.ko and friends)
-MOK_KEY="/run/secrets/mok_key"
-MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
-SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
-if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
-    echo "Signing all extra kernel modules (NVIDIA)..."
-    while IFS= read -r ko; do
-        case "$ko" in
-            *.ko.xz)
-                bare="${ko%.xz}"
-                xz -dk "$ko"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                xz -f "$bare"
-                ;;
-            *.ko.zst)
-                bare="${ko%.zst}"
-                zstd -dq "$ko" -o "$bare"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                zstd -qf "$bare" -o "$ko"
-                rm -f "$bare"
-                ;;
-            *.ko)
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$ko"
-                ;;
-        esac
-        echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
-        \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
-    echo "Module signing complete."
-else
-    echo "MOK key or sign-file not available — skipping module signing."
-fi
+# Enable NVIDIA power management services
+systemctl enable nvidia-hibernate.service \
+    nvidia-powerd.service \
+    nvidia-resume.service \
+    nvidia-suspend.service \
+    nvidia-suspend-then-hibernate.service \
+    nvidia-persistenced.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
 
-# Generate initramfs with NVIDIA module included
+# Generate initramfs with nvidia module included
 /usr/bin/dracut --no-hostonly --kver "${QUALIFIED_KERNEL}" --reproducible --zstd -v \
     --add ostree --add fido2 -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
 
-dnf5.real remove -y --no-autoremove \
-    dkms \
-    gcc \
-    make \
-    perl \
-    elfutils-libelf-devel \
-    kernel-cachyos-devel-matched \
-    checkpolicy \
-    selinux-policy-devel || true
-rm -rf /var/lib/dkms /usr/src/nvidia-* /usr/src/kernels/"${QUALIFIED_KERNEL}"
-
-echo "Generating base file manifest..."
-/usr/libexec/rakuos/generate-base-manifest
+dnf5.real remove -y --no-autoremove dkms
