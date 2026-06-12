@@ -16,6 +16,7 @@ https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_
 rpm --import https://repo.rakuos.org/pubkey.gpg
 
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
+dnf5 makecache --refresh
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
