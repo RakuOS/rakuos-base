@@ -84,6 +84,22 @@ else
     echo "MOK key or sign-file not available — skipping module signing."
 fi
 
+# Sign the kernel vmlinuz with MOK key
+VMLINUZ="/usr/lib/modules/${QUALIFIED_KERNEL}/vmlinuz"
+MOK_CERT_DER="/usr/share/rakuos/sb_pubkey.der"
+if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
+    echo "Signing kernel ${QUALIFIED_KERNEL}..."
+    MOK_CERT_PEM=$(mktemp /tmp/MOK.XXXXXX.crt)
+    openssl x509 -in "$MOK_CERT_DER" -inform DER -out "$MOK_CERT_PEM" -outform PEM
+    sbsign --key "$MOK_KEY" --cert "$MOK_CERT_PEM" \
+        --output "${VMLINUZ}.signed" "$VMLINUZ"
+    mv "${VMLINUZ}.signed" "$VMLINUZ"
+    rm -f "$MOK_CERT_PEM"
+    echo "Kernel signed."
+else
+    echo "MOK key or vmlinuz not available — skipping kernel signing."
+fi
+
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
 
