@@ -31,7 +31,7 @@ systemctl enable nvidia-powerd.service \
 # Remove dkms tooling — module is already built into place, not needed at runtime.
 # Capture dkms's deps first so we can clean up orphans after dkms is gone.
 
-dnf5.real remove -y dkms
+dnf5.real remove -y --noautoremove dkms
 
 dnf5.real remove -y kernel-cachyos-devel-matched
 
