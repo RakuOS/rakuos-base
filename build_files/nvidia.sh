@@ -28,11 +28,8 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 systemctl enable nvidia-powerd.service \
     nvidia-persistenced.service
 
-# Remove dkms tooling — module is already built into place, not needed at runtime.
-# Capture dkms's deps first so we can clean up orphans after dkms is gone.
-
-dnf5.real remove -y --noautoremove dkms
-
+#dnf5.real remove -y --noautoremove dkms
+systemctl disable --now dkms.service
 dnf5.real remove -y kernel-cachyos-devel-matched
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
