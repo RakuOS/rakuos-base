@@ -28,11 +28,8 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 systemctl enable nvidia-powerd.service \
     nvidia-persistenced.service
 
-#dnf5.real remove -y --noautoremove dkms
-systemctl disable --now dkms.service
-dnf5.real remove -y kernel-cachyos-devel-matched
-
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
+# Must happen BEFORE kernel-cachyos-devel-matched is removed (sign-file lives there).
 MOK_KEY="/run/secrets/mok_key"
 MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
 SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
@@ -80,6 +77,10 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
 else
     echo "MOK key or vmlinuz not available — skipping kernel signing."
 fi
+
+#dnf5.real remove -y --noautoremove dkms
+systemctl disable --now dkms.service
+dnf5.real remove -y kernel-cachyos-devel-matched
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
