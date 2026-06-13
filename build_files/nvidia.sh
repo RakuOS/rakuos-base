@@ -30,20 +30,8 @@ systemctl enable nvidia-powerd.service \
 
 # Remove dkms tooling — module is already built into place, not needed at runtime.
 # Capture dkms's deps first so we can clean up orphans after dkms is gone.
-DKMS_DEPS=$(rpm -qR dkms 2>/dev/null \
-    | grep -v '^rpmlib\|^/' \
-    | sed 's/[[:space:]].*//' \
-    | while read -r cap; do rpm -q --whatprovides "$cap" 2>/dev/null; done \
-    | grep -v 'no package provides' \
-    | grep -v '^dkms-nvidia\|^nvidia\|^libva-nvidia' \
-    | sort -u | tr '\n' ' ')
-dnf5.real remove -y --no-autoremove dkms
-# Remove any of dkms's former deps that are now orphaned (dnf skips anything still needed).
-if [[ -n "$DKMS_DEPS" ]]; then
-    echo "Removing orphaned dkms deps: ${DKMS_DEPS}"
-    # shellcheck disable=SC2086
-    dnf5.real remove -y --no-autoremove $DKMS_DEPS || true
-fi
+
+dnf5.real remove -y dkms
 
 dnf5.real remove -y kernel-cachyos-devel-matched
 
