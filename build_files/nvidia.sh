@@ -26,9 +26,6 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --f
 
 # Enable NVIDIA power management services
 systemctl enable nvidia-powerd.service \
-    nvidia-resume.service \
-    nvidia-suspend.service \
-    nvidia-suspend-then-hibernate.service \
     nvidia-persistenced.service
 
 # Remove dkms tooling — module is already built into place, not needed at runtime.
