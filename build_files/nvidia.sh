@@ -12,7 +12,8 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-driver \
     nvidia-settings \
     nvidia-persistenced \
-    libva-nvidia-driver
+    libva-nvidia-driver \
+    kernel-cachyos-devel-matched
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
@@ -47,6 +48,8 @@ if [[ -n "$DKMS_DEPS" ]]; then
     # shellcheck disable=SC2086
     dnf5.real remove -y --no-autoremove $DKMS_DEPS || true
 fi
+
+dnf5.real remove -y kernel-cachyos-devel-matched
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 MOK_KEY="/run/secrets/mok_key"
