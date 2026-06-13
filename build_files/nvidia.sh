@@ -90,3 +90,21 @@ depmod "${QUALIFIED_KERNEL}"
     --add ostree --add fido2 -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
+
+PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
+
+cat >> "$PROTECTED_FILE" << 'EOF'
+
+# Base image packages (from rakuos-base/build_files/nvidia.sh)
+dkms-nvidia
+nvidia-modprobe
+nvidia-driver
+nvidia-settings
+nvidia-persistenced
+libva-nvidia-driver
+EOF
+
+echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
+
+echo "Generating base file manifest..."
+/usr/libexec/rakuos/generate-base-manifest
