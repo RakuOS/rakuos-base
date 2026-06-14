@@ -56,6 +56,11 @@
         {
           "type": "insecureAcceptAnything"
         }
+      ],
+      "cgr.dev": [
+        {
+          "type": "insecureAcceptAnything"
+        }
       ]
     },
     "containers-storage": {
