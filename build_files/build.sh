@@ -2,29 +2,20 @@
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
+
+## DNF5 Speedup
+sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
+
 ## Enable repos
 dnf5 -y install dnf5-plugins
-dnf5 -y copr enable tohur/RakuOS fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable bieszczaders/kernel-cachyos-addons fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable faugus/faugus-launcher fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ilyaz/LACT fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable wehagy/protonplus fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ublue-os/packages fedora-${FEDORA_VERSION}-x86_64
-dnf5 -y copr enable ublue-os/staging fedora-${FEDORA_VERSION}-x86_64
+
 dnf5 -y install \
 https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
 https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
+rpm --import https://repo.rakuos.org/pubkey.gpg
 
-dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
-dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
-# Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
-sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
+dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
@@ -44,26 +35,6 @@ for REPO in $TERRA_REPOS; do
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
 
-# VS Code
-rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
-echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/vscode.repo > /dev/null
-# MS Edge
-rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
-echo -e "[edge]\nname=Microsoft Edge\nbaseurl=https://packages.microsoft.com/yumrepos/edge\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/edge.repo > /dev/null
-
-# Enable Chrome repo
-sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/google-chrome.repo
-
-# Enable Brave Stable, Beta and Nightly repos & Brave origin Beta and Nightly repos
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-beta.s3.brave.com/brave-browser-beta.repo
-dnf5 -y config-manager addrepo --from-repofile=https://brave-browser-rpm-nightly.s3.brave.com/brave-browser-nightly.repo
-
-# Add the tailscale repository
-dnf5 -y config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
-
-# Add the Mullvad repository server
-dnf5 -y config-manager addrepo --from-repofile=https://repository.mullvad.net/rpm/stable/mullvad.repo
 
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
@@ -78,19 +49,23 @@ pipewire-libs-extra \
 heif-pixbuf-loader
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
+dnf5 -y install libfdk-aac
+dnf5 -y swap libavcodec-free libavcodec --allowerasing
+dnf5 -y swap libavformat-free libavformat --allowerasing
+dnf5 -y swap libavutil-free libavutil --allowerasing
+dnf5 -y swap libavfilter-free libavfilter --allowerasing
+dnf5 -y swap libswscale-free libswscale --allowerasing
 
-#dnf5 -y install mesa-dri-drivers.i686 mesa-va-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686
-dnf5 -y install mesa-va-drivers-freeworld.{i686,x86_64} mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
+dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
-dnf5 -y remove mesa-va-drivers-freeworld.{i686,x86_64}
 dnf5 -y upgrade --best 'mesa-*'
-#dnf5 -y install mesa-va-drivers.{i686,x86_64}
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # install packages
-dnf5 -y install alsa-firmware \
+dnf5 -y install 7zip \
+alsa-firmware \
 ananicy-cpp \
 appstream \
 appstream-data \
@@ -115,6 +90,7 @@ dmemcg-booster \
 du-dust \
 dysk \
 fastfetch \
+fedora-logos \
 fedora-repos-archive \
 ffmpegthumbnailer \
 figlet \
@@ -198,6 +174,7 @@ udisks2 \
 unrar \
 unzip \
 usbmuxd \
+uutils-coreutils \
 v4l-utils \
 vim \
 virtualbox-guest-additions \
@@ -230,6 +207,7 @@ chmod +x ${CSFG}
 rm /usr/share/applications/btop.desktop
 rm /usr/share/applications/io.github.sinelaw.fresh.desktop
 rm /usr/share/applications/htop.desktop
+rm /usr/share/applications/nvtop.desktop
 
 # enable flathub
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
@@ -246,6 +224,8 @@ chown root:root /etc/sudoers.d
 chmod 0750 /etc/sudoers.d
 chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
+chown root:root /etc/sudoers.d/pwfeedback
+chmod 0440 /etc/sudoers.d/pwfeedback
 
 # Clone rakuos-scripts repo
 rm -rf /tmp/rakuos-scripts

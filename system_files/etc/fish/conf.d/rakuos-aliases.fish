@@ -43,18 +43,9 @@ function neofetch
     end
 end
 
-# --- Modern replacements -----------------------------------------------------
-alias cat='bat'
-alias ls='lsd'
-alias l='lsd -l'
-alias la='lsd -a'
-alias lla='lsd -la'
-alias lt='lsd --tree'
 
-alias sudo="sudo-rs"
+
 alias sudoedit="sudoedit-rs"
-alias visudo="visudo-rs"
-alias su="su-rs"
 
 # -- Convience Alias's --------------------------------------------------------
 alias update="sudo rakuos system-upgrade"

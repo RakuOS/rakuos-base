@@ -14,7 +14,8 @@ FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION} AS builder
 ARG FEDORA_VERSION
 ENV FEDORA_VERSION=${FEDORA_VERSION}
 
-#RUN rm /opt && ln -s -T /var/opt /opt
+# RUN rm -rf /opt && ln -s -T /var/opt /opt
+# RUN rm -rf /usr/local && ln -s -T /var/usrlocal /usr/local
 RUN mkdir -vp /nix
 COPY system_files /
 
@@ -25,6 +26,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
     /ctx/build.sh && /ctx/drivers.sh && /ctx/post-build.sh
 
+COPY system_files /
 RUN bootc container lint
 
 FROM quay.io/coreos/chunkah AS chunkah
