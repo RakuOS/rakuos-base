@@ -48,7 +48,7 @@ end
 alias sudoedit="sudoedit-rs"
 
 # -- Convience Alias's --------------------------------------------------------
-alias update="sudo rakuos system-upgrade"
+alias update="sudo rakuos upgrade"
 
 # --- Interactive tooling -----------------------------------------------------
 if status is-interactive

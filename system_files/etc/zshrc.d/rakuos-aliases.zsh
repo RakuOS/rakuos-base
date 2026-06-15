@@ -31,6 +31,7 @@ neofetch() {
 
 
 alias sudoedit='sudoedit-rs'
+alias update='sudo rakuos upgrade'
 
 # --- Interactive tooling -----------------------------------------------------
 if [[ -o interactive ]]; then
