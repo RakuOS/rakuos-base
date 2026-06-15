@@ -130,14 +130,14 @@ done
 # alternatives. Explicit list — don't rely on uu_* iteration which misses bins
 # that exist in GNU but have no uu_ counterpart or vice versa.
 _GNU_COREUTILS=(
-    arch b2sum base32 base64 basename basenc cat chcon chgrp chmod chown
+    '[' arch b2sum base32 base64 basename basenc cat chcon chgrp chmod chown
     chroot cksum comm cp csplit cut date dd df dir dircolors dirname du
     echo env expand expr factor false fmt fold groups head hostid hostname
     id install join kill link ln logname ls md5sum mkdir mkfifo mknod mktemp
     more mv nice nl nohup nproc numfmt od paste pathchk pinky pr printenv
     printf ptx pwd readlink realpath rm rmdir runcon seq sha1sum sha224sum
     sha256sum sha384sum sha512sum shred shuf sleep sort split stat stdbuf
-    stty sum sync tac tail tee timeout touch tr true truncate tsort tty uname
+    stty sum sync tac tail tee test timeout touch tr true truncate tsort tty uname
     unexpand uniq unlink uptime users vdir wc who whoami yes
 )
 # Move mv first so the loop can use uu_mv for all subsequent renames.
