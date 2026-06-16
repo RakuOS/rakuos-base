@@ -64,7 +64,8 @@ dnf5 -y upgrade --best 'mesa-*'
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
 # install packages
-dnf5 -y install 7zip \
+dnf5 -y install @fonts @hardware-support \
+7zip \
 alsa-firmware \
 ananicy-cpp \
 appstream \

@@ -221,10 +221,19 @@ window.csd {
 window.csd decoration {
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   border-radius: 6px;
+  margin: 10px;
 }
 
 window.csd decoration:backdrop {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin: 10px;
+}
+
+window.csd.maximized decoration,
+window.csd.fullscreen decoration,
+window.csd.tiled decoration {
+  border-radius: 0;
+  margin: 0;
 }
 
 /* ── Menus ──────────────────────────────────────────────────────────────── */
