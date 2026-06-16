@@ -147,7 +147,7 @@ for _name in "${_GNU_COREUTILS[@]}"; do
     [[ -f "$_gnu" && ! -L "$_gnu" && ! -f "/usr/bin/gnu_${_name}" ]] && /usr/bin/uu_mv "$_gnu" "/usr/bin/gnu_${_name}"
 done
 unset _GNU_COREUTILS _name _gnu
-/usr/libexec/rakuos/setup-uutils uutils
+/usr/libexec/rakuos/setup-uutils gnu
 
 echo "RakuOS post-build complete."
 
