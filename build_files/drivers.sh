@@ -124,6 +124,18 @@ dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL
 }
 popd
 
+# ASUS G733ZM HDA audio fix — firmware patch + modprobe option.
+# No-op on other hardware; the firmware just sits unused in /usr/lib/firmware/.
+# https://github.com/Hyperchaotic/G733ZM-audio-fix
+echo "Installing ASUS G733ZM audio fix..."
+curl -fsSL \
+    "https://raw.githubusercontent.com/Hyperchaotic/G733ZM-audio-fix/main/hda-jack-retask.fw" \
+    -o /usr/lib/firmware/hda-jack-retask.fw
+# Use /usr/lib/modprobe.d (system-owned) rather than /etc/modprobe.d for image builds.
+install -D -m 0644 /dev/stdin /usr/lib/modprobe.d/hda-jack-retask.conf <<'EOF'
+options snd-hda-intel patch=hda-jack-retask.fw,hda-jack-retask.fw,hda-jack-retask.fw,hda-jack-retask.fw
+EOF
+
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 MOK_KEY="/run/secrets/mok_key"
 MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
