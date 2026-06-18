@@ -48,7 +48,7 @@ case "$COMMAND" in
         exec /usr/bin/dnf5.real search "$@"
         ;;
     *)
-        exec bootc "$@"
+        exec rpm-ostree.real "$@"
         ;;
 esac
 WRAPPER
