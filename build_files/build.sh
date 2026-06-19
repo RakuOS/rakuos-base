@@ -48,7 +48,7 @@ libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
-dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
+dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
 
 dnf5 -y install @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
