@@ -43,18 +43,14 @@ rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 # Install cachyos kernel
 dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
 
-dnf5 -y install --skip-unavailable intel-vaapi-driver \
+dnf5 -y install --skip-unavailable intel-media-driver \
 libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
 dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
-dnf5 -y install libfdk-aac
-dnf5 -y swap libavcodec-free libavcodec --allowerasing
-dnf5 -y swap libavformat-free libavformat --allowerasing
-dnf5 -y swap libavutil-free libavutil --allowerasing
-dnf5 -y swap libavfilter-free libavfilter --allowerasing
-dnf5 -y swap libswscale-free libswscale --allowerasing
+
+dnf5 -y install @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
 dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
