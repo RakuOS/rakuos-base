@@ -52,7 +52,8 @@ dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
 
 dnf5 -y install @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
-dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
+dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif \
+pipewire-libs.i686 pipewire-alsa.i686
 
 dnf5 -y upgrade --best 'mesa-*'
 

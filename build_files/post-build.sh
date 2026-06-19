@@ -248,6 +248,8 @@ mesa-dri-drivers.i686
 mesa-vulkan-drivers.i686
 mesa-libEGL.i686
 mesa-libGL.i686
+pipewire-libs.i686
+pipewire-alsa.i686
 net-tools
 nvme-cli
 nvtop
