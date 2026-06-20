@@ -65,6 +65,8 @@ dnf5 -y upgrade --best 'pipewire*'
 
 dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 
+dnf5 -y upgrade --best 'systemd*'
+
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 
