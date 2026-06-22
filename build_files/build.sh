@@ -48,7 +48,8 @@ libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
-dnf5 -y swap ffmpeg ffmpeg-free --allowerasing
+
+dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
 dnf5 -y install libfdk-aac
 dnf5 -y swap libavcodec-free libavcodec --allowerasing
 dnf5 -y swap libavformat-free libavformat --allowerasing
@@ -58,7 +59,13 @@ dnf5 -y swap libswscale-free libswscale --allowerasing
 
 dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
-dnf5 -y upgrade --best 'mesa-*'
+dnf5 -y upgrade --best 'mesa-*' 'pipewire*'
+
+dnf5 -y upgrade --best 'pipewire*'
+
+dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
+
+dnf5 -y upgrade --best 'systemd*'
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
