@@ -276,6 +276,7 @@ rakuos-overlay-services.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
+dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
