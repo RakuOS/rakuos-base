@@ -34,7 +34,8 @@ for REPO in $TERRA_REPOS; do
     curl -fsSL "${BASE_URL}/${REPO}-icons-128x128.tar.gz" \
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
-
+#Upgrade all packages from upstream image
+dnf5 -y upgrade
 
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
