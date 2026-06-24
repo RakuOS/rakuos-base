@@ -107,6 +107,8 @@ for bin in sudo su visudo; do
     _bin="/usr/bin/${bin}"
     if [[ -f "$_bin" && ! -f "/usr/bin/gnu_${bin}" ]]; then
         mv "$_bin" "/usr/bin/gnu_${bin}"
+        chown root:root "/usr/bin/gnu_${bin}"
+        chmod 4755 "/usr/bin/gnu_${bin}"
     fi
 done
 unset bin _bin
