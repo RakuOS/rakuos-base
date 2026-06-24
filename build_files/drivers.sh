@@ -22,6 +22,71 @@ dnf5 install -y \
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
+BROADCOM_WL_VERSION="6.30.223.271"
+BROADCOM_WL_TARBALL="hybrid-v35_64-nodebug-pcoem-${BROADCOM_WL_VERSION//./_}.tar.gz"
+ARCH_BROADCOM_RAW="https://gitlab.archlinux.org/archlinux/packaging/packages/broadcom-wl-dkms/-/raw/main"
+
+echo "Building broadcom-wl ${BROADCOM_WL_VERSION} from upstream source..."
+mkdir -p "$tmpdir/broadcom-wl"
+curl -fsSL "https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${BROADCOM_WL_TARBALL}" \
+    | tar -xz -C "$tmpdir/broadcom-wl"
+
+pushd "$tmpdir/broadcom-wl"
+# Apply all compatibility patches from the Arch Linux packaging repo
+for patch in \
+    001-null-pointer-fix.patch \
+    002-rdtscl.patch \
+    003-linux47.patch \
+    004-linux48.patch \
+    005-debian-fix-kernel-warnings.patch \
+    006-linux411.patch \
+    007-linux412.patch \
+    008-linux415.patch \
+    009-fix_mac_profile_discrepancy.patch \
+    010-linux56.patch \
+    011-linux59.patch \
+    012-linux517.patch \
+    013-linux518.patch \
+    014-linux414.patch \
+    015-linux600.patch \
+    016-linux601.patch \
+    017-linux612.patch \
+    018-linux613.patch \
+    019-linux614.patch \
+    020-linux615.patch \
+    021-linux617.patch; do
+    curl -fsSL "${ARCH_BROADCOM_RAW}/${patch}" -o "$tmpdir/${patch}"
+    patch -Np1 --no-backup-if-mismatch < "$tmpdir/${patch}"
+done
+# Use wlan prefix for interface naming
+sed -i -e '/BRCM_WLAN_IFNAME/s/eth/wlan/' src/wl/sys/wl_linux.c
+# Point ldflags at installed lib location and enable GE_49 for modern kernels
+sed -i \
+    -e "/ldflags-y/s|\$(src)/lib|/usr/lib/broadcom-wl-dkms|" \
+    -e "/GE_49 :=/s|:= .*|:= 1|" \
+    Makefile
+# Generate dkms.conf
+curl -fsSL "${ARCH_BROADCOM_RAW}/dkms.conf.in" \
+    | sed "s/@PACKAGE_VERSION@/${BROADCOM_WL_VERSION}/" \
+    > dkms.conf
+# Install source tree
+_bwl_src="/usr/src/broadcom-wl-${BROADCOM_WL_VERSION}"
+rm -rf "$_bwl_src"
+install -Dm644 Makefile "$_bwl_src/Makefile"
+install -Dm644 dkms.conf "$_bwl_src/dkms.conf"
+cp -a src "$_bwl_src/"
+# Install shared object and modprobe blacklist
+install -Dm644 lib/wlc_hybrid.o_shipped \
+    "/usr/lib/broadcom-wl-dkms/wlc_hybrid.o_shipped"
+curl -fsSL "${ARCH_BROADCOM_RAW}/broadcom-wl-dkms.conf" \
+    -o /usr/lib/modprobe.d/broadcom-wl-dkms.conf
+dkms install -m broadcom-wl -v "${BROADCOM_WL_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+    echo "DKMS build failed for broadcom-wl ${BROADCOM_WL_VERSION} — make.log:"
+    cat "/var/lib/dkms/broadcom-wl/${BROADCOM_WL_VERSION}/build/make.log" 2>/dev/null || true
+    exit 1
+}
+popd
+
 echo "Building xpadneo ${XPADNEO_VERSION} from upstream source..."
 git clone --depth 1 --branch "v${XPADNEO_VERSION}" \
     https://github.com/atar-axis/xpadneo.git "$tmpdir/xpadneo"
@@ -198,4 +263,4 @@ dnf5 remove -y --no-autoremove \
     make \
     cabextract \
     bluez || true
-rm -rf /var/lib/dkms /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
+rm -rf /var/lib/dkms /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION

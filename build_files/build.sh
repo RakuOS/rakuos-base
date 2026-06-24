@@ -35,7 +35,6 @@ for REPO in $TERRA_REPOS; do
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
 
-
 #remove fedora kernel and zram config
 dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
