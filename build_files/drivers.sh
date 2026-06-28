@@ -19,28 +19,9 @@ dnf5 install -y \
     cabextract \
     curl \
     sbsigntools \
-    amd-gpu-firmware \
-    amd-ucode-firmware \
-    cirrus-audio-firmware \
-    intel-audio-firmware \
-    intel-gpu-firmware \
-    linux-firmware \
-    nvidia-gpu-firmware \
-    qcom-wwan-firmware \
-    atheros-firmware \
     b43-fwcutter \
     b43-openfwwf \
     brcmfmac-firmware \
-    iwlegacy-firmware \
-    iwlwifi-dvm-firmware \
-    iwlwifi-mvm-firmware \
-    libertas-firmware \
-    mt7xxx-firmware \
-    nxpwireless-firmware \
-    realtek-firmware \
-    tiwilink-firmware \
-    atmel-firmware \
-    zd1211-firmware \
     broadcom-wl
 
 tmpdir="$(mktemp -d)"
