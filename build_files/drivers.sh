@@ -9,6 +9,7 @@ V4L2LOOPBACK_VERSION="0.15.3"
 
 dnf5 install -y \
     dkms \
+    akmods \
     kernel-cachyos-devel-matched \
     gcc \
     make \
@@ -17,75 +18,41 @@ dnf5 install -y \
     bluez \
     cabextract \
     curl \
-    sbsigntools
+    sbsigntools \
+    amd-gpu-firmware \
+    amd-ucode-firmware \
+    cirrus-audio-firmware \
+    intel-audio-firmware \
+    intel-gpu-firmware \
+    linux-firmware \
+    nvidia-gpu-firmware \
+    qcom-wwan-firmware \
+    atheros-firmware \
+    b43-fwcutter \
+    b43-openfwwf \
+    brcmfmac-firmware \
+    iwlegacy-firmware \
+    iwlwifi-dvm-firmware \
+    iwlwifi-mvm-firmware \
+    libertas-firmware \
+    mt7xxx-firmware \
+    nxpwireless-firmware \
+    realtek-firmware \
+    tiwilink-firmware \
+    atmel-firmware \
+    zd1211-firmware \
+    broadcom-wl
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
-BROADCOM_WL_VERSION="6.30.223.271"
-BROADCOM_WL_TARBALL="hybrid-v35_64-nodebug-pcoem-${BROADCOM_WL_VERSION//./_}.tar.gz"
-ARCH_BROADCOM_RAW="https://gitlab.archlinux.org/archlinux/packaging/packages/broadcom-wl-dkms/-/raw/main"
-
-echo "Building broadcom-wl ${BROADCOM_WL_VERSION} from upstream source..."
-mkdir -p "$tmpdir/broadcom-wl"
-curl -fsSL "https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${BROADCOM_WL_TARBALL}" \
-    | tar -xz -C "$tmpdir/broadcom-wl"
-
-pushd "$tmpdir/broadcom-wl"
-# Apply all compatibility patches from the Arch Linux packaging repo
-for patch in \
-    001-null-pointer-fix.patch \
-    002-rdtscl.patch \
-    003-linux47.patch \
-    004-linux48.patch \
-    005-debian-fix-kernel-warnings.patch \
-    006-linux411.patch \
-    007-linux412.patch \
-    008-linux415.patch \
-    009-fix_mac_profile_discrepancy.patch \
-    010-linux56.patch \
-    011-linux59.patch \
-    012-linux517.patch \
-    013-linux518.patch \
-    014-linux414.patch \
-    015-linux600.patch \
-    016-linux601.patch \
-    017-linux612.patch \
-    018-linux613.patch \
-    019-linux614.patch \
-    020-linux615.patch \
-    021-linux617.patch; do
-    curl -fsSL "${ARCH_BROADCOM_RAW}/${patch}" -o "$tmpdir/${patch}"
-    patch -Np1 --no-backup-if-mismatch < "$tmpdir/${patch}"
-done
-# Use wlan prefix for interface naming
-sed -i -e '/BRCM_WLAN_IFNAME/s/eth/wlan/' src/wl/sys/wl_linux.c
-# Point ldflags at installed lib location and enable GE_49 for modern kernels
-sed -i \
-    -e "/ldflags-y/s|\$(src)/lib|/usr/lib/broadcom-wl-dkms|" \
-    -e "/GE_49 :=/s|:= .*|:= 1|" \
-    Makefile
-# Generate dkms.conf
-curl -fsSL "${ARCH_BROADCOM_RAW}/dkms.conf.in" \
-    | sed "s/@PACKAGE_VERSION@/${BROADCOM_WL_VERSION}/" \
-    > dkms.conf
-# Install source tree
-_bwl_src="/usr/src/broadcom-wl-${BROADCOM_WL_VERSION}"
-rm -rf "$_bwl_src"
-install -Dm644 Makefile "$_bwl_src/Makefile"
-install -Dm644 dkms.conf "$_bwl_src/dkms.conf"
-cp -a src "$_bwl_src/"
-# Install shared object and modprobe blacklist
-install -Dm644 lib/wlc_hybrid.o_shipped \
-    "/usr/lib/broadcom-wl-dkms/wlc_hybrid.o_shipped"
-curl -fsSL "${ARCH_BROADCOM_RAW}/broadcom-wl-dkms.conf" \
-    -o /usr/lib/modprobe.d/broadcom-wl-dkms.conf
-dkms install -m broadcom-wl -v "${BROADCOM_WL_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for broadcom-wl ${BROADCOM_WL_VERSION} — make.log:"
-    cat "/var/lib/dkms/broadcom-wl/${BROADCOM_WL_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-popd
+# Build akmod packages (e.g. broadcom-wl) for the installed kernel.
+# akmods installs the resulting kmod RPM so the .ko lands in
+# /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
+echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+akmods --kernels "$QUALIFIED_KERNEL" --rebuild
+# Install any built kmod RPMs from the cache
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
 
 echo "Building xpadneo ${XPADNEO_VERSION} from upstream source..."
 git clone --depth 1 --branch "v${XPADNEO_VERSION}" \
@@ -252,15 +219,16 @@ depmod "$QUALIFIED_KERNEL"
 
 # Generate initramfs for that kernel
 /usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
---add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+--add ostree --add fido2 --add rakuos-overlay -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
 dnf5 remove -y --no-autoremove \
     dkms \
+    akmods \
     kernel-cachyos-devel-matched \
     gcc \
     make \
     cabextract \
     bluez || true
-rm -rf /var/lib/dkms /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
+rm -rf /var/lib/dkms /var/cache/akmods /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
