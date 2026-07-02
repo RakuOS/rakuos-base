@@ -176,7 +176,6 @@ tealdeer \
 termflix \
 tmux \
 traceroute \
-ublue-os-selinux-workarounds \
 ublue-os-udev-rules \
 udisks2 \
 unrar \
