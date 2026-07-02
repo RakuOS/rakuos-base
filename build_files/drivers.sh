@@ -3,14 +3,11 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
-XPADNEO_VERSION="0.10.2"
-V4L2LOOPBACK_VERSION="0.15.3"
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 dnf5 install -y \
-    dkms \
     akmods \
-    kernel-cachyos-devel-matched \
+    kernel-p03-devel-matched \
     gcc \
     make \
     cabextract \
@@ -36,92 +33,6 @@ akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
 find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
 
-echo "Building xpadneo ${XPADNEO_VERSION} from upstream source..."
-git clone --depth 1 --branch "v${XPADNEO_VERSION}" \
-    https://github.com/atar-axis/xpadneo.git "$tmpdir/xpadneo"
-
-pushd "$tmpdir/xpadneo"
-# Install support files and DKMS source tree manually so we avoid runtime-only
-# steps like `udevadm control --reload` during container builds.
-echo "Installing xpadneo support files and DKMS source tree..."
-mkdir -p /usr/lib/modprobe.d /usr/lib/udev/rules.d /usr/share/doc/xpadneo
-rm -rf /usr/src/hid-xpadneo-"${XPADNEO_VERSION}"
-cp -a hid-xpadneo /usr/src/hid-xpadneo-"${XPADNEO_VERSION}"
-printf '%s\n' "${XPADNEO_VERSION}" > /usr/src/VERSION
-make -C /usr/src/hid-xpadneo-"${XPADNEO_VERSION}" dkms.conf VERSION="${XPADNEO_VERSION}"
-install -D -m 0644 hid-xpadneo/etc-modprobe.d/xpadneo.conf /usr/lib/modprobe.d/xpadneo.conf
-install -D -m 0644 hid-xpadneo/etc-udev-rules.d/60-xpadneo.rules /usr/lib/udev/rules.d/60-xpadneo.rules
-install -D -m 0644 hid-xpadneo/etc-udev-rules.d/70-xpadneo-disable-hidraw.rules /usr/lib/udev/rules.d/70-xpadneo-disable-hidraw.rules
-cp -a docs/. /usr/share/doc/xpadneo/
-cp -a NEWS.md /usr/share/doc/xpadneo/NEWS.md
-dkms install -m hid-xpadneo -v "${XPADNEO_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for hid-xpadneo ${XPADNEO_VERSION} — make.log:"
-    cat "/var/lib/dkms/hid-xpadneo/${XPADNEO_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-popd
-
-echo "Building xpad-noone from upstream source..."
-git clone --depth 1 https://github.com/medusalix/xpad-noone.git "$tmpdir/xpad-noone"
-
-pushd "$tmpdir/xpad-noone"
-XPAD_NOONE_VERSION="1.0"
-echo "Installing xpad-noone ${XPAD_NOONE_VERSION} DKMS source tree..."
-rm -rf /usr/src/xpad-noone-"${XPAD_NOONE_VERSION}"
-cp -a . /usr/src/xpad-noone-"${XPAD_NOONE_VERSION}"
-sed -i \
-    -e 's/ida_simple_get(&xpad_pad_seq, 0, 0, GFP_KERNEL)/ida_alloc(\&xpad_pad_seq, GFP_KERNEL)/g' \
-    -e 's/ida_simple_remove(&xpad_pad_seq, xpad->pad_nr)/ida_free(\&xpad_pad_seq, xpad->pad_nr)/g' \
-    /usr/src/xpad-noone-"${XPAD_NOONE_VERSION}"/xpad.c
-dkms install -m xpad-noone -v "${XPAD_NOONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for xpad-noone ${XPAD_NOONE_VERSION} — make.log:"
-    cat "/var/lib/dkms/xpad-noone/${XPAD_NOONE_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-popd
-
-echo "Building xone from upstream main branch..."
-git clone --depth 1 https://github.com/medusalix/xone.git "$tmpdir/xone"
-
-pushd "$tmpdir/xone"
-XONE_VERSION="0.0.3.git$(git rev-parse --short HEAD)"
-echo "Installing xone ${XONE_VERSION} support files, firmware, and DKMS source tree..."
-rm -rf /usr/src/xone-"${XONE_VERSION}"
-cp -a . /usr/src/xone-"${XONE_VERSION}"
-find /usr/src/xone-"${XONE_VERSION}" -type f \( -name dkms.conf -o -name '*.c' \) \
-    -exec sed -i "s/#VERSION#/${XONE_VERSION}/g" {} +
-install -D -m 0644 install/modprobe.conf /usr/lib/modprobe.d/xone-blacklist.conf
-install -D -m 0755 install/firmware.sh /usr/bin/xone-get-firmware.sh
-dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for xone ${XONE_VERSION} — make.log:"
-    cat "/var/lib/dkms/xone/${XONE_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-(
-    cd /tmp
-    xone-get-firmware.sh --skip-disclaimer
-)
-popd
-
-echo "Building v4l2loopback ${V4L2LOOPBACK_VERSION} from upstream source..."
-git clone --depth 1 --branch "v${V4L2LOOPBACK_VERSION}" \
-    https://github.com/v4l2loopback/v4l2loopback.git "$tmpdir/v4l2loopback"
-
-pushd "$tmpdir/v4l2loopback"
-echo "Installing v4l2loopback ${V4L2LOOPBACK_VERSION} DKMS source tree..."
-rm -rf /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
-cp -a . /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"
-sed -i "s/#MODULE_VERSION#/${V4L2LOOPBACK_VERSION}/g" \
-    /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
-# Remove BUILD_EXCLUSIVE_KERNEL — it only allows 5.x/6.x and blocks kernel 7.x+
-sed -i '/^BUILD_EXCLUSIVE_KERNEL/d' \
-    /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
-dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for v4l2loopback ${V4L2LOOPBACK_VERSION} — make.log:"
-    cat "/var/lib/dkms/v4l2loopback/${V4L2LOOPBACK_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-popd
 
 # ASUS G733ZM HDA audio firmware — sits in /usr/lib/firmware unused on other hardware.
 # The modprobe config that activates it is written at runtime via `rakuos setup-g733zm-audio`.
@@ -186,14 +97,13 @@ depmod "$QUALIFIED_KERNEL"
 
 # Generate initramfs for that kernel
 /usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
---add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+--add ostree --add fido2 --add rakuos-overlay -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
 dnf5 remove -y --no-autoremove \
-    dkms \
     akmods \
-    kernel-cachyos-devel-matched \
+    kernel-p03-devel-matched \
     gcc \
     make \
     cabextract \

@@ -3,26 +3,16 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
-    dkms-nvidia \
+    kernel-p03-nvidia-open \
     nvidia-modprobe \
     nvidia-driver \
     nvidia-settings \
     nvidia-persistenced \
-    libva-nvidia-driver \
-    kernel-cachyos-devel-matched
-
-# Build DKMS module for the installed kernel
-# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed — make.log:"
-    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
-    exit 1
-}
+    libva-nvidia-driver
 
 # Enable NVIDIA power management services
 systemctl enable nvidia-powerd.service \
@@ -55,7 +45,7 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
                 ;;
         esac
         echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/nvidia" \
         \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
     echo "Module signing complete."
 else
@@ -78,16 +68,12 @@ else
     echo "MOK key or vmlinuz not available — skipping kernel signing."
 fi
 
-#dnf5.real remove -y --noautoremove dkms
-systemctl disable --now dkms.service
-dnf5.real remove -y kernel-cachyos-devel-matched
-
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
 
 # Generate initramfs with nvidia module included
 /usr/bin/dracut --no-hostonly --kver "${QUALIFIED_KERNEL}" --reproducible --zstd -v \
-    --add ostree --add fido2 -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
+    --add ostree --add fido2 --add rakuos-overlay -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
 
