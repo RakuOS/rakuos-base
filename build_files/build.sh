@@ -156,6 +156,7 @@ procs \
 pulseaudio-utils \
 python3-pip \
 python3-setuptools \
+os-prober \
 ripgrep \
 rsms-inter-fonts \
 rsync \
