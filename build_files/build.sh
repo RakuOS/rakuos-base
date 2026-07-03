@@ -287,6 +287,8 @@ podman-prune.timer
 systemctl enable --global \
 rakuos-user.service
 
+# Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
+echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 
 # Override CachyOS io scheduler defaults for RakuOS
 cat > /usr/lib/udev/rules.d/60-ioschedulers.rules <<'EOF'
