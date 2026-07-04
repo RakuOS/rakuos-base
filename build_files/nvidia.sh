@@ -12,7 +12,8 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-driver \
     nvidia-settings \
     nvidia-persistenced \
-    libva-nvidia-driver
+    libva-nvidia-driver \
+    kernel-p03-devel-matched
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
