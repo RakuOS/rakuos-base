@@ -40,7 +40,7 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel-matched
+dnf5 -y --setopt=tsflags=noscripts install kernel-p03 kernel-p03-devel-matched
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \
@@ -67,7 +67,7 @@ dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 dnf5 -y upgrade --best 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # install packages
 dnf5 -y install @fonts @hardware-support \
@@ -151,6 +151,7 @@ pamu2fcfg \
 pipewire-plugin-libcamera \
 podman \
 podman-compose \
+polly \
 powerstat \
 procs \
 pulseaudio-utils \

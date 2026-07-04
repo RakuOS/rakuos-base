@@ -3,7 +3,7 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
@@ -13,7 +13,7 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-settings \
     nvidia-persistenced \
     libva-nvidia-driver \
-    kernel-cachyos-devel-matched
+    kernel-p03-devel-matched
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
@@ -29,7 +29,7 @@ systemctl enable nvidia-powerd.service \
     nvidia-persistenced.service
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
-# Must happen BEFORE kernel-cachyos-devel-matched is removed (sign-file lives there).
+# Must happen BEFORE kernel-p03-devel-matched is removed (sign-file lives there).
 MOK_KEY="/run/secrets/mok_key"
 MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
 SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
@@ -80,7 +80,6 @@ fi
 
 #dnf5.real remove -y --noautoremove dkms
 systemctl disable --now dkms.service
-dnf5.real remove -y kernel-cachyos-devel-matched
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
