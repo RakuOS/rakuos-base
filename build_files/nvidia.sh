@@ -55,7 +55,7 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
                 ;;
         esac
         echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/nvidia" \
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
         \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
     echo "Module signing complete."
 else
