@@ -7,7 +7,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
-    kernel-p03-nvidia-open \
+    dkms-nvidia \
     nvidia-modprobe \
     nvidia-driver \
     nvidia-settings \
