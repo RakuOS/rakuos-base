@@ -145,7 +145,6 @@ opendoas \
 openrgb-udev-rules \
 openssh-askpass \
 openssl \
-os-prober \
 oversteer-udev \
 pam-u2f \
 pam_yubico \
@@ -153,12 +152,13 @@ pamu2fcfg \
 pipewire-plugin-libcamera \
 podman \
 podman-compose \
+polly \
 powerstat \
 procs \
 pulseaudio-utils \
 python3-pip \
 python3-setuptools \
-rakuos-core \
+os-prober \
 ripgrep \
 rsms-inter-fonts \
 rsync \
@@ -236,11 +236,44 @@ chmod 0440 /etc/sudoers.d/rakuos-software
 chown root:root /etc/sudoers.d/pwfeedback
 chmod 0440 /etc/sudoers.d/pwfeedback
 
+# Clone rakuos-scripts repo
+rm -rf /tmp/rakuos-scripts
+git clone --depth 1 https://gitlab.com/rakuos/images/rakuos-scripts.git /tmp/rakuos-scripts
+
+# Make target dirs
+mkdir -p /usr/bin
+mkdir -p /usr/share/rakuos
+mkdir -p /usr/libexec/rakuos
+mkdir -p /usr/lib/systemd/system
+mkdir -p /usr/lib/systemd/user
+
+#copy to /usr/bin
+cp -a /tmp/rakuos-scripts/bin/* /usr/bin/
+rm -rf /tmp/rakuos-scripts/bin
+
+# Copy systemd units into the proper locations
+if [ -d /tmp/rakuos-scripts/systemd/system ]; then
+    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
+fi
+
+if [ -d /tmp/rakuos-scripts/systemd/user ]; then
+    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
+fi
+rm -rf /tmp/rakuos-scripts/systemd
+
+# Copy everything except the systemd folder into /usr/libexec/rakuos
+cp -a /tmp/rakuos-scripts/. /usr/libexec/rakuos/
+
+# Clean up
+rm -rf /tmp/rakuos-scripts
+
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \
+rakuos-overlay-mount.service \
 rakuos-overlay-sync.service \
 rakuos-overlay-update.service \
+rakuos-overlay-services.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
@@ -254,7 +287,6 @@ podman-prune.timer
 
 systemctl enable --global \
 rakuos-user.service
-
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
