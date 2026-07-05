@@ -164,7 +164,6 @@ rsms-inter-fonts \
 rsync \
 scx-scheds \
 scx-tools \
-selinux-policy-targeted \
 ShellCheck \
 solaar-udev \
 sqlite3 \
