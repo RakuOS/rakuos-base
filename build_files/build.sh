@@ -152,7 +152,6 @@ pamu2fcfg \
 pipewire-plugin-libcamera \
 podman \
 podman-compose \
-polly \
 powerstat \
 procs \
 pulseaudio-utils \
