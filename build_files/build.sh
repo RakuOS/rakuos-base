@@ -162,8 +162,6 @@ os-prober \
 ripgrep \
 rsms-inter-fonts \
 rsync \
-scx-scheds \
-scx-tools \
 ShellCheck \
 solaar-udev \
 sqlite3 \
