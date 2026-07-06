@@ -238,7 +238,6 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \
-rakuos-overlay-mount.service \
 rakuos-overlay-sync.service \
 rakuos-overlay-update.service \
 rakuos-overlay-services.service \
