@@ -1,0 +1,6 @@
+# Force clang when building kernel modules via akmods.
+# The p03 kernel is built with clang/LLVM; its Makefile propagates clang-only
+# flags (-mllvm, -polly, -mretpoline-external-thunk, etc.) into out-of-tree
+# module builds. GCC does not understand these flags and will error out.
+%__cc clang
+%__cxx clang++
