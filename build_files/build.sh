@@ -159,6 +159,7 @@ pulseaudio-utils \
 python3-pip \
 python3-setuptools \
 os-prober \
+rakuos-core \
 ripgrep \
 rsms-inter-fonts \
 rsync \
@@ -233,37 +234,6 @@ chown root:root /etc/sudoers.d/rakuos-software
 chmod 0440 /etc/sudoers.d/rakuos-software
 chown root:root /etc/sudoers.d/pwfeedback
 chmod 0440 /etc/sudoers.d/pwfeedback
-
-# Clone rakuos-scripts repo
-rm -rf /tmp/rakuos-scripts
-git clone --depth 1 https://gitlab.com/rakuos/images/rakuos-scripts.git /tmp/rakuos-scripts
-
-# Make target dirs
-mkdir -p /usr/bin
-mkdir -p /usr/share/rakuos
-mkdir -p /usr/libexec/rakuos
-mkdir -p /usr/lib/systemd/system
-mkdir -p /usr/lib/systemd/user
-
-#copy to /usr/bin
-cp -a /tmp/rakuos-scripts/bin/* /usr/bin/
-rm -rf /tmp/rakuos-scripts/bin
-
-# Copy systemd units into the proper locations
-if [ -d /tmp/rakuos-scripts/systemd/system ]; then
-    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
-fi
-
-if [ -d /tmp/rakuos-scripts/systemd/user ]; then
-    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
-fi
-rm -rf /tmp/rakuos-scripts/systemd
-
-# Copy everything except the systemd folder into /usr/libexec/rakuos
-cp -a /tmp/rakuos-scripts/. /usr/libexec/rakuos/
-
-# Clean up
-rm -rf /tmp/rakuos-scripts
 
 #enable enable services
 systemctl enable \
