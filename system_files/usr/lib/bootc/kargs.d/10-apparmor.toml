@@ -1,0 +1,4 @@
+[kargs]
+# Enable AppArmor and disable SELinux at the kernel level.
+# These args are applied by bootc at deploy/update time.
+append = ["apparmor=1", "security=apparmor", "selinux=0"]
