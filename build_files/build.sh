@@ -203,9 +203,10 @@ zoxide \
 zsh \
 zstd
 
-# Install our AppArmor profiles — replacefiles needed because apparmor-parser
-# owns the base abstractions tree and cannot be obsoleted (it ships the parser binary).
-dnf5 -y install --replacefiles rakuos-apparmor-profiles
+# Install our AppArmor profiles. Clear apparmor-parser's profile files first
+# since it owns /etc/apparmor.d/ but we replace everything in it.
+rm -rf /etc/apparmor.d/
+dnf5 -y install rakuos-apparmor-profiles
 
 ## Remove packages
 dnf5 -y remove firefox* \
