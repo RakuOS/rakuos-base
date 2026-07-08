@@ -183,6 +183,9 @@ heif-pixbuf-loader
 OpenCL-ICD-Loader
 alsa-firmware
 ananicy-cpp
+apparmor-libs
+apparmor-parser
+apparmor-utils
 appstream
 appstream-data
 apr
@@ -250,6 +253,7 @@ mesa-dri-drivers.i686
 mesa-vulkan-drivers.i686
 mesa-libEGL.i686
 mesa-libGL.i686
+mod_apparmor
 pipewire-libs.i686
 pipewire-alsa.i686
 net-tools
@@ -260,6 +264,7 @@ openrgb-udev-rules
 openssh-askpass
 openssl
 oversteer-udev
+pam_apparmor
 pam-u2f
 pam_yubico
 pamu2fcfg
@@ -269,8 +274,12 @@ podman-compose
 powerstat
 procs
 pulseaudio-utils
+python3-apparmor
+python3-LibAppArmor
 python3-pip
 python3-setuptools
+rakuos-apparmor-profiles
+rakuos-core
 ripgrep
 rsms-inter-fonts
 rsync
