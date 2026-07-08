@@ -77,6 +77,7 @@ alsa-firmware \
 ananicy-cpp \
 apparmor-libs \
 apparmor-parser \
+apparmor-profiles \
 apparmor-utils \
 appstream \
 appstream-data \
@@ -166,6 +167,7 @@ python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 os-prober \
+rakuos-apparmor-profiles \
 rakuos-core \
 ripgrep \
 rsms-inter-fonts \
@@ -202,11 +204,6 @@ zellij \
 zoxide \
 zsh \
 zstd
-
-# Install our AppArmor profiles. Clear apparmor-parser's profile files first
-# since it owns /etc/apparmor.d/ but we replace everything in it.
-rm -rf /etc/apparmor.d/
-dnf5 -y install rakuos-apparmor-profiles
 
 ## Remove packages
 dnf5 -y remove firefox* \
