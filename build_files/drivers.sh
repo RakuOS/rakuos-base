@@ -103,4 +103,3 @@ depmod "$QUALIFIED_KERNEL"
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
 rm -rf /var/lib/dkms /var/cache/akmods /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
-dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
