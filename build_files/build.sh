@@ -2,6 +2,7 @@
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
+rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
