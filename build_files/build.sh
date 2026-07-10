@@ -142,7 +142,6 @@ lolcat \
 lshw \
 lsd \
 maple-fonts \
-mod_apparmor \
 net-tools \
 nvme-cli \
 nvtop \
