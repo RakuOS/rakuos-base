@@ -3,7 +3,8 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-dnf5.real -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
+dnf5 -y upgrade --best --allowerasing 'rpm*'
+dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
@@ -67,8 +68,6 @@ dnf5 -y upgrade --best 'pipewire*'
 dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 
 dnf5 -y upgrade --best --allowerasing 'systemd*'
-
-dnf5 -y upgrade --best --allowerasing 'rpm*'
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
