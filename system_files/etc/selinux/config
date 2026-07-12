@@ -19,7 +19,7 @@
 #
 #    grubby --update-kernel ALL --remove-args selinux
 #
-SELINUX=permissive
+SELINUX=disabled
 
 # SELINUXTYPE= can take one of these three values:
 #     targeted - Targeted processes are protected,
