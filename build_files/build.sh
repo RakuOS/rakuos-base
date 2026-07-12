@@ -19,7 +19,7 @@ dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.re
 sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.repo
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-dnf5 -y upgrade --best --allowerasing 'rpm*'
+dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
 dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
 
 # Download Terra AppStream data for rakuos-software
