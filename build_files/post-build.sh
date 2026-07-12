@@ -313,3 +313,11 @@ echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") package
 echo "Generating base file manifest..."
 /usr/libexec/rakuos/generate-base-manifest
 
+# selinux-policy is fully removed on RakuOS (AppArmor is the sole MAC), but the
+# baked-in rpm-ostree treefile still defaults "selinux": true. rpm-ostree reads
+# that flag on every deploy-time layering operation and tries to load a policy
+# from / that no longer exists, causing spurious sepolicy-mismatch failures.
+if [ -f /usr/share/rpm-ostree/treefile.json ]; then
+    sed -i 's/"selinux": *true/"selinux": false/' /usr/share/rpm-ostree/treefile.json
+fi
+
