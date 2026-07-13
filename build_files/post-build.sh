@@ -271,12 +271,10 @@ procs
 pulseaudio-utils
 python3-pip
 python3-setuptools
+rclone
 ripgrep
 rsms-inter-fonts
 rsync
-scx-scheds
-scx-tools
-selinux-policy-targeted
 ShellCheck
 solaar-udev
 sqlite3

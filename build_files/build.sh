@@ -166,6 +166,7 @@ python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 os-prober \
+rclone \
 ripgrep \
 rsms-inter-fonts \
 rsync \
