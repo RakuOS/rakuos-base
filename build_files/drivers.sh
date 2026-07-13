@@ -3,14 +3,14 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 XPADNEO_VERSION="0.10.2"
 V4L2LOOPBACK_VERSION="0.15.3"
 
 dnf5 install -y \
     dkms \
     akmods \
-    kernel-cachyos-devel-matched \
+    kernel-p03-devel-matched \
     gcc \
     make \
     cabextract \
@@ -193,7 +193,7 @@ chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 dnf5 remove -y --no-autoremove \
     dkms \
     akmods \
-    kernel-cachyos-devel-matched \
+    kernel-p03-devel-matched \
     gcc \
     make \
     cabextract \
