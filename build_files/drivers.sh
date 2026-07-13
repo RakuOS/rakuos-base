@@ -54,7 +54,7 @@ install -D -m 0644 hid-xpadneo/etc-udev-rules.d/60-xpadneo.rules /usr/lib/udev/r
 install -D -m 0644 hid-xpadneo/etc-udev-rules.d/70-xpadneo-disable-hidraw.rules /usr/lib/udev/rules.d/70-xpadneo-disable-hidraw.rules
 cp -a docs/. /usr/share/doc/xpadneo/
 cp -a NEWS.md /usr/share/doc/xpadneo/NEWS.md
-LD=ld.lld KCFLAGS='-fno-polly' dkms install -m hid-xpadneo -v "${XPADNEO_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m hid-xpadneo -v "${XPADNEO_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed for hid-xpadneo ${XPADNEO_VERSION} — make.log:"
     cat "/var/lib/dkms/hid-xpadneo/${XPADNEO_VERSION}/build/make.log" 2>/dev/null || true
     exit 1
@@ -73,7 +73,7 @@ sed -i \
     -e 's/ida_simple_get(&xpad_pad_seq, 0, 0, GFP_KERNEL)/ida_alloc(\&xpad_pad_seq, GFP_KERNEL)/g' \
     -e 's/ida_simple_remove(&xpad_pad_seq, xpad->pad_nr)/ida_free(\&xpad_pad_seq, xpad->pad_nr)/g' \
     /usr/src/xpad-noone-"${XPAD_NOONE_VERSION}"/xpad.c
-LD=ld.lld KCFLAGS='-fno-polly' dkms install -m xpad-noone -v "${XPAD_NOONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m xpad-noone -v "${XPAD_NOONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed for xpad-noone ${XPAD_NOONE_VERSION} — make.log:"
     cat "/var/lib/dkms/xpad-noone/${XPAD_NOONE_VERSION}/build/make.log" 2>/dev/null || true
     exit 1
@@ -92,7 +92,7 @@ find /usr/src/xone-"${XONE_VERSION}" -type f \( -name dkms.conf -o -name '*.c' \
     -exec sed -i "s/#VERSION#/${XONE_VERSION}/g" {} +
 install -D -m 0644 install/modprobe.conf /usr/lib/modprobe.d/xone-blacklist.conf
 install -D -m 0755 install/firmware.sh /usr/bin/xone-get-firmware.sh
-LD=ld.lld KCFLAGS='-fno-polly' dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed for xone ${XONE_VERSION} — make.log:"
     cat "/var/lib/dkms/xone/${XONE_VERSION}/build/make.log" 2>/dev/null || true
     exit 1
@@ -116,7 +116,7 @@ sed -i "s/#MODULE_VERSION#/${V4L2LOOPBACK_VERSION}/g" \
 # Remove BUILD_EXCLUSIVE_KERNEL — it only allows 5.x/6.x and blocks kernel 7.x+
 sed -i '/^BUILD_EXCLUSIVE_KERNEL/d' \
     /usr/src/v4l2loopback-"${V4L2LOOPBACK_VERSION}"/dkms.conf
-LD=ld.lld KCFLAGS='-fno-polly' dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
+LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m v4l2loopback -v "${V4L2LOOPBACK_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed for v4l2loopback ${V4L2LOOPBACK_VERSION} — make.log:"
     cat "/var/lib/dkms/v4l2loopback/${V4L2LOOPBACK_VERSION}/build/make.log" 2>/dev/null || true
     exit 1
