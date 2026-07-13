@@ -60,15 +60,15 @@ COMMAND="${1:-}"
 case "$COMMAND" in
     install)
         shift
-        exec rakuos install "$@"
+        exec rakupkg install "$@"
         ;;
     update)
         shift
-        exec rakuos update "$@"
+        exec rakupkg update "$@"
         ;;
     remove|erase)
         shift
-        exec rakuos remove "$@"
+        exec rakupkg remove "$@"
         ;;
     *)
         exec /usr/bin/dnf5.real "$@"
