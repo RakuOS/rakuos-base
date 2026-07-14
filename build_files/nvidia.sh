@@ -79,7 +79,7 @@ else
 fi
 
 #dnf5.real remove -y --noautoremove dkms
-systemctl disable --now dkms.service
+#systemctl disable --now dkms.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
