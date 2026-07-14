@@ -7,7 +7,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
-    kernel-p03-nvidia-open \
+    dkms-nvidia \
     nvidia-modprobe \
     nvidia-driver \
     nvidia-settings \
@@ -17,12 +17,12 @@ dnf5.real install -y --setopt=tsflags=noscripts \
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-# NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-# LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
-#     echo "DKMS build failed — make.log:"
-#     cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
-#     exit 1
-# }
+NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
+LD=ld.lld KCFLAGS='-mllvm -polly=false' dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+    echo "DKMS build failed — make.log:"
+    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
+    exit 1
+}
 
 # Enable NVIDIA power management services
 systemctl enable nvidia-powerd.service \
@@ -55,7 +55,7 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
                 ;;
         esac
         echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/nvidia" \
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
         \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
     echo "Module signing complete."
 else
@@ -79,7 +79,7 @@ else
 fi
 
 #dnf5.real remove -y --noautoremove dkms
-#systemctl disable --now dkms.service
+systemctl disable --now dkms.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
@@ -95,7 +95,7 @@ PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/nvidia.sh)
-kernel-p03-nvidia-open
+dkms-nvidia
 nvidia-modprobe
 nvidia-driver
 nvidia-settings
