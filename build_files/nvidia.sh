@@ -7,10 +7,17 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y \
+    --exclude=libnvidia-cfg-580xx \
+    --exclude=libnvidia-gpucomp-580xx \
+    --exclude=nvidia-driver-580xx-cuda-libs \
+    --exclude=libnvidia-ml-580xx \
     akmod-nvidia \
-    nvidia-modprobe \
     nvidia-driver \
+    nvidia-modprobe \
     nvidia-settings \
+    libnvidia-gpucomp \
+    libnvidia-cfg \
+    libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
     kernel-p03-devel-matched
@@ -29,9 +36,10 @@ dnf5.real install -y \
 # akmods installs the resulting kmod RPM so the .ko lands in
 # /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
 echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+touch /var/log/akmods/akmods.log
 akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
-find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
 # Enable NVIDIA power management services
 # systemctl enable nvidia-powerd.service \
