@@ -11,7 +11,7 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     --exclude=libnvidia-gpucomp-580xx \
     --exclude=nvidia-driver-580xx-cuda-libs \
     --exclude=libnvidia-ml-580xx \
-    akmod-nvidia \
+    kernel-p03-nvidia-open \
     nvidia-driver \
     nvidia-modprobe \
     nvidia-settings \
@@ -32,15 +32,15 @@ dnf5.real install -y --setopt=tsflags=noscripts \
 #     exit 1
 # }
 
-# Build akmod packages (e.g. broadcom-wl) for the installed kernel.
-# akmods installs the resulting kmod RPM so the .ko lands in
-# /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
-echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
-mkdir -p /var/log/akmods
-touch /var/log/akmods/akmods.log
-akmods --kernels "$QUALIFIED_KERNEL" --rebuild
-# Install any built kmod RPMs from the cache
-find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
+# # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
+# # akmods installs the resulting kmod RPM so the .ko lands in
+# # /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
+# echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+# mkdir -p /var/log/akmods
+# touch /var/log/akmods/akmods.log
+# akmods --kernels "$QUALIFIED_KERNEL" --rebuild
+# # Install any built kmod RPMs from the cache
+# find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
 # Enable NVIDIA power management services
 systemctl enable nvidia-powerd.service \
@@ -73,7 +73,7 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
                 ;;
         esac
         echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/nvidia" \
         \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
     echo "Module signing complete."
 else
@@ -97,7 +97,7 @@ else
 fi
 
 #dnf5.real remove -y --noautoremove dkms
-#systemctl disable --now dkms.service
+systemctl disable --now dkms.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
@@ -113,10 +113,13 @@ PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/nvidia.sh)
-akmod-nvidia
-nvidia-modprobe
+kernel-p03-nvidia-open
 nvidia-driver
+nvidia-modprobe
 nvidia-settings
+libnvidia-gpucomp
+libnvidia-cfg
+libnvidia-ml
 nvidia-persistenced
 libva-nvidia-driver
 EOF
