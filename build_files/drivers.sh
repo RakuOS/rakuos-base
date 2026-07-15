@@ -190,10 +190,4 @@ depmod "$QUALIFIED_KERNEL"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
-dnf5 remove -y --no-autoremove \
-    dkms \
-    gcc \
-    make \
-    cabextract \
-    bluez || true
 rm -rf /var/lib/dkms /var/cache/akmods /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
