@@ -38,7 +38,7 @@ dnf5.real install -y \
 echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
 akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
-find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
 # Enable NVIDIA power management services
 # systemctl enable nvidia-powerd.service \
