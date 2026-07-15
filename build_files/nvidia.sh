@@ -6,8 +6,8 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5.real install -y --setopt=tsflags=noscripts \
-    kernel-p03-nvidia-open \
+dnf5.real install -y \
+    akmod-nvidia \
     nvidia-modprobe \
     nvidia-driver \
     nvidia-settings \
@@ -25,9 +25,17 @@ dnf5.real install -y --setopt=tsflags=noscripts \
 #     exit 1
 # }
 
+# Build akmod packages (e.g. broadcom-wl) for the installed kernel.
+# akmods installs the resulting kmod RPM so the .ko lands in
+# /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
+echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+akmods --kernels "$QUALIFIED_KERNEL" --rebuild
+# Install any built kmod RPMs from the cache
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
+
 # Enable NVIDIA power management services
-systemctl enable nvidia-powerd.service \
-    nvidia-persistenced.service
+# systemctl enable nvidia-powerd.service \
+#     nvidia-persistenced.service
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 # Must happen BEFORE kernel-p03-devel-matched is removed (sign-file lives there).
@@ -56,7 +64,7 @@ if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
                 ;;
         esac
         echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/nvidia" \
+    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
         \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
     echo "Module signing complete."
 else
@@ -80,7 +88,7 @@ else
 fi
 
 #dnf5.real remove -y --noautoremove dkms
-systemctl disable --now dkms.service
+#systemctl disable --now dkms.service
 
 # Generate module dependencies
 depmod "${QUALIFIED_KERNEL}"
@@ -96,7 +104,7 @@ PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/nvidia.sh)
-kernel-p03-nvidia-open
+akmod-nvidia
 nvidia-modprobe
 nvidia-driver
 nvidia-settings
