@@ -36,6 +36,7 @@ dnf5.real install -y \
 # akmods installs the resulting kmod RPM so the .ko lands in
 # /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
 echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+touch /var/log/akmods/akmods.log
 akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
 find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
