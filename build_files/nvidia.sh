@@ -6,7 +6,7 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5.real install -y \
+dnf5.real install -y --setopt=tsflags=noscripts \
     --exclude=libnvidia-cfg-580xx \
     --exclude=libnvidia-gpucomp-580xx \
     --exclude=nvidia-driver-580xx-cuda-libs \
@@ -42,8 +42,8 @@ akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
 # Enable NVIDIA power management services
-# systemctl enable nvidia-powerd.service \
-#     nvidia-persistenced.service
+systemctl enable nvidia-powerd.service \
+     nvidia-persistenced.service
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 # Must happen BEFORE kernel-p03-devel-matched is removed (sign-file lives there).
