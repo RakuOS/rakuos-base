@@ -192,8 +192,6 @@ chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 
 dnf5 remove -y --no-autoremove \
     dkms \
-    akmods \
-    kernel-p03-devel-matched \
     gcc \
     make \
     cabextract \
