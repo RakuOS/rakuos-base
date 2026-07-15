@@ -7,10 +7,17 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y \
+    --exclude=libnvidia-cfg-580xx \
+    --exclude=libnvidia-gpucomp-580xx \
+    --exclude=nvidia-driver-580xx-cuda-libs \
+    --exclude=libnvidia-ml-580xx \
     akmod-nvidia \
-    nvidia-modprobe \
     nvidia-driver \
+    nvidia-modprobe \
     nvidia-settings \
+    libnvidia-gpucomp \
+    libnvidia-cfg \
+    libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
     kernel-p03-devel-matched
