@@ -3,14 +3,14 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-gcc-v3)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
 XPADNEO_VERSION="0.10.2"
 V4L2LOOPBACK_VERSION="0.15.3"
 
 dnf5 install -y \
     dkms \
     akmods \
-    kernel-p03-gcc-v3-devel-matched \
+    kernel-cachyos-devel-matched \
     gcc \
     make \
     cabextract \

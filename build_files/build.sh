@@ -45,7 +45,7 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03-gcc-v3 kernel-p03-gcc-v3-devel kernel-p03-gcc-v3-devel-matched
+dnf5 -y --setopt=tsflags=noscripts install kernel-cachyos kernel-cachyos-devel kernel-cachyos-devel-matched
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \
