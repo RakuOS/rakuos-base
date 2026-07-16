@@ -20,14 +20,13 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
-    kernel-cachyos-devel-matched \
-    lld
+    kernel-cachyos-devel-matched
 
 
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-LD=ld.lld dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
     echo "DKMS build failed — make.log:"
     cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
     exit 1
