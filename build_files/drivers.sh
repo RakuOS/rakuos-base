@@ -3,14 +3,14 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-gcc-v3)
 XPADNEO_VERSION="0.10.2"
 V4L2LOOPBACK_VERSION="0.15.3"
 
 dnf5 install -y \
     dkms \
     akmods \
-    kernel-p03-devel-matched \
+    kernel-p03-gcc-v3-devel-matched \
     gcc \
     make \
     cabextract \
@@ -189,5 +189,7 @@ depmod "$QUALIFIED_KERNEL"
 --add ostree --add fido2 -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
+
+systemctl disable --now dkms.service
 
 rm -rf /var/lib/dkms /var/cache/akmods /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
