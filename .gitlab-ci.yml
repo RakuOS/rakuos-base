@@ -497,6 +497,7 @@ trigger-downstream:
       trigger_pipeline "${TRIGGER_TOKEN_KDE}" "${PROJECT_ID_KDE}"
       trigger_pipeline "${TRIGGER_TOKEN_GNOME}" "${PROJECT_ID_GNOME}"
       trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" "${PROJECT_ID_COSMIC}"
+      trigger_pipeline "${TRIGGER_TOKEN_NIRI}" "${PROJECT_ID_NIRI}"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
