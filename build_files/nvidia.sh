@@ -20,7 +20,7 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
-    kernel-cachyos-devel-matched
+    kernel-p03-v3-devel-matched
 
 
 # Build DKMS module for the installed kernel
