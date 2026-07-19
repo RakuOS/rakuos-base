@@ -3,7 +3,7 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-cachyos)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v3)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
