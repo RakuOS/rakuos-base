@@ -243,8 +243,8 @@ systemctl mask rpm-ostreed-automatic.timer
 # and executable (0750), and drop-in files to be 0440.
 chown root:root /etc/sudoers.d
 chmod 0750 /etc/sudoers.d
-chown root:root /etc/sudoers.d/rakuos-software
-chmod 0440 /etc/sudoers.d/rakuos-software
+chown root:root /etc/sudoers.d/rakuos
+chmod 0440 /etc/sudoers.d/rakuos
 chown root:root /etc/sudoers.d/pwfeedback
 chmod 0440 /etc/sudoers.d/pwfeedback
 
