@@ -33,3 +33,6 @@ rakuos-setup ALL=(ALL) NOPASSWD: /usr/libexec/rakuos/rakuos-overlay-sync --initi
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl reset-failed rakuos-bootc-switch.service
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /run/rakuos
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/tee /run/rakuos/bootc-switch-target
+
+# Misc operations
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/nix profile upgrade --all
