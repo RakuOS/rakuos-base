@@ -1,2 +1,2 @@
 [rpmfusion*]
-exclude=goverlay
+excludepkgs=goverlay
