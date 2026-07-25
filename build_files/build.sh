@@ -171,6 +171,7 @@ python3-setuptools \
 os-prober \
 rakuos-apparmor-profiles \
 rakuos-core \
+rakuos-wallpapers \
 ripgrep \
 rsms-inter-fonts \
 rsync \

@@ -18,11 +18,11 @@ case "$COMMAND" in
     reset)
         shift
         exec rakuos reset-overlay --confirm
-        ;; 
+        ;;
     status)
         shift
         exec bootc status "$@"
-        ;;    
+        ;;
     install)
         shift
         exec rakuos install "$@"
@@ -280,6 +280,7 @@ python3-pip
 python3-setuptools
 rakuos-apparmor-profiles
 rakuos-core
+rakuos-wallpapers
 ripgrep
 rsms-inter-fonts
 rsync

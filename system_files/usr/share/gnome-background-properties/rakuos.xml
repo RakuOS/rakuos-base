@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
-<wallpapers>
-  <wallpaper deleted="false">
-    <name>RakuOS</name>
-    <filename>/usr/share/wallpapers/RakuOS/default.jpg</filename>
-    <options>zoom</options>
-  </wallpaper>
-</wallpapers>
