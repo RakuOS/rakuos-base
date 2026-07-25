@@ -279,13 +279,12 @@ python3-LibAppArmor
 python3-pip
 python3-setuptools
 rakuos-apparmor-profiles
+rakuos-branding
 rakuos-core
 rakuos-wallpapers
 ripgrep
 rsms-inter-fonts
 rsync
-scx-scheds
-scx-tools
 ShellCheck
 solaar-udev
 sqlite3
