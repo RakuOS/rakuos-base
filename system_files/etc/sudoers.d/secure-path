@@ -1,4 +1,4 @@
 # Rakuos Secure Paths
 
-Defaults secure_path="/usr/local/sbin:/usr/local/bin:/nix/var/nix/profiles/default/bin:/usr/sbin:/usr/bin:/sbin:/bin:/var/lib/snapd/snap/bin"
-
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/nix/var/nix/profiles/default/bin:\
+/usr/sbin:/usr/bin:/sbin:/bin:/var/lib/snapd/snap/bin"
