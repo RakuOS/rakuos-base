@@ -248,8 +248,6 @@ chown root:root /etc/sudoers.d/rakuos
 chmod 0440 /etc/sudoers.d/rakuos
 chown root:root /etc/sudoers.d/pwfeedback
 chmod 0440 /etc/sudoers.d/pwfeedback
-chown root:root /etc/sudoers.d/secure-path
-chmod 0440 /etc/sudoers.d/secure-path
 
 #enable enable services
 systemctl enable \
