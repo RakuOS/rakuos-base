@@ -219,3 +219,4 @@
 /usr/bin/gnu_sudo
 /usr/bin/gnu_su
 /usr/bin/gnu_visudo
+/usr/share/icons/default/index.theme
