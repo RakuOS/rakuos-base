@@ -104,7 +104,6 @@ dmemcg-booster \
 du-dust \
 dysk \
 fastfetch \
-fedora-logos \
 fedora-repos-archive \
 ffmpegthumbnailer \
 figlet \
@@ -270,21 +269,6 @@ rakuos-user.service
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
-
-# Override CachyOS io scheduler defaults for RakuOS
-cat > /usr/lib/udev/rules.d/60-ioschedulers.rules <<'EOF'
-# HDD
-ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", \
-    ATTR{queue/scheduler}="bfq"
-
-# SSD
-ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="0", \
-    ATTR{queue/scheduler}="adios"
-
-# NVMe SSD
-ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", \
-    ATTR{queue/scheduler}="adios"
-EOF
 
 ## Add custom icons
 git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme
