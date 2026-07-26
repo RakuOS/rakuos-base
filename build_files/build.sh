@@ -94,10 +94,8 @@ bibata-cursor-theme \
 bind \
 bind-utils \
 bootc \
-bore-sysctl \
 btop \
 cachyos-ananicy-rules \
-cachyos-settings \
 cava \
 cbonsai \
 cowsay \
@@ -172,6 +170,7 @@ os-prober \
 rakuos-apparmor-profiles \
 rakuos-branding \
 rakuos-core \
+rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
 rsms-inter-fonts \
