@@ -80,10 +80,6 @@ dnf5 -y install @fonts @hardware-support \
 7zip \
 alsa-firmware \
 ananicy-cpp \
-apparmor-libs \
-apparmor-parser \
-apparmor-profiles \
-apparmor-utils \
 appstream \
 appstream-data \
 apr \
@@ -152,7 +148,6 @@ openrgb-udev-rules \
 openssh-askpass \
 openssl \
 oversteer-udev \
-pam_apparmor \
 pam-u2f \
 pam_yubico \
 pamu2fcfg \
@@ -162,12 +157,9 @@ podman-compose \
 powerstat \
 procs \
 pulseaudio-utils \
-python3-apparmor \
-python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 os-prober \
-rakuos-apparmor-profiles \
 rakuos-branding \
 rakuos-core \
 rakuos-settings \
