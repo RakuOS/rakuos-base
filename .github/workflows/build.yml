@@ -131,7 +131,7 @@ jobs:
 
       - name: Build Image
         id: build_image
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@v3
         with:
           containerfiles: ${{ matrix.variant == 'nvidia' && './Containerfile.nvidia' || './Containerfile' }}
           image: ${{ env.FINAL_IMAGE_NAME }}
