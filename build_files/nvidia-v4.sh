@@ -17,6 +17,7 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-settings \
     libnvidia-gpucomp \
     libnvidia-cfg \
+    nvidia-driver-cuda \
     libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
