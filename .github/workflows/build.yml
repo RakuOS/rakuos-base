@@ -151,7 +151,7 @@ jobs:
 
       - name: Push to GHCR
         if: github.event_name != 'pull_request'
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           image: ${{ env.FINAL_IMAGE_NAME }}
