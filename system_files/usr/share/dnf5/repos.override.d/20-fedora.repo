@@ -1,5 +1,0 @@
-[fedora*]
-excludepkgs=goverlay,retroarch
-
-[updates*]
-excludepkgs=goverlay,retroarch
