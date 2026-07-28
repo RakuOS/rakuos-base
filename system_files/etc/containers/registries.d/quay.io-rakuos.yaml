@@ -1,3 +1,0 @@
-docker:
-  quay.io/rakuos:
-    use-sigstore-attachments: true

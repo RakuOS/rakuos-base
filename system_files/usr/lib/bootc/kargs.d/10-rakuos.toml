@@ -1,1 +1,0 @@
-kargs = ["security=apparmor", "apparmor=1", "selinux=0", "fbcon=nodefer"]

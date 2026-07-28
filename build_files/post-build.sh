@@ -271,6 +271,7 @@ python3-pip
 python3-setuptools
 rakuos-branding
 rakuos-core
+rakuos-release
 rakuos-settings
 rakuos-wallpapers
 ripgrep

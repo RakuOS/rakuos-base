@@ -160,6 +160,7 @@ python3-setuptools \
 os-prober \
 rakuos-branding \
 rakuos-core \
+rakuos-release \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
