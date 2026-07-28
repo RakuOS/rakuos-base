@@ -1,0 +1,74 @@
+{
+  "default": [
+    {
+      "type": "reject"
+    }
+  ],
+  "transports": {
+    "docker": {
+      "quay.io/rakuos": [{"type": "sigstoreSigned", "keyPath": "/etc/pki/containers/rakuos-cosign.pub", "signedIdentity": {"type": "matchRepository"}}],
+      "ghcr.io": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "quay.io": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "docker.io": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "container-registry.oracle.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "invent-registry.kde.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "public.ecr.aws": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.access.redhat.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.fedoraproject.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.gitlab.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "registry.opensuse.org": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
+      "cgr.dev": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ]
+    },
+    "containers-storage": {
+      "": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ]
+    }
+  }
+}
