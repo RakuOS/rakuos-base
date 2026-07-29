@@ -16,7 +16,6 @@ https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_
 rpm --import https://repo.rakuos.org/pubkey.gpg
 
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
-sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.repo
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
@@ -45,7 +44,7 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03-v3 kernel-p03-v3-devel kernel-p03-v3-devel-matched
+dnf5 -y --setopt=tsflags=noscripts install kernel-p03 kernel-p03-devel kernel-p03-devel-matched
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \
@@ -72,7 +71,7 @@ dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 dnf5 -y upgrade --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v3)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # install packages
 dnf5 -y install @fonts @hardware-support \
@@ -90,10 +89,8 @@ bibata-cursor-theme \
 bind \
 bind-utils \
 bootc \
-bore-sysctl \
 btop \
 cachyos-ananicy-rules \
-cachyos-settings \
 cava \
 cbonsai \
 cowsay \
@@ -102,7 +99,6 @@ dmemcg-booster \
 du-dust \
 dysk \
 fastfetch \
-fedora-logos \
 fedora-repos-archive \
 ffmpegthumbnailer \
 figlet \
@@ -150,7 +146,6 @@ openrgb-udev-rules \
 openssh-askpass \
 openssl \
 oversteer-udev \
-pam_apparmor \
 pam-u2f \
 pam_yubico \
 pamu2fcfg \
@@ -160,12 +155,14 @@ podman-compose \
 powerstat \
 procs \
 pulseaudio-utils \
-python3-apparmor \
-python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 os-prober \
-rclone \
+rakuos-branding \
+rakuos-core \
+rakuos-release \
+rakuos-settings \
+rakuos-wallpapers \
 ripgrep \
 rsms-inter-fonts \
 rsync \
@@ -183,6 +180,7 @@ tealdeer \
 termflix \
 tmux \
 traceroute \
+tuned \
 ublue-os-udev-rules \
 udisks2 \
 unrar \
@@ -230,7 +228,6 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
-systemctl mask auditd.service
 systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
 
@@ -238,49 +235,16 @@ systemctl mask rpm-ostreed-automatic.timer
 # and executable (0750), and drop-in files to be 0440.
 chown root:root /etc/sudoers.d
 chmod 0750 /etc/sudoers.d
-chown root:root /etc/sudoers.d/rakuos-software
-chmod 0440 /etc/sudoers.d/rakuos-software
+chown root:root /etc/sudoers.d/rakuos
+chmod 0440 /etc/sudoers.d/rakuos
 chown root:root /etc/sudoers.d/pwfeedback
 chmod 0440 /etc/sudoers.d/pwfeedback
-
-# Clone rakuos-scripts repo
-rm -rf /tmp/rakuos-scripts
-git clone --depth 1 https://gitlab.com/rakuos/images/rakuos-scripts.git /tmp/rakuos-scripts
-
-# Make target dirs
-mkdir -p /usr/bin
-mkdir -p /usr/share/rakuos
-mkdir -p /usr/libexec/rakuos
-mkdir -p /usr/lib/systemd/system
-mkdir -p /usr/lib/systemd/user
-
-#copy to /usr/bin
-cp -a /tmp/rakuos-scripts/bin/* /usr/bin/
-rm -rf /tmp/rakuos-scripts/bin
-
-# Copy systemd units into the proper locations
-if [ -d /tmp/rakuos-scripts/systemd/system ]; then
-    cp -a /tmp/rakuos-scripts/systemd/system/. /usr/lib/systemd/system/
-fi
-
-if [ -d /tmp/rakuos-scripts/systemd/user ]; then
-    cp -a /tmp/rakuos-scripts/systemd/user/. /usr/lib/systemd/user/
-fi
-rm -rf /tmp/rakuos-scripts/systemd
-
-# Copy everything except the systemd folder into /usr/libexec/rakuos
-cp -a /tmp/rakuos-scripts/. /usr/libexec/rakuos/
-
-# Clean up
-rm -rf /tmp/rakuos-scripts
 
 #enable enable services
 systemctl enable \
 rakuos-base-protect.service \
-rakuos-overlay-mount.service \
 rakuos-overlay-sync.service \
 rakuos-overlay-update.service \
-rakuos-overlay-services.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
@@ -297,21 +261,6 @@ rakuos-user.service
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
-
-# Override CachyOS io scheduler defaults for RakuOS
-cat > /usr/lib/udev/rules.d/60-ioschedulers.rules <<'EOF'
-# HDD
-ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", \
-    ATTR{queue/scheduler}="bfq"
-
-# SSD
-ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="0", \
-    ATTR{queue/scheduler}="adios"
-
-# NVMe SSD
-ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", \
-    ATTR{queue/scheduler}="adios"
-EOF
 
 ## Add custom icons
 git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme

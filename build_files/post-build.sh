@@ -18,11 +18,11 @@ case "$COMMAND" in
     reset)
         shift
         exec rakuos reset-overlay --confirm
-        ;; 
+        ;;
     status)
         shift
         exec bootc status "$@"
-        ;;    
+        ;;
     install)
         shift
         exec rakuos install "$@"
@@ -60,15 +60,15 @@ COMMAND="${1:-}"
 case "$COMMAND" in
     install)
         shift
-        exec rakuos install "$@"
+        exec rakupkg install "$@"
         ;;
     update)
         shift
-        exec rakuos update "$@"
+        exec rakupkg update "$@"
         ;;
     remove|erase)
         shift
-        exec rakuos remove "$@"
+        exec rakupkg remove "$@"
         ;;
     *)
         exec /usr/bin/dnf5.real "$@"
@@ -194,10 +194,8 @@ bibata-cursor-theme
 bind
 bind-utils
 bootc
-bore-sysctl
 btop
 cachyos-ananicy-rules
-cachyos-settings
 cava
 cbonsai
 cowsay
@@ -271,7 +269,11 @@ procs
 pulseaudio-utils
 python3-pip
 python3-setuptools
-rclone
+rakuos-branding
+rakuos-core
+rakuos-release
+rakuos-settings
+rakuos-wallpapers
 ripgrep
 rsms-inter-fonts
 rsync
@@ -288,6 +290,7 @@ tcpdump
 termflix
 tmux
 traceroute
+tuned
 ublue-os-udev-rules
 unrar
 unzip
@@ -318,4 +321,3 @@ echo "Generating base file manifest..."
 if [ -f /usr/share/rpm-ostree/treefile.json ]; then
     sed -i 's/"selinux": *true/"selinux": false/' /usr/share/rpm-ostree/treefile.json
 fi
-

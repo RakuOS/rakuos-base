@@ -3,7 +3,7 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v3)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 dnf5.real install -y --setopt=tsflags=noscripts \
@@ -15,12 +15,13 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-driver \
     nvidia-modprobe \
     nvidia-settings \
+    nvidia-driver-cuda \
     libnvidia-gpucomp \
     libnvidia-cfg \
     libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
-    kernel-p03-v3-devel-matched
+    kernel-p03-devel-matched
 
 
 # Build DKMS module for the installed kernel
