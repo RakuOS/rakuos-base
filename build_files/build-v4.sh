@@ -182,6 +182,7 @@ tealdeer \
 termflix \
 tmux \
 traceroute \
+tuned \
 ublue-os-udev-rules \
 udisks2 \
 unrar \

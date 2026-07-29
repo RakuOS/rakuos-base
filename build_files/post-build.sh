@@ -290,6 +290,7 @@ tcpdump
 termflix
 tmux
 traceroute
+tuned
 ublue-os-udev-rules
 unrar
 unzip
