@@ -22,6 +22,16 @@ rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
 dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
 
+rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
+rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
+rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
+#rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
+dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
+dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
+dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
+# Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
+sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
+
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
 TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
