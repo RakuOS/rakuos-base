@@ -7,6 +7,7 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 
 dnf5 install -y \
     akmods \
+    dkms
     kernel-p03-devel \
     kernel-p03-devel-matched \
     gcc \
