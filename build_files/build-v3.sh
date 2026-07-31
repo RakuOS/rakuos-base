@@ -88,7 +88,6 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel
 dnf5 -y install @fonts @hardware-support \
 7zip \
 alsa-firmware \
-ananicy-cpp \
 appstream \
 appstream-data \
 apr \
@@ -101,7 +100,6 @@ bind \
 bind-utils \
 bootc \
 btop \
-cachyos-ananicy-rules \
 cava \
 cbonsai \
 cowsay \
