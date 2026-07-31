@@ -66,6 +66,10 @@ case "$COMMAND" in
         shift
         exec rakupkg update "$@"
         ;;
+    upgrade)
+        shift
+        exec rakupkg update "$@"
+        ;;
     remove|erase)
         shift
         exec rakupkg remove "$@"
