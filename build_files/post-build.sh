@@ -186,7 +186,6 @@ pipewire-libs-extra
 heif-pixbuf-loader
 OpenCL-ICD-Loader
 alsa-firmware
-ananicy-cpp
 appstream
 appstream-data
 apr
@@ -199,7 +198,6 @@ bind
 bind-utils
 bootc
 btop
-cachyos-ananicy-rules
 cava
 cbonsai
 cowsay
