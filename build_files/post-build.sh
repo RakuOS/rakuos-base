@@ -70,6 +70,10 @@ case "$COMMAND" in
         shift
         exec rakupkg update "$@"
         ;;
+    distro-sync|dsync)
+        shift
+        exec rakupkg update "$@"
+        ;;
     remove|erase)
         shift
         exec rakupkg remove "$@"
