@@ -62,8 +62,17 @@ stages:
           export BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')"
           ;;
       esac
+      # Passed to build-v3.sh/build-v4.sh as RAKUOS_STAGING via --build-arg
+      # so they install rakuos-release-staging instead of rakuos-release on
+      # the staging branch.
+      if [ "${CI_COMMIT_BRANCH}" = "staging" ]; then
+        export RAKUOS_STAGING="1"
+      else
+        export RAKUOS_STAGING="0"
+      fi
       echo "Building with FEDORA_VERSION=${FEDORA_VERSION}"
       echo "Using branch slug: ${BRANCH_SLUG}"
+      echo "RAKUOS_STAGING=${RAKUOS_STAGING}"
     - export DATE_TAG="$(date -u +%Y%m%d)"
     - dnf install -y --quiet jq
   variables:
@@ -203,6 +212,7 @@ build-push-base-v4:
       buildah build \
         --file Containerfile.v4 \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -295,6 +305,7 @@ build-push-base-v3:
       buildah build \
         --file Containerfile.v3 \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \

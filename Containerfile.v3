@@ -13,6 +13,10 @@ FROM quay.io/fedora-ostree-desktops/base-atomic:${FEDORA_VERSION} AS builder
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
 ENV FEDORA_VERSION=${FEDORA_VERSION}
+# Set by CI to "1" on the staging branch so build-v3.sh installs
+# rakuos-release-staging instead of rakuos-release.
+ARG RAKUOS_STAGING="0"
+ENV RAKUOS_STAGING=${RAKUOS_STAGING}
 
 # RUN rm -rf /opt && ln -s -T /var/opt /opt
 # RUN rm -rf /usr/local && ln -s -T /var/usrlocal /usr/local
