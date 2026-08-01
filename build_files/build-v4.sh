@@ -142,6 +142,7 @@ libcamera-tools \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
+libXcursor.i686 \
 libxcrypt-compat \
 lm_sensors \
 lolcat \
