@@ -3,6 +3,15 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
+# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
+# install the staging os-release identity instead of the stable one, so
+# staging images identify themselves as "RakuOS Staging" (see
+# rakuos-release.spec's staging subpackages).
+RAKUOS_RELEASE_PKG="rakuos-release"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_RELEASE_PKG="rakuos-release-staging"
+fi
+
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
@@ -169,7 +178,7 @@ python3-setuptools \
 os-prober \
 rakuos-branding \
 rakuos-core \
-rakuos-release \
+${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
