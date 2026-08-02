@@ -3,15 +3,6 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
-# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
-# install the staging os-release identity instead of the stable one, so
-# staging images identify themselves as "RakuOS Staging" (see
-# rakuos-release.spec's staging subpackages).
-RAKUOS_RELEASE_PKG="rakuos-release"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    RAKUOS_RELEASE_PKG="rakuos-release-staging"
-fi
-
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
@@ -35,9 +26,7 @@ rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
 dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
-dnf5 -y install --nogpgcheck --repofrompath 'terra-multimedia,https://repos.fyralabs.com/terra$releasever' terra-release-multimedia
-dnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
+dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesadnf5 -y install --nogpgcheck --repofrompath 'terra-nvidia,https://repos.fyralabs.com/terra$releasever' terra-release-nvidia
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
@@ -60,7 +49,7 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs
+dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
@@ -73,13 +62,14 @@ heif-pixbuf-loader
 
 
 dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
+dnf5 -y install libfdk-aac
 dnf5 -y swap libavcodec-free libavcodec --allowerasing
 dnf5 -y swap libavformat-free libavformat --allowerasing
 dnf5 -y swap libavutil-free libavutil --allowerasing
 dnf5 -y swap libavfilter-free libavfilter --allowerasing
 dnf5 -y swap libswscale-free libswscale --allowerasing
 
-dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
+dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
 dnf5 -y upgrade --best 'mesa-*' 'pipewire*'
 
@@ -149,7 +139,6 @@ libcamera-tools \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
-libXcursor.i686 \
 libxcrypt-compat \
 lm_sensors \
 lolcat \
@@ -178,7 +167,7 @@ python3-setuptools \
 os-prober \
 rakuos-branding \
 rakuos-core \
-${RAKUOS_RELEASE_PKG} \
+rakuos-release \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
