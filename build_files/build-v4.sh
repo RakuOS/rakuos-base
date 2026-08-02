@@ -75,7 +75,6 @@ heif-pixbuf-loader
 
 
 dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
-dnf5 -y install libfdk-aac
 dnf5 -y swap libavcodec-free libavcodec --allowerasing
 dnf5 -y swap libavformat-free libavformat --allowerasing
 dnf5 -y swap libavutil-free libavutil --allowerasing
