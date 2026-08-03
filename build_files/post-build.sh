@@ -70,13 +70,13 @@ case "$COMMAND" in
         shift
         exec rakupkg update "$@"
         ;;
-    remove|erase)
-        shift
-        exec rakupkg remove "$@"
-        ;;
     distro-sync|dsync)
         shift
         exec rakupkg update "$@"
+        ;;
+    remove|erase)
+        shift
+        exec rakupkg remove "$@"
         ;;
     *)
         exec /usr/bin/dnf5.real "$@"

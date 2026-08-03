@@ -3,6 +3,15 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
+# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
+# install the staging os-release identity instead of the stable one, so
+# staging images identify themselves as "RakuOS Staging" (see
+# rakuos-release.spec's staging subpackages).
+RAKUOS_RELEASE_PKG="rakuos-release"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_RELEASE_PKG="rakuos-release-staging"
+fi
+
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
@@ -51,7 +60,7 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
+dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
@@ -71,7 +80,7 @@ dnf5 -y swap libavutil-free libavutil --allowerasing
 dnf5 -y swap libavfilter-free libavfilter --allowerasing
 dnf5 -y swap libswscale-free libswscale --allowerasing
 
-dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
+dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
 
 dnf5 -y upgrade --best 'mesa-*' 'pipewire*'
 
@@ -141,6 +150,7 @@ libcamera-tools \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
+libXcursor.i686 \
 libxcrypt-compat \
 lm_sensors \
 lolcat \
@@ -169,7 +179,7 @@ python3-setuptools \
 os-prober \
 rakuos-branding \
 rakuos-core \
-rakuos-release \
+${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
