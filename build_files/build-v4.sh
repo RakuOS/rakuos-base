@@ -212,6 +212,7 @@ vim \
 virtualbox-guest-additions \
 wireguard-tools \
 wl-clipboard \
+wlctl \
 xhost \
 xorg-x11-xauth \
 yubikey-manager \
