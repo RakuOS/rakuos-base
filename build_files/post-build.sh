@@ -179,8 +179,8 @@ cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/build.sh)
 dnf5-plugins
-kernel-p03-v3
-kernel-p03-v3-devel-matched
+kernel-p03-v2
+kernel-p03-v2-devel-matched
 intel-vaapi-driver
 libopenjph
 libva-utils
