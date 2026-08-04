@@ -61,7 +61,7 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs
+dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
@@ -212,6 +212,7 @@ vim \
 virtualbox-guest-additions \
 wireguard-tools \
 wl-clipboard \
+wlctl \
 xhost \
 xorg-x11-xauth \
 yubikey-manager \
