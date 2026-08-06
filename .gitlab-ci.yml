@@ -57,6 +57,10 @@ stages:
           export FEDORA_VERSION="10"
           export BRANCH_SLUG="rakuosel"
           ;;
+        "test")
+          export FEDORA_VERSION="44"
+          export BRANCH_SLUG="test"
+          ;;
         *)
           export FEDORA_VERSION="45"
           export BRANCH_SLUG="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')"
@@ -173,6 +177,7 @@ build-push-base:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 build-push-base-v4:
   extends: .buildah-job
@@ -266,6 +271,7 @@ build-push-base-v4:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 build-push-base-v3:
   extends: .buildah-job
@@ -359,6 +365,7 @@ build-push-base-v3:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 build-push-nvidia:
   extends: .buildah-job
@@ -465,6 +472,7 @@ build-push-nvidia:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 build-push-nvidia-v4:
   extends: .buildah-job
@@ -559,6 +567,7 @@ build-push-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 build-push-nvidia-v3:
   extends: .buildah-job
@@ -653,6 +662,7 @@ build-push-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 # ============================================================
 # RPM DB Stress Tests + Immediate Failure Response
@@ -669,6 +679,7 @@ build-push-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 test-image-standard:
   extends: .image-test-job
@@ -860,6 +871,7 @@ test-image-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
       when: on_failure
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
       when: on_failure
 
 trigger-on-image-standard-fail:
@@ -944,6 +956,7 @@ sign-image-standard:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 sign-image-nvidia:
   stage: sign
@@ -991,6 +1004,7 @@ sign-image-nvidia:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 sign-image-standard-v4:
   stage: sign
@@ -1038,6 +1052,7 @@ sign-image-standard-v4:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 sign-image-standard-v3:
   stage: sign
@@ -1085,6 +1100,7 @@ sign-image-standard-v3:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 sign-image-nvidia-v4:
   stage: sign
@@ -1132,6 +1148,7 @@ sign-image-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 sign-image-nvidia-v3:
   stage: sign
@@ -1179,6 +1196,7 @@ sign-image-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
 
 trigger-downstream:
   stage: dispatch
@@ -1219,3 +1237,4 @@ trigger-downstream:
     - if: '$CI_COMMIT_BRANCH == "staging"'
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+    - if: '$CI_COMMIT_BRANCH == "test"'
