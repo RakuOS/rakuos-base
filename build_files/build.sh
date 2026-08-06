@@ -81,7 +81,7 @@ dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 dnf5 -y upgrade --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core)
 
 # install packages
 dnf5 -y install @fonts @hardware-support \
