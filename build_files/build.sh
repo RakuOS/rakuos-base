@@ -49,11 +49,12 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
-rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
+#dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs
+dnf5 -y remove --no-autoremove zram-generator-defaults
+#rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
+#dnf5 -y --setopt=tsflags=noscripts install kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \

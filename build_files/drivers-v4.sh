@@ -3,13 +3,13 @@
 set -ouex pipefail
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v4)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core)
 
 dnf5 install -y \
     akmods \
     dkms \
-    kernel-p03-v4-devel \
-    kernel-p03-v4-devel-matched \
+    kernel-devel \
+    kernel-devel-matched \
     gcc \
     make \
     cabextract \
