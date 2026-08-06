@@ -5,47 +5,47 @@ set -ouex pipefail
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-test)
 
-# Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5.real install -y --setopt=tsflags=noscripts \
-    --exclude=libnvidia-cfg-580xx \
-    --exclude=libnvidia-gpucomp-580xx \
-    --exclude=nvidia-driver-580xx-cuda-libs \
-    --exclude=libnvidia-ml-580xx \
-    dkms-nvidia \
-    nvidia-driver \
-    nvidia-modprobe \
-    nvidia-settings \
-    libnvidia-gpucomp \
-    libnvidia-cfg \
-    nvidia-driver-cuda \
-    libnvidia-ml \
-    nvidia-persistenced \
-    libva-nvidia-driver \
-    kernel-test-devel-matched
+# # Install NVIDIA stack — skip systemd scriptlets that fail in containers
+# dnf5.real install -y --setopt=tsflags=noscripts \
+#     --exclude=libnvidia-cfg-580xx \
+#     --exclude=libnvidia-gpucomp-580xx \
+#     --exclude=nvidia-driver-580xx-cuda-libs \
+#     --exclude=libnvidia-ml-580xx \
+#     dkms-nvidia \
+#     nvidia-driver \
+#     nvidia-modprobe \
+#     nvidia-settings \
+#     libnvidia-gpucomp \
+#     libnvidia-cfg \
+#     nvidia-driver-cuda \
+#     libnvidia-ml \
+#     nvidia-persistenced \
+#     libva-nvidia-driver \
+#     kernel-test-devel-matched
 
 
-# Build DKMS module for the installed kernel
-# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed — make.log:"
-    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
-    exit 1
-}
+# # Build DKMS module for the installed kernel
+# # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
+# NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
+# LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+#     echo "DKMS build failed — make.log:"
+#     cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
+#     exit 1
+# }
 
-# # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
-# # akmods installs the resulting kmod RPM so the .ko lands in
-# # /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
-# echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
-# mkdir -p /var/log/akmods
-# touch /var/log/akmods/akmods.log
-# akmods --kernels "$QUALIFIED_KERNEL" --rebuild
-# # Install any built kmod RPMs from the cache
-# find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
+# # # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
+# # # akmods installs the resulting kmod RPM so the .ko lands in
+# # # /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
+# # echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+# # mkdir -p /var/log/akmods
+# # touch /var/log/akmods/akmods.log
+# # akmods --kernels "$QUALIFIED_KERNEL" --rebuild
+# # # Install any built kmod RPMs from the cache
+# # find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
-# Enable NVIDIA power management services
-systemctl enable nvidia-powerd.service \
-     nvidia-persistenced.service
+# # Enable NVIDIA power management services
+# systemctl enable nvidia-powerd.service \
+#      nvidia-persistenced.service
 
 # Sign all DKMS extra modules with MOK key (skipped silently if key not present)
 # Must happen BEFORE kernel-p03-devel-matched is removed (sign-file lives there).
