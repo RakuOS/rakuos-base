@@ -16,7 +16,7 @@ https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_
 rpm --import https://repo.rakuos.org/pubkey.gpg
 
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
-
+sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.repo
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
 dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
@@ -53,7 +53,7 @@ dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03 kernel-p03-devel kernel-p03-devel-matched
+dnf5 -y --setopt=tsflags=noscripts install kernel-test kernel-test-devel kernel-test-devel-matched
 
 dnf5 -y install --skip-unavailable intel-vaapi-driver \
 libopenjph \
@@ -80,7 +80,7 @@ dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
 dnf5 -y upgrade --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-test)
 
 # install packages
 dnf5 -y install @fonts @hardware-support \
