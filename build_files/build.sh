@@ -168,6 +168,7 @@ os-prober \
 rakuos-branding \
 rakuos-core \
 rakuos-release \
+rakuos-rum \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \

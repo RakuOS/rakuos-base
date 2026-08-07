@@ -180,6 +180,7 @@ os-prober \
 rakuos-branding \
 rakuos-core \
 ${RAKUOS_RELEASE_PKG} \
+rakuos-rum \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
