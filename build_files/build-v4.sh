@@ -36,7 +36,7 @@ rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-
               https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-rum remove -y 'selinux-policy*' 'policycoreutils-gui' 'rpm-plugin-selinux'
+rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
