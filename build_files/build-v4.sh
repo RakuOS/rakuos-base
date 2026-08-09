@@ -32,10 +32,8 @@ sed -i '/^\[rakuos-v4\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.
 dnf5 -y install rakuos-rum rum-dnf-shim
 
 ## rpmfusion release RPMs — rum has no URL-install path, so fetch locally first
-curl -fsSLO https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm
-curl -fsSLO https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
-rum install -y ./rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm ./rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
-rm -f ./rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm ./rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
+              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 rum upgrade -y --best --allowerasing $(rpm -qa --qf '%{NAME}\n' 'rpm*' 'ostree*')
