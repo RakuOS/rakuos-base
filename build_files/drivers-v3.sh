@@ -5,7 +5,7 @@ set -ouex pipefail
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v3)
 
-dnf5 install -y \
+rum install -y \
     akmods \
     dkms \
     kernel-p03-v3-devel \
@@ -33,7 +33,7 @@ trap 'rm -rf "$tmpdir"' EXIT
 echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
 akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
-find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5 install -y
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r rum install -y
 
 echo "Building xone from upstream main branch..."
 git clone --depth 1 https://github.com/medusalix/xone.git "$tmpdir/xone"

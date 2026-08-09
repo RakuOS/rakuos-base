@@ -15,28 +15,37 @@ fi
 ## DNF5 Speedup
 sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
 
-## Enable repos
+## Enable the rakuos repo first — rum itself lives in it, so this has to
+## happen before anything else, using the base image's real dnf5 since rum
+## doesn't exist yet.
 dnf5 -y install dnf5-plugins
-
-dnf5 -y install \
-https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
-https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
-
 rpm --import https://repo.rakuos.org/pubkey.gpg
-
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.repo
 
+## Install rum + the dnf/dnf5 shims as the very first packages — from here
+## on, every install/remove/upgrade/swap in this script goes through rum
+## directly instead of dnf5 (rum-dnf-shim also Obsoletes/Conflicts the real
+## dnf5/dnf packages, so they're gone from the image after this point
+## regardless).
+dnf5 -y install rakuos-rum rum-dnf-shim
+
+## rpmfusion release RPMs — rum has no URL-install path, so fetch locally first
+curl -fsSLO https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm
+curl -fsSLO https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+rum install -y ./rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm ./rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+rm -f ./rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm ./rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
-dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
+rum upgrade -y --best --allowerasing $(rpm -qa --qf '%{NAME}\n' 'rpm*' 'ostree*')
+rum remove -y $(rpm -qa --qf '%{NAME}\n' 'selinux-policy*' 'policycoreutils-gui')
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
-dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
+rum install -y --no-gpgchecks --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
+rum install -y --no-gpgchecks --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
@@ -59,41 +68,41 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
+rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03-v3 kernel-p03-v3-devel kernel-p03-v3-devel-matched
+rum install -y --setopt=tsflags=noscripts kernel-p03-v3 kernel-p03-v3-devel kernel-p03-v3-devel-matched
 
-dnf5 -y install --skip-unavailable intel-vaapi-driver \
+rum install -y --skip-unavailable intel-vaapi-driver \
 libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
 
-dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
-dnf5 -y install libfdk-aac
-dnf5 -y swap libavcodec-free libavcodec --allowerasing
-dnf5 -y swap libavformat-free libavformat --allowerasing
-dnf5 -y swap libavutil-free libavutil --allowerasing
-dnf5 -y swap libavfilter-free libavfilter --allowerasing
-dnf5 -y swap libswscale-free libswscale --allowerasing
+rum swap -y ffmpeg-free ffmpeg --allowerasing
+rum install -y libfdk-aac
+rum swap -y libavcodec-free libavcodec --allowerasing
+rum swap -y libavformat-free libavformat --allowerasing
+rum swap -y libavutil-free libavutil --allowerasing
+rum swap -y libavfilter-free libavfilter --allowerasing
+rum swap -y libswscale-free libswscale --allowerasing
 
-dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
+rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
 
-dnf5 -y upgrade --best 'mesa-*' 'pipewire*'
+rum upgrade -y --best $(rpm -qa --qf '%{NAME}\n' 'mesa-*' 'pipewire*')
 
-dnf5 -y upgrade --best 'pipewire*'
+rum upgrade -y --best $(rpm -qa --qf '%{NAME}\n' 'pipewire*')
 
-dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
+rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
-dnf5 -y upgrade --best --allowerasing 'systemd*'
+rum upgrade -y --best --allowerasing $(rpm -qa --qf '%{NAME}\n' 'systemd*')
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v3)
 
 # install packages
-dnf5 -y install @fonts @hardware-support \
+rum install -y @fonts @hardware-support \
 7zip \
 alsa-firmware \
 appstream \
@@ -179,7 +188,6 @@ os-prober \
 rakuos-branding \
 rakuos-core \
 ${RAKUOS_RELEASE_PKG} \
-rakuos-rum \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \
@@ -221,13 +229,13 @@ zsh \
 zstd
 
 ## Remove packages
-dnf5 -y remove firefox* \
+rum remove -y $(rpm -qa --qf '%{NAME}\n' 'firefox*') \
 toolbox \
 fedora-flathub-remote \
 fedora-third-party \
 fedora-workstation-repositories
 
-dnf5 -y swap ocl-icd OpenCL-ICD-Loader --allowerasing
+rum swap -y ocl-icd OpenCL-ICD-Loader --allowerasing
 
 # use CoreOS' generator for emergency/rescue boot
 # see detail: https://github.com/ublue-os/main/issues/653
@@ -285,3 +293,4 @@ echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme
 /tmp/WhiteSur-icon-theme/install.sh -b -a -t all
 rm -rf /tmp/WhiteSur-icon-theme
+</content>
