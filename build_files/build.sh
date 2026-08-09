@@ -3,13 +3,9 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
-## DNF5 Speedup
-sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
-
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
 ## doesn't exist yet.
-dnf5 -y install dnf5-plugins
 rpm --import https://repo.rakuos.org/pubkey.gpg
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 
@@ -20,7 +16,7 @@ dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.re
 ## regardless).
 dnf5 -y install rakuos-rum rum-dnf-shim
 
-## rpmfusion release RPMs — rum has no URL-install path, so fetch locally first
+## rpmfusion release RPMs
 rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
