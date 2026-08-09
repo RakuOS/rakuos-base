@@ -253,7 +253,6 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 systemctl enable \
 rakuos-base-protect.service \
 rakuos-overlay-sync.service \
-rakuos-overlay-update.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
