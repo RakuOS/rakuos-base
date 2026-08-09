@@ -8,7 +8,7 @@ set -ouex pipefail
 mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
 
 # Mark all base image packages as dependency so PackageKit only manages overlay packages
-rum mark -y dependency $(rpm -qa --qf '%{NAME} ')
+rum mark -y dependency '*'
 
 # Create rpm-ostree wrapper
 cat > /usr/bin/rpm-ostree << 'WRAPPER'

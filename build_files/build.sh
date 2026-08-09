@@ -25,8 +25,8 @@ rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-
               https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-rum remove -y $(rpm -qa --qf '%{NAME}\n' 'selinux-policy*' 'policycoreutils-gui' 'rpm-plugin-selinux')
-rum upgrade -y --best --allowerasing $(rpm -qa --qf '%{NAME}\n' 'rpm*' 'ostree*')
+rum remove -y 'selinux-policy*' 'policycoreutils-gui' 'rpm-plugin-selinux'
+rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
@@ -78,13 +78,13 @@ rum swap -y libswscale-free libswscale --allowerasing
 
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
 
-rum upgrade -y --best $(rpm -qa --qf '%{NAME}\n' 'mesa-*' 'pipewire*')
+rum upgrade -y --best 'mesa-*' 'pipewire*'
 
-rum upgrade -y --best $(rpm -qa --qf '%{NAME}\n' 'pipewire*')
+rum upgrade -y --best 'pipewire*'
 
 rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
-rum upgrade -y --best --allowerasing $(rpm -qa --qf '%{NAME}\n' 'systemd*')
+rum upgrade -y --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
@@ -216,7 +216,7 @@ zsh \
 zstd
 
 ## Remove packages
-rum remove -y $(rpm -qa --qf '%{NAME}\n' 'firefox*') \
+rum remove -y 'firefox*' \
 toolbox \
 fedora-flathub-remote \
 fedora-third-party \
