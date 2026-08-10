@@ -77,7 +77,7 @@ heif-pixbuf-loader
 
 
 rum swap -y ffmpeg-free ffmpeg --allowerasing
-rum install -y libfdk-aac
+rum swap -y fdk-aac-free libfdk-aac --allowerasing
 rum swap -y libavcodec-free libavcodec --allowerasing
 rum swap -y libavformat-free libavformat --allowerasing
 rum swap -y libavutil-free libavutil --allowerasing
