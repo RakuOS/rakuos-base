@@ -56,7 +56,7 @@ rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-c
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-rum install -y --setopt=tsflags=noscripts kernel-p03-v2-core kernel-p03-v2 kernel-p03-v2-modules kernel-p03-v2-devel kernel-p03-v2-devel-matched
+rum install -y --setopt=tsflags=noscripts kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
 
 rum install -y --skip-unavailable intel-vaapi-driver \
 libopenjph \
