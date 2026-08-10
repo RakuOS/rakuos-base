@@ -290,4 +290,3 @@ echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 git clone https://github.com/vinceliuice/WhiteSur-icon-theme.git /tmp/WhiteSur-icon-theme
 /tmp/WhiteSur-icon-theme/install.sh -b -a -t all
 rm -rf /tmp/WhiteSur-icon-theme
-</content>
