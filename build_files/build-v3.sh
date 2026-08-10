@@ -86,9 +86,9 @@ rum swap -y libswscale-free libswscale --allowerasing
 
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
 
-rum upgrade -y --best 'mesa-*' 'pipewire*'
+rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 
-rum upgrade -y --best 'pipewire*'
+rum upgrade -y --best --allowerasing 'pipewire*'
 
 rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
