@@ -686,7 +686,7 @@ test-image-standard:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -711,7 +711,7 @@ test-image-nvidia:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -719,7 +719,7 @@ test-image-nvidia:
 
       echo "=== Image stress test: NVIDIA packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do dnf5.real reinstall -y --allowerasing "$pkg" || dnf5.real install -y --allowerasing "$pkg"; done'
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
       buildah rm "${CTR}" || true
       echo "Image stress test (NVIDIA) passed."
@@ -740,7 +740,7 @@ test-image-standard-v4:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -765,7 +765,7 @@ test-image-standard-v3:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -790,7 +790,7 @@ test-image-nvidia-v4:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -798,7 +798,7 @@ test-image-nvidia-v4:
 
       echo "=== Image stress test: NVIDIA packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do dnf5.real reinstall -y --allowerasing "$pkg" || dnf5.real install -y --allowerasing "$pkg"; done'
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
       buildah rm "${CTR}" || true
       echo "Image stress test (NVIDIA) passed."
@@ -819,7 +819,7 @@ test-image-nvidia-v3:
 
       echo "=== Image stress test: Justfile + Anaconda packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        dnf5.real install -y --allowerasing \
+        rum install -y --allowerasing \
           --enable-repo=fedora-cisco-openh264 \
           dracut-live livesys-scripts fuse-overlayfs \
           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
@@ -827,7 +827,7 @@ test-image-nvidia-v3:
 
       echo "=== Image stress test: NVIDIA packages ==="
       buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do dnf5.real reinstall -y --allowerasing "$pkg" || dnf5.real install -y --allowerasing "$pkg"; done'
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
       buildah rm "${CTR}" || true
       echo "Image stress test (NVIDIA) passed."
