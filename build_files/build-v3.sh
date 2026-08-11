@@ -79,10 +79,12 @@ heif-pixbuf-loader
 rum swap -y ffmpeg-free ffmpeg --allowerasing
 rum swap -y fdk-aac-free libfdk-aac --allowerasing
 rum swap -y libavcodec-free libavcodec --allowerasing
+rum swap -y libavdevice-free libavdevice --allowerasin
 rum swap -y libavformat-free libavformat --allowerasing
 rum swap -y libavutil-free libavutil --allowerasing
 rum swap -y libavfilter-free libavfilter --allowerasing
 rum swap -y libswscale-free libswscale --allowerasing
+rum swap -y libavdevice-free libavdevice --allowerasing
 
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
 
