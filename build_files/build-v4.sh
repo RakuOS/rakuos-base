@@ -86,7 +86,7 @@ rum swap -y libavfilter-free libavfilter --allowerasing
 rum swap -y libswscale-free libswscale --allowerasing
 rum swap -y libavdevice-free libavdevice --allowerasing
 
-rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva.i686
+rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libheif.i686 libva libva.i686
 
 rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 
