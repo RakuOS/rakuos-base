@@ -90,7 +90,7 @@ rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 m
 
 rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 
-rum upgrade -y --best --allowerasing 'pipewire*'
+rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
 rum upgrade -y --best --allowerasing 'systemd*'
 
