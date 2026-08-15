@@ -35,29 +35,6 @@ akmods --kernels "$QUALIFIED_KERNEL" --rebuild
 # Install any built kmod RPMs from the cache
 find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r rum install -y
 
-echo "Building xone from upstream main branch..."
-git clone --depth 1 https://github.com/medusalix/xone.git "$tmpdir/xone"
-
-pushd "$tmpdir/xone"
-XONE_VERSION="0.0.3.git$(git rev-parse --short HEAD)"
-echo "Installing xone ${XONE_VERSION} support files, firmware, and DKMS source tree..."
-rm -rf /usr/src/xone-"${XONE_VERSION}"
-cp -a . /usr/src/xone-"${XONE_VERSION}"
-find /usr/src/xone-"${XONE_VERSION}" -type f \( -name dkms.conf -o -name '*.c' \) \
-    -exec sed -i "s/#VERSION#/${XONE_VERSION}/g" {} +
-install -D -m 0644 install/modprobe.conf /usr/lib/modprobe.d/xone-blacklist.conf
-install -D -m 0755 install/firmware.sh /usr/bin/xone-get-firmware.sh
-LD=ld.bfd dkms install -m xone -v "${XONE_VERSION}" -k "${QUALIFIED_KERNEL}" --force || {
-    echo "DKMS build failed for xone ${XONE_VERSION} — make.log:"
-    cat "/var/lib/dkms/xone/${XONE_VERSION}/build/make.log" 2>/dev/null || true
-    exit 1
-}
-(
-    cd /tmp
-    xone-get-firmware.sh --skip-disclaimer
-)
-popd
-
 # ASUS G733ZM HDA audio firmware — sits in /usr/lib/firmware unused on other hardware.
 # The modprobe config that activates it is written at runtime via `rakuos setup-g733zm-audio`.
 # https://github.com/Hyperchaotic/G733ZM-audio-fix
