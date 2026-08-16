@@ -6,7 +6,7 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v4)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-rum install -y --setopt=tsflags=noscripts \
+rum install -y --setopt=tsflags=noscripts --skip-broken \
     --exclude=libnvidia-cfg-580xx \
     --exclude=libnvidia-gpucomp-580xx \
     --exclude=nvidia-driver-580xx-cuda-libs \
