@@ -131,6 +131,7 @@ fuse \
 fwupd \
 fzf \
 git \
+golang-github-jesseduffield-lazygit \
 google-noto-sans-balinese-fonts \
 google-noto-sans-cjk-fonts \
 google-noto-sans-javanese-fonts \
@@ -145,7 +146,6 @@ gvfs-smb \
 htop \
 inotify-tools \
 just \
-lazygit \
 libcamera \
 libcamera-gstreamer \
 libcamera-ipa \
