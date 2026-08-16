@@ -16,7 +16,6 @@ rum install -y --setopt=tsflags=noscripts \
     nvidia-modprobe \
     nvidia-settings \
     nvidia-driver-cuda \
-    libnvidia-gpucomp \
     libnvidia-cfg \
     libnvidia-ml \
     nvidia-persistenced \

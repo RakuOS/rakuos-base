@@ -15,10 +15,7 @@ rum install -y --setopt=tsflags=noscripts \
     nvidia-driver \
     nvidia-modprobe \
     nvidia-settings \
-    libnvidia-gpucomp \
     nvidia-driver-cuda \
-    libnvidia-cfg \
-    libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
     kernel-p03-v3-devel-matched
