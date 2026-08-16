@@ -29,8 +29,8 @@ rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
 rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release
-rum install -y --no-gpgchecks --repofrompath "terra-mesa,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-mesa
-rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-nvidia
+rum install -y --no-gpgchecks --repofrompath "terra-mesa,https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa" terra-release-mesa
+rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia" terra-release-nvidia
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
@@ -121,7 +121,6 @@ fuse \
 fwupd \
 fzf \
 git \
-golang-github-jesseduffield-lazygit \
 google-noto-sans-balinese-fonts \
 google-noto-sans-cjk-fonts \
 google-noto-sans-javanese-fonts \
@@ -136,6 +135,7 @@ gvfs-smb \
 htop \
 inotify-tools \
 just \
+lazygit \
 libcamera \
 libcamera-gstreamer \
 libcamera-ipa \
