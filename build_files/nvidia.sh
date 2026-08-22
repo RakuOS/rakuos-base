@@ -6,7 +6,7 @@ set -ouex pipefail
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
-dnf5.real install -y --setopt=tsflags=noscripts \
+rum install -y --setopt=tsflags=noscripts --skip-broken \
     --exclude=libnvidia-cfg-580xx \
     --exclude=libnvidia-gpucomp-580xx \
     --exclude=nvidia-driver-580xx-cuda-libs \
@@ -16,9 +16,6 @@ dnf5.real install -y --setopt=tsflags=noscripts \
     nvidia-modprobe \
     nvidia-settings \
     nvidia-driver-cuda \
-    libnvidia-gpucomp \
-    libnvidia-cfg \
-    libnvidia-ml \
     nvidia-persistenced \
     libva-nvidia-driver \
     kernel-p03-v2-devel-matched
@@ -27,7 +24,18 @@ dnf5.real install -y --setopt=tsflags=noscripts \
 # Build DKMS module for the installed kernel
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" --force || {
+
+# dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
+# more clang jobs than the build container's memory cgroup can hold — the
+# whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
+# what's actually available (~1.5GB/job) instead of raw core count.
+MEM_AVAIL_MB=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1024 ))
+PARALLEL_JOBS=$(( MEM_AVAIL_MB / 1500 ))
+NPROC=$(nproc)
+(( PARALLEL_JOBS > NPROC )) && PARALLEL_JOBS=$NPROC
+(( PARALLEL_JOBS < 1 )) && PARALLEL_JOBS=1
+
+LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" -j "${PARALLEL_JOBS}" --force || {
     echo "DKMS build failed — make.log:"
     cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
     exit 1

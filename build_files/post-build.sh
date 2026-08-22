@@ -2,13 +2,13 @@
 
 set -ouex pipefail
 
-# Rename real dnf5 and dnf binaries
-mv /usr/bin/dnf5 /usr/bin/dnf5.real
-mv /usr/bin/dnf /usr/bin/dnf.real
+# Rename real rpm-ostree binary — dnf5/dnf are already the rum-dnf-shim
+# binaries at this point (rum-dnf-shim's spec Obsoletes/Conflicts the real
+# dnf5/dnf packages), so there's nothing to rename/wrap for those anymore.
 mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
 
 # Mark all base image packages as dependency so PackageKit only manages overlay packages
-dnf5.real -y mark dependency $(rpm -qa --qf '%{NAME} ') --skip-unavailable
+rum mark -y dependency '*'
 
 # Create rpm-ostree wrapper
 cat > /usr/bin/rpm-ostree << 'WRAPPER'
@@ -45,7 +45,7 @@ case "$COMMAND" in
         ;;
     search)
         shift
-        exec /usr/bin/dnf5.real search "$@"
+        exec rum search "$@"
         ;;
     *)
         exec rpm-ostree.real "$@"
@@ -53,45 +53,8 @@ case "$COMMAND" in
 esac
 WRAPPER
 
-# Create dnf5 wrapper
-cat > /usr/bin/dnf5 << 'WRAPPER'
-#!/usr/bin/env bash
-COMMAND="${1:-}"
-case "$COMMAND" in
-    install)
-        shift
-        exec rakupkg install "$@"
-        ;;
-    update)
-        shift
-        exec rakupkg update "$@"
-        ;;
-    upgrade)
-        shift
-        exec rakupkg update "$@"
-        ;;
-    distro-sync|dsync)
-        shift
-        exec rakupkg update "$@"
-        ;;
-    remove|erase)
-        shift
-        exec rakupkg remove "$@"
-        ;;
-    *)
-        exec /usr/bin/dnf5.real "$@"
-        ;;
-esac
-WRAPPER
-
-# Create dnf wrapper
-cat > /usr/bin/dnf << 'WRAPPER'
-#!/usr/bin/env bash
-exec /usr/bin/dnf5 "$@"
-WRAPPER
-
-# Make all wrappers executable
-chmod +x /usr/bin/dnf5 /usr/bin/dnf /usr/bin/rpm-ostree
+# Make the wrapper executable
+chmod +x /usr/bin/rpm-ostree
 
 # Wire up /etc/zshrc.d/ fragment sourcing (Fedora's zsh doesn't do this by default).
 mkdir -p /etc/zshrc.d

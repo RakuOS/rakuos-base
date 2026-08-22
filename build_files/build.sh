@@ -3,30 +3,35 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
-## DNF5 Speedup
-sed -i '/^\[main\]/a max_parallel_downloads=10' /etc/dnf/dnf.conf
-
-## Enable repos
-dnf5 -y install dnf5-plugins
-
-dnf5 -y install \
-https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
-https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
-
+## Enable the rakuos repo first — rum itself lives in it, so this has to
+## happen before anything else, using the base image's real dnf5 since rum
+## doesn't exist yet.
 rpm --import https://repo.rakuos.org/pubkey.gpg
-
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 
+## Install rum + the dnf/dnf5 shims as the very first packages — from here
+## on, every install/remove/upgrade/swap in this script goes through rum
+## directly instead of dnf5 (rum-dnf-shim also Obsoletes/Conflicts the real
+## dnf5/dnf packages, so they're gone from the image after this point
+## regardless).
+dnf5 -y install rakuos-rum rum-dnf-shim
+
+## rpmfusion release RPMs
+rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
+              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-dnf5 -y upgrade --best --allowerasing 'rpm*' 'ostree*'
-dnf5 -y remove selinux-policy\* selinux-policy-targeted selinux-policy-devel policycoreutils-gui
+rum remove -y 'selinux-policy*' 'policycoreutils-gui'
+rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
-dnf5 -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-dnf5 -y install --nogpgcheck --repofrompath 'terra-mesa,https://repos.fyralabs.com/terra$releasever' terra-release-mesa
+rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release
+rum install -y --no-gpgchecks --repofrompath "terra-mesa,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-mesa
+rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-nvidia
+
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
@@ -49,41 +54,40 @@ for REPO in $TERRA_REPOS; do
 done
 
 #remove fedora kernel and zram config
-dnf5 -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
+rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-dnf5 -y --setopt=tsflags=noscripts install kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
+rum install -y --setopt=tsflags=noscripts kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
 
-dnf5 -y install --skip-unavailable intel-vaapi-driver \
+rum install -y --skip-unavailable intel-vaapi-driver \
 libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
 
-dnf5 -y swap ffmpeg-free ffmpeg --allowerasing
-dnf5 -y install libfdk-aac
-dnf5 -y swap libavcodec-free libavcodec --allowerasing
-dnf5 -y swap libavformat-free libavformat --allowerasing
-dnf5 -y swap libavutil-free libavutil --allowerasing
-dnf5 -y swap libavfilter-free libavfilter --allowerasing
-dnf5 -y swap libswscale-free libswscale --allowerasing
+rum swap -y ffmpeg-free ffmpeg --allowerasing
+rum swap -y fdk-aac-free libfdk-aac --allowerasing
+rum swap -y libavcodec-free libavcodec --allowerasing
+rum swap -y libavformat-free libavformat --allowerasing
+rum swap -y libavutil-free libavutil --allowerasing
+rum swap -y libavfilter-free libavfilter --allowerasing
+rum swap -y libswscale-free libswscale --allowerasing
+rum swap -y libavdevice-free libavdevice --allowerasing
 
-dnf5 -y install mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif
+rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
 
-dnf5 -y upgrade --best 'mesa-*' 'pipewire*'
+rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 
-dnf5 -y upgrade --best 'pipewire*'
+rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
-dnf5 -y install pipewire-libs.i686 pipewire-alsa.i686
-
-dnf5 -y upgrade --best --allowerasing 'systemd*'
+rum upgrade -y --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
 
 # install packages
-dnf5 -y install @fonts @hardware-support \
+rum install -y @fonts @hardware-support \
 7zip \
 alsa-firmware \
 appstream \
@@ -209,13 +213,13 @@ zsh \
 zstd
 
 ## Remove packages
-dnf5 -y remove firefox* \
+rum remove -y 'firefox*' \
 toolbox \
 fedora-flathub-remote \
 fedora-third-party \
 fedora-workstation-repositories
 
-dnf5 -y swap ocl-icd OpenCL-ICD-Loader --allowerasing
+rum swap -y ocl-icd OpenCL-ICD-Loader --allowerasing
 
 # use CoreOS' generator for emergency/rescue boot
 # see detail: https://github.com/ublue-os/main/issues/653
@@ -252,10 +256,10 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 systemctl enable \
 rakuos-base-protect.service \
 rakuos-overlay-sync.service \
-rakuos-overlay-update.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-cache-clean.timer \
+rum-makecache.timer \
 dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
