@@ -36,7 +36,7 @@ stages:
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   before_script:
     - |
       case "${CI_COMMIT_BRANCH}" in
@@ -836,7 +836,7 @@ test-image-nvidia-v3:
   stage: test
   image: quay.io/fedora/fedora:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   allow_failure: true
   script:
     - |
@@ -902,7 +902,7 @@ sign-image-standard:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-standard
       artifacts: false
@@ -949,7 +949,7 @@ sign-image-nvidia:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-nvidia
       artifacts: false
@@ -996,7 +996,7 @@ sign-image-standard-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-standard-v4
       artifacts: false
@@ -1043,7 +1043,7 @@ sign-image-standard-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-standard-v3
       artifacts: false
@@ -1090,7 +1090,7 @@ sign-image-nvidia-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-nvidia-v4
       artifacts: false
@@ -1137,7 +1137,7 @@ sign-image-nvidia-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-medium-amd64
   needs:
     - job: test-image-nvidia-v3
       artifacts: false
