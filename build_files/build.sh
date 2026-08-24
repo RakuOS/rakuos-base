@@ -35,6 +35,10 @@ rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralab
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 
+# RakuOS drops SELinux/AppArmor entirely (see rum remove -y 'selinux-policy*' above) —
+# exclude Terra's apparmor packages so they can never shadow/pull in over our base
+echo 'excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' | tee -a /etc/yum.repos.d/terra*.repo
+
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
 TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
