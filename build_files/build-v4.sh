@@ -265,6 +265,12 @@ systemctl mask systemd-remount-fs.service
 systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
 
+# Statically enable getty on tty2-6 -- confirmed on real hardware that
+# systemd-logind's on-demand autovt@ auto-start (which is supposed to spawn
+# a getty the moment you switch to an unallocated VT) does not reliably fire
+# on this kernel/image, leaving Ctrl+Alt+F<n> landing on a dead console with no login prompt.
+systemctl enable getty@tty1.service getty@tty2.service getty@tty3.service getty@tty4.service getty@tty5.service getty@tty6.service
+
 # sudo requires the drop-in directory to be root-owned, non-world-writable,
 # and executable (0750), and drop-in files to be 0440.
 chown root:root /etc/sudoers.d
