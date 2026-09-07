@@ -35,12 +35,8 @@ rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
+
 rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release
-rum install -y --no-gpgchecks --repofrompath "terra-mesa,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-mesa
-rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-nvidia
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
@@ -52,12 +48,10 @@ sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
 # section is last in the file, i.e. the disabled -source one, not the
 # enabled repo) — insert right after each enabled section's own header.
 sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra.repo
-sed -i '/^\[terra-mesa\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-mesa.repo
-sed -i '/^\[terra-nvidia\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-nvidia.repo
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
-TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
+TERRA_REPOS="terra${FEDORA_VERSION}"
 mkdir -p /usr/share/swcatalog/xml
 for REPO in $TERRA_REPOS; do
     BASE_URL="${TERRA_BASE}/${REPO}/latest/appstream"
