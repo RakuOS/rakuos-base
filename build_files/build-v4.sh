@@ -50,6 +50,16 @@ sed -i '/^\[terra-mesa\]/a excludepkgs=apparmor apparmor-devel apparmor-libs app
 sed -i '/^\[terra-nvidia\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-nvidia.repo
 
 
+# RakuOS drops SELinux/AppArmor entirely (see rum remove -y 'selinux-policy*' above) —
+# exclude Terra's apparmor packages so they can never shadow/pull in over our base.
+# Each terra*.repo file has two sections (an enabled repo + a disabled
+# "-source" one), so this can't be a blind `tee -a` (that lands in whichever
+# section is last in the file, i.e. the disabled -source one, not the
+# enabled repo) — insert right after each enabled section's own header.
+sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra.repo
+sed -i '/^\[terra-mesa\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-mesa.repo
+sed -i '/^\[terra-nvidia\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-nvidia.repo
+
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
 TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
@@ -258,6 +268,12 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
+
+# Statically enable getty on tty2-6 -- confirmed on real hardware that
+# systemd-logind's on-demand autovt@ auto-start (which is supposed to spawn
+# a getty the moment you switch to an unallocated VT) does not reliably fire
+# on this kernel/image, leaving Ctrl+Alt+F<n> landing on a dead console with no login prompt.
+systemctl enable getty@tty2.service getty@tty3.service getty@tty4.service getty@tty5.service getty@tty6.service
 
 # sudo requires the drop-in directory to be root-owned, non-world-writable,
 # and executable (0750), and drop-in files to be 0440.

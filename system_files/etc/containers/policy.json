@@ -57,6 +57,11 @@
           "type": "insecureAcceptAnything"
         }
       ],
+      "mcr.microsoft.com": [
+        {
+          "type": "insecureAcceptAnything"
+        }
+      ],
       "cgr.dev": [
         {
           "type": "insecureAcceptAnything"

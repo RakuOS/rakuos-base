@@ -1214,6 +1214,7 @@ trigger-downstream:
       trigger_pipeline "${TRIGGER_TOKEN_GNOME}" "${PROJECT_ID_GNOME}"
       trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" "${PROJECT_ID_COSMIC}"
       trigger_pipeline "${TRIGGER_TOKEN_NIRI}" "${PROJECT_ID_NIRI}"
+      trigger_pipeline "${TRIGGER_TOKEN_MINIMAL}" "${PROJECT_ID_MINIMAL}"
       # gamescope is based on the kde image, not directly on base — kde's
       # own dispatch stage triggers it once the kde image itself has
       # finished building, so it isn't triggered from here anymore.
