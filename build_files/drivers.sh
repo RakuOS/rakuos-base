@@ -2,14 +2,21 @@
 
 set -ouex pipefail
 
+# Same staging switch as build.sh (RAKUOS_STAGING persists as an image ENV
+# from that layer, so it's already set here).
+KERNEL_PKG="kernel-p03-v2"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_PKG="kernel-p03-v2-staging"
+fi
+
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 rum install -y \
     akmods \
     dkms \
-    kernel-p03-v2-devel \
-    kernel-p03-v2-devel-matched \
+    ${KERNEL_PKG}-devel \
+    ${KERNEL_PKG}-devel-matched \
     gcc \
     make \
     cabextract \

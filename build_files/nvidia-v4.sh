@@ -2,8 +2,15 @@
 
 set -ouex pipefail
 
+# Same staging switch as build-v4.sh — RAKUOS_STAGING is inherited here as
+# an image ENV baked into the rakuos-base image this stage builds FROM.
+KERNEL_PKG="kernel-p03-v4"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_PKG="kernel-p03-v4-staging"
+fi
+
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v4)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 rum install -y --setopt=tsflags=noscripts --skip-broken \
@@ -18,7 +25,7 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     nvidia-driver-cuda \
     nvidia-persistenced \
     libva-nvidia-driver \
-    kernel-p03-v4-devel-matched
+    ${KERNEL_PKG}-devel-matched
 
 
 # Build DKMS module for the installed kernel

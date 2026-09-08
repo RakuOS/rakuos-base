@@ -3,6 +3,24 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
+# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
+# install the staging os-release identity instead of the stable one, so
+# staging images identify themselves as "RakuOS Staging" (see
+# rakuos-release.spec's staging subpackages).
+RAKUOS_RELEASE_PKG="rakuos-release"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_RELEASE_PKG="rakuos-release-staging"
+fi
+
+# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
+# track kernel-staging's -staging tagged builds (kernel-p03-v2-staging)
+# instead of the stable kernel repo's kernel-p03-v2, so staging images pick
+# up in-flight kernel changes.
+KERNEL_PKG="kernel-p03-v2"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_PKG="kernel-p03-v2-staging"
+fi
+
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
 ## doesn't exist yet.
@@ -25,12 +43,9 @@ rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-mesa/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-multimedia/key.asc
-rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}-nvidia/key.asc
+
 rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release
-rum install -y --no-gpgchecks --repofrompath "terra-mesa,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-mesa
-rum install -y --no-gpgchecks --repofrompath "terra-nvidia,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release-nvidia
+
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
@@ -45,12 +60,10 @@ sed -i '/^\[terra-nvidia\]/a excludepkgs=apparmor apparmor-devel apparmor-libs a
 # section is last in the file, i.e. the disabled -source one, not the
 # enabled repo) — insert right after each enabled section's own header.
 sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra.repo
-sed -i '/^\[terra-mesa\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-mesa.repo
-sed -i '/^\[terra-nvidia\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra-nvidia.repo
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
-TERRA_REPOS="terra${FEDORA_VERSION} terra${FEDORA_VERSION}-mesa terra${FEDORA_VERSION}-extras terra${FEDORA_VERSION}-multimedia"
+TERRA_REPOS="terra${FEDORA_VERSION}"
 mkdir -p /usr/share/swcatalog/xml
 for REPO in $TERRA_REPOS; do
     BASE_URL="${TERRA_BASE}/${REPO}/latest/appstream"
@@ -71,7 +84,7 @@ rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-c
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-rum install -y --setopt=tsflags=noscripts kernel-p03-v2 kernel-p03-v2-devel kernel-p03-v2-devel-matched
+rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
 rum install -y --skip-unavailable intel-vaapi-driver \
 libopenjph \
@@ -97,7 +110,7 @@ rum install -y pipewire-libs.i686 pipewire-alsa.i686
 rum upgrade -y --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v2)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # install packages
 rum install -y @fonts @hardware-support \
@@ -184,7 +197,7 @@ python3-setuptools \
 os-prober \
 rakuos-branding \
 rakuos-core \
-rakuos-release \
+${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
 ripgrep \

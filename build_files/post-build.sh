@@ -138,12 +138,19 @@ else
     > "$PROTECTED_FILE"
 fi
 
-cat >> "$PROTECTED_FILE" << 'EOF'
+# Same staging switch as build.sh — RAKUOS_STAGING persists as an image ENV
+# from that layer, so it's already set here.
+KERNEL_PKG="kernel-p03-v2"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_PKG="kernel-p03-v2-staging"
+fi
+
+cat >> "$PROTECTED_FILE" << EOF
 
 # Base image packages (from rakuos-base/build_files/build.sh)
 dnf5-plugins
-kernel-p03-v2
-kernel-p03-v2-devel-matched
+${KERNEL_PKG}
+${KERNEL_PKG}-devel-matched
 intel-vaapi-driver
 libopenjph
 libva-utils
