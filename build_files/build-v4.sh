@@ -12,6 +12,14 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_RELEASE_PKG="rakuos-release-staging"
 fi
 
+# Same switch for the kernel: on staging, track kernel-staging's -staging
+# tagged builds (kernel-p03-v4-staging) instead of the stable kernel repo's
+# kernel-p03-v4, so staging images pick up in-flight kernel changes.
+KERNEL_PKG="kernel-p03-v4"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_PKG="kernel-p03-v4-staging"
+fi
+
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
 ## doesn't exist yet.
@@ -73,7 +81,7 @@ rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-c
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install cachyos kernel
-rum install -y --setopt=tsflags=noscripts kernel-p03-v4 kernel-p03-v4-devel kernel-p03-v4-devel-matched
+rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
 rum install -y --skip-unavailable intel-vaapi-driver \
 libopenjph \
@@ -99,7 +107,7 @@ rum install -y pipewire-libs.i686 pipewire-alsa.i686
 rum upgrade -y --best --allowerasing 'systemd*'
 
 # Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-p03-v4)
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # install packages
 rum install -y @fonts @hardware-support \
