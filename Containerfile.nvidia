@@ -12,6 +12,12 @@ COPY build_files /
 FROM ${BASE_IMAGE_REPO}:${BASE_IMAGE_TAG} AS builder
 ARG BASE_IMAGE_TAG
 ENV BASE_IMAGE_TAG=${BASE_IMAGE_TAG}
+# chunkah repacks the base image's filesystem into a fresh OCI image and does
+# NOT carry forward the base Containerfile's `ENV RAKUOS_STAGING` into the
+# published image config, so nvidia.sh can't just inherit it — it has to be
+# passed in here explicitly too (see .gitlab-ci.yml build-push-nvidia).
+ARG RAKUOS_STAGING="0"
+ENV RAKUOS_STAGING=${RAKUOS_STAGING}
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
