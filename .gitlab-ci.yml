@@ -408,6 +408,7 @@ build-push-nvidia:
       buildah build \
         --file Containerfile.nvidia \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -508,6 +509,7 @@ build-push-nvidia-v4:
         --file Containerfile.nvidia.v4 \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V4}" \
+        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -602,6 +604,7 @@ build-push-nvidia-v3:
         --file Containerfile.nvidia.v3 \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V3}" \
+        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
