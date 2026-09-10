@@ -287,6 +287,7 @@ rakuos-base-protect.service \
 rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
+rakuos-grub-theme.service \
 rakuos-cache-clean.timer \
 rum-makecache.timer \
 dmemcg-booster.service \
