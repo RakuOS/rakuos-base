@@ -283,14 +283,10 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
-rakuos-cache-clean.timer \
-rum-makecache.timer \
 dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
-rpm-ostree-clean-metadata.timer \
-rpm-ostree-clean-deployments.timer \
 podman-prune.timer
 
 systemctl enable --global \
