@@ -303,8 +303,6 @@ systemctl enable --global \
 rakuos-user.service
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
-echo 'GRUB_TERMINAL_OUTPUT="gfxterm"' >> /etc/default/grub
-echo 'GRUB_THEME="/boot/grub2/themes/rakuos-mocha-grub-theme/theme.txt"' >> /etc/default/grub
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 
 ## Add custom icons
