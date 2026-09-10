@@ -49,13 +49,6 @@ rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/t
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
-
-# RakuOS drops SELinux/AppArmor entirely (see rum remove -y 'selinux-policy*' above) —
-# exclude Terra's apparmor packages so they can never shadow/pull in over our base.
-# Each terra*.repo file has two sections (an enabled repo + a disabled
-# "-source" one), so this can't be a blind `tee -a` (that lands in whichever
-# section is last in the file, i.e. the disabled -source one, not the
-# enabled repo) — insert right after each enabled section's own header.
 sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra.repo
 
 # Download Terra AppStream data for rakuos-software
