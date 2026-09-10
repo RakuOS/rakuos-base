@@ -193,6 +193,7 @@ pulseaudio-utils \
 python3-pip \
 python3-setuptools \
 os-prober \
+ostree-grub2 \
 rakuos-branding \
 rakuos-core \
 ${RAKUOS_RELEASE_PKG} \
