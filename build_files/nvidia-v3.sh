@@ -32,6 +32,22 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
 
+# Newer kernels (Fedora 44+) replaced mm->rss_stat's plain atomic_long_t[]
+# with a percpu-batched `struct lazy_percpu_counter[]`, so nvidia's direct
+# `&mm->rss_stat.count[MM_SHMEMPAGES]` + atomic_long_add_return() poke in
+# nv-vm.c no longer compiles ("member reference base type ... not a
+# structure or union") — nvidia-open 615.71.09 has no conftest for this yet.
+# Swap those two direct-field pokes for the kernel's own add_mm_counter()
+# helper, which is stable across both rss_stat layouts.
+NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
+if [[ -f "$NVIDIA_SRC" ]] && grep -q 'rss_stat\.count\[MM_SHMEMPAGES\]' "$NVIDIA_SRC"; then
+    echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
+    sed -i \
+        -e 's/atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/' \
+        -e 's/atomic_long_add_return(-mm_work->num_pages, &mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/' \
+        "$NVIDIA_SRC"
+fi
+
 # dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
 # more clang jobs than the build container's memory cgroup can hold — the
 # whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
