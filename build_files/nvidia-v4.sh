@@ -18,7 +18,7 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     --exclude=libnvidia-gpucomp-580xx \
     --exclude=nvidia-driver-580xx-cuda-libs \
     --exclude=libnvidia-ml-580xx \
-    dkms-nvidia \
+    akmod-nvidia \
     nvidia-driver \
     nvidia-modprobe \
     nvidia-settings \
@@ -28,42 +28,52 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     dwarves \
     ${KERNEL_PKG}-devel-matched
 
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
 
-# Build DKMS module for the installed kernel
-# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
+# Build akmod packages (e.g. broadcom-wl) for the installed kernel.
+# akmods installs the resulting kmod RPM so the .ko lands in
+# /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
+echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
+akmods --kernels "$QUALIFIED_KERNEL" --rebuild
+# Install any built kmod RPMs from the cache
+find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r rum install -y
 
-# Newer kernels (Fedora 44+) replaced mm->rss_stat's plain atomic_long_t[]
-# with a percpu-batched `struct lazy_percpu_counter[]`, so nvidia's direct
-# `&mm->rss_stat.count[MM_SHMEMPAGES]` + atomic_long_add_return() poke in
-# nv-vm.c no longer compiles ("member reference base type ... not a
-# structure or union") — nvidia-open 615.71.09 has no conftest for this yet.
-# Swap those two direct-field pokes for the kernel's own add_mm_counter()
-# helper, which is stable across both rss_stat layouts.
-NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
-if [[ -f "$NVIDIA_SRC" ]] && grep -q 'rss_stat\.count\[MM_SHMEMPAGES\]' "$NVIDIA_SRC"; then
-    echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
-    sed -i \
-        -e 's/atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/' \
-        -e 's/atomic_long_add_return(-mm_work->num_pages, &mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/' \
-        "$NVIDIA_SRC"
-fi
+# # Build DKMS module for the installed kernel
+# # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
+# NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
 
-# dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
-# more clang jobs than the build container's memory cgroup can hold — the
-# whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
-# what's actually available (~1.5GB/job) instead of raw core count.
-MEM_AVAIL_MB=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1024 ))
-PARALLEL_JOBS=$(( MEM_AVAIL_MB / 1500 ))
-NPROC=$(nproc)
-(( PARALLEL_JOBS > NPROC )) && PARALLEL_JOBS=$NPROC
-(( PARALLEL_JOBS < 1 )) && PARALLEL_JOBS=1
+# # Newer kernels (Fedora 44+) replaced mm->rss_stat's plain atomic_long_t[]
+# # with a percpu-batched `struct lazy_percpu_counter[]`, so nvidia's direct
+# # `&mm->rss_stat.count[MM_SHMEMPAGES]` + atomic_long_add_return() poke in
+# # nv-vm.c no longer compiles ("member reference base type ... not a
+# # structure or union") — nvidia-open 615.71.09 has no conftest for this yet.
+# # Swap those two direct-field pokes for the kernel's own add_mm_counter()
+# # helper, which is stable across both rss_stat layouts.
+# NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
+# if [[ -f "$NVIDIA_SRC" ]] && grep -q 'rss_stat\.count\[MM_SHMEMPAGES\]' "$NVIDIA_SRC"; then
+#     echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
+#     sed -i \
+#         -e 's/atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/' \
+#         -e 's/atomic_long_add_return(-mm_work->num_pages, &mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/' \
+#         "$NVIDIA_SRC"
+# fi
 
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" -j "${PARALLEL_JOBS}" --force || {
-    echo "DKMS build failed — make.log:"
-    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
-    exit 1
-}
+# # dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
+# # more clang jobs than the build container's memory cgroup can hold — the
+# # whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
+# # what's actually available (~1.5GB/job) instead of raw core count.
+# MEM_AVAIL_MB=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1024 ))
+# PARALLEL_JOBS=$(( MEM_AVAIL_MB / 1500 ))
+# NPROC=$(nproc)
+# (( PARALLEL_JOBS > NPROC )) && PARALLEL_JOBS=$NPROC
+# (( PARALLEL_JOBS < 1 )) && PARALLEL_JOBS=1
+
+# LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" -j "${PARALLEL_JOBS}" --force || {
+#     echo "DKMS build failed — make.log:"
+#     cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
+#     exit 1
+# }
 
 # # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
 # # akmods installs the resulting kmod RPM so the .ko lands in
