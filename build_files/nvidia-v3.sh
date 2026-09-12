@@ -32,26 +32,6 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
 
-# nv-vm.c's nv_account_mm_alloc/nv_account_mm_free guard their rss_stat poke
-# behind `#if defined(NV_PERCPU_MM_COUNTER)`, but that conftest checks for the
-# older `struct percpu_counter mm->rss_stat[]` layout -- it doesn't recognize
-# this kernel's newer `struct lazy_percpu_counter mm->rss_stat[]` (Fedora 44+),
-# so the conftest is false here and the code falls through to the `#else`
-# branch's plain `add_mm_counter()` call. This kernel renamed that to
-# `add_mm_counter_local()`/`add_mm_counter_other()`, so the plain name is now
-# an undeclared-function error. Since nvidia isn't necessarily running in the
-# owning task's own context here, `add_mm_counter_other()` (safe for any mm,
-# unlike the `_local` fast path) is the correct replacement for the two call
-# sites in that `#else` branch.
-NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
-if [[ -f "$NVIDIA_SRC" ]] && grep -q 'add_mm_counter(mm, MM_SHMEMPAGES, numPages);' "$NVIDIA_SRC"; then
-    echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
-    sed -i \
-        -e 's/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/lazy_percpu_counter_add_atomic(&mm->rss_stat[MM_SHMEMPAGES], numPages);/' \
-        -e 's/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/lazy_percpu_counter_add_atomic(&mm_work->mm->rss_stat[MM_SHMEMPAGES], -mm_work->num_pages);/' \
-        "$NVIDIA_SRC"
-fi
-
 # dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
 # more clang jobs than the build container's memory cgroup can hold — the
 # whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
