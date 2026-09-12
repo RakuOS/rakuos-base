@@ -123,6 +123,7 @@ cbonsai \
 cowsay \
 distrobox \
 dmemcg-booster \
+dwarves \
 du-dust \
 dysk \
 fastfetch \
