@@ -32,19 +32,23 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
 # Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
 NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
 
-# Newer kernels (Fedora 44+) replaced mm->rss_stat's plain atomic_long_t[]
-# with a percpu-batched `struct lazy_percpu_counter[]`, so nvidia's direct
-# `&mm->rss_stat.count[MM_SHMEMPAGES]` + atomic_long_add_return() poke in
-# nv-vm.c no longer compiles ("member reference base type ... not a
-# structure or union") — nvidia-open 615.71.09 has no conftest for this yet.
-# Swap those two direct-field pokes for the kernel's own add_mm_counter()
-# helper, which is stable across both rss_stat layouts.
+# nv-vm.c's nv_account_mm_alloc/nv_account_mm_free guard their rss_stat poke
+# behind `#if defined(NV_PERCPU_MM_COUNTER)`, but that conftest checks for the
+# older `struct percpu_counter mm->rss_stat[]` layout -- it doesn't recognize
+# this kernel's newer `struct lazy_percpu_counter mm->rss_stat[]` (Fedora 44+),
+# so the conftest is false here and the code falls through to the `#else`
+# branch's plain `add_mm_counter()` call. This kernel renamed that to
+# `add_mm_counter_local()`/`add_mm_counter_other()`, so the plain name is now
+# an undeclared-function error. Since nvidia isn't necessarily running in the
+# owning task's own context here, `add_mm_counter_other()` (safe for any mm,
+# unlike the `_local` fast path) is the correct replacement for the two call
+# sites in that `#else` branch.
 NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
-if [[ -f "$NVIDIA_SRC" ]] && grep -q 'rss_stat\.count\[MM_SHMEMPAGES\]' "$NVIDIA_SRC"; then
+if [[ -f "$NVIDIA_SRC" ]] && grep -q 'add_mm_counter(mm, MM_SHMEMPAGES, numPages);' "$NVIDIA_SRC"; then
     echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
     sed -i \
-        -e 's/atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/' \
-        -e 's/atomic_long_add_return(-mm_work->num_pages, &mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/' \
+        -e 's/add_mm_counter(mm, MM_SHMEMPAGES, numPages);/lazy_percpu_counter_add_atomic(&mm->rss_stat[MM_SHMEMPAGES], numPages);/' \
+        -e 's/add_mm_counter(mm_work->mm, MM_SHMEMPAGES, -mm_work->num_pages);/lazy_percpu_counter_add_atomic(&mm_work->mm->rss_stat[MM_SHMEMPAGES], -mm_work->num_pages);/' \
         "$NVIDIA_SRC"
 fi
 
