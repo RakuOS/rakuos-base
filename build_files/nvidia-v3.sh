@@ -25,6 +25,7 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     nvidia-driver-cuda \
     nvidia-persistenced \
     libva-nvidia-driver \
+    dwarves \
     ${KERNEL_PKG}-devel-matched
 
 
