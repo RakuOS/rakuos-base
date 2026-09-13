@@ -180,6 +180,7 @@ pam-u2f \
 pam_yubico \
 pamu2fcfg \
 pipewire-plugin-libcamera \
+plymouth \
 podman \
 podman-compose \
 powerstat \
