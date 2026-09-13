@@ -231,6 +231,9 @@ zoxide \
 zsh \
 zstd
 
+# Set Plymouth boot theme to RakuOS branding (provided by rakuos-branding)
+plymouth-set-default-theme -R rakuos-logo
+
 ## Remove packages
 rum remove -y 'firefox*' \
 toolbox \
