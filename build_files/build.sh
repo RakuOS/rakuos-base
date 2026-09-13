@@ -214,6 +214,7 @@ pam_yubico \
 pamu2fcfg \
 pipewire-plugin-libcamera \
 plymouth \
+plymouth-plugin-two-step \
 podman \
 podman-compose \
 powerstat \
@@ -270,9 +271,7 @@ zsh \
 zstd
 
 # Set Plymouth boot theme to RakuOS branding (theme shipped by rakuos-branding)
-rm -f /etc/plymouth/plymouthd.conf
-mkdir -p /etc/plymouth
-printf '[Daemon]\nTheme=rakuos-logo\n' > /etc/plymouth/plymouthd.conf
+plymouth-set-default-theme -R rakuos-logo
 
 ## Remove packages
 rum remove -y 'firefox*' \

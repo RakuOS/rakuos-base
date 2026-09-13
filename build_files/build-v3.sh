@@ -95,7 +95,7 @@ rum install -y gstreamer1-plugin-dav1d \
   gstreamer1-plugins-bad \
   gstreamer1-plugins-good \
   gstreamer1-plugins-ugly
-  
+
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
 
 rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
@@ -213,6 +213,7 @@ pam_yubico \
 pamu2fcfg \
 pipewire-plugin-libcamera \
 plymouth \
+plymouth-plugin-two-step \
 podman \
 podman-compose \
 powerstat \
@@ -269,9 +270,7 @@ zsh \
 zstd
 
 # Set Plymouth boot theme to RakuOS branding (theme shipped by rakuos-branding)
-rm -f /etc/plymouth/plymouthd.conf
-mkdir -p /etc/plymouth
-printf '[Daemon]\nTheme=rakuos-logo\n' > /etc/plymouth/plymouthd.conf
+plymouth-set-default-theme -R rakuos-logo
 
 ## Remove packages
 rum remove -y 'firefox*' \
