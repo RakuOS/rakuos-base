@@ -90,6 +90,12 @@ rum swap -y libavfilter-free libavfilter --allowerasing
 rum swap -y libswscale-free libswscale --allowerasing
 rum swap -y libavdevice-free libavdevice --allowerasing
 
+rum install -y gstreamer1-plugin-dav1d \
+  gstreamer1-plugin-libav \
+  gstreamer1-plugins-bad \
+  gstreamer1-plugins-good \
+  gstreamer1-plugins-ugly
+  
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
 
 rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
@@ -119,17 +125,29 @@ bootc \
 btop \
 cava \
 cbonsai \
+coreutils \
+cpio \
+cryptsetup \
 cowsay \
 cups \
 cups-browsed \
 cups-client \
 cups-filters-driverless \
 cups-ipptool \
+curl \
 distrobox \
 dmemcg-booster \
+dnsmasq \
 dwarves \
 du-dust \
 dysk \
+e2fsprogs \
+ethtool \
+exfatprogs \
+file \
+filesystem \
+firewalld \
+fpaste \
 fastfetch \
 fedora-repos-archive \
 ffmpegthumbnailer \
@@ -149,10 +167,16 @@ google-noto-sans-myanmar-fonts \
 google-noto-sans-sundanese-fonts \
 google-noto-serif-myanmar-fonts \
 grub2-tools-extra \
+gutenprint \
+gutenprint-cups \
 gvfs-fuse \
 gvfs-mtp \
 gvfs-nfs \
 gvfs-smb \
+hostname \
+hplip \
+hunspell \
+hyperv-daemons \
 htop \
 inotify-tools \
 just \
@@ -164,14 +188,19 @@ libcamera-tools \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
-libXcursor.i686 \
 libxcrypt-compat \
 lm_sensors \
 lolcat \
+lsb_release \
 lshw \
 lsd \
 maple-fonts \
 net-tools \
+NetworkManager \
+NetworkManager-bluetooth \
+NetworkManager-config-connectivity-fedora \
+NetworkManager-wifi \
+NetworkManager-wwan \
 nvme-cli \
 nvtop \
 opendoas \
@@ -219,6 +248,10 @@ ublue-os-udev-rules \
 udisks2 \
 unrar \
 unzip \
+uresourced \
+usb_modeswitch \
+usbutils \
+util-linux \
 usbmuxd \
 uutils-coreutils \
 v4l-utils \
