@@ -122,6 +122,11 @@ btop \
 cava \
 cbonsai \
 cowsay \
+cups \
+cups-browsed \
+cups-client \
+cups-filters-driverless \
+cups-ipptool \
 distrobox \
 dmemcg-booster \
 dwarves \
@@ -164,6 +169,7 @@ libratbag-ratbagd \
 libxcrypt-compat \
 lm_sensors \
 lolcat \
+lsb_release \
 lshw \
 lsd \
 maple-fonts \

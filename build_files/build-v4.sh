@@ -122,6 +122,11 @@ btop \
 cava \
 cbonsai \
 cowsay \
+cups \
+cups-browsed \
+cups-client \
+cups-filters-driverless \
+cups-ipptool \
 distrobox \
 dmemcg-booster \
 dwarves \
