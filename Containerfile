@@ -8,7 +8,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal:latest AS builder
+FROM quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal:latest AS builder
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
