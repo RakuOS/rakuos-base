@@ -31,7 +31,7 @@ case "$COMMAND" in
         ;;
     install)
         shift
-        exec rakuos install "$@"
+        exec rum install "$@"
         ;;
     upgrade)
         shift
@@ -47,7 +47,7 @@ case "$COMMAND" in
         ;;
     uninstall)
         shift
-        exec rakuos remove "$@"
+        exec rum remove "$@"
         ;;
     search)
         shift
