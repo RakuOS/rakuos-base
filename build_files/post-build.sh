@@ -2,6 +2,12 @@
 
 set -ouex pipefail
 
+# Third-party repos are opt-in — we only ship the main Terra repo definition,
+# not the repo enabled by default. Desktop images enable it temporarily in
+# their own build.sh if they need Terra-sourced packages, then disable it
+# again in their post-build.sh, matching this same disabled end state.
+rum config-manager --set-disabled terra
+
 # Rename real rpm-ostree binary — dnf5/dnf are already the rum-dnf-shim
 # binaries at this point (rum-dnf-shim's spec Obsoletes/Conflicts the real
 # dnf5/dnf packages), so there's nothing to rename/wrap for those anymore.
