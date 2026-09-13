@@ -8,59 +8,59 @@ set -ouex pipefail
 # again in their post-build.sh, matching this same disabled end state.
 rum config-manager --set-disabled terra
 
-# Rename real rpm-ostree binary — dnf5/dnf are already the rum-dnf-shim
-# binaries at this point (rum-dnf-shim's spec Obsoletes/Conflicts the real
-# dnf5/dnf packages), so there's nothing to rename/wrap for those anymore.
-mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
+# # Rename real rpm-ostree binary — dnf5/dnf are already the rum-dnf-shim
+# # binaries at this point (rum-dnf-shim's spec Obsoletes/Conflicts the real
+# # dnf5/dnf packages), so there's nothing to rename/wrap for those anymore.
+# mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
 
-# Mark all base image packages as dependency so PackageKit only manages overlay packages
-rum mark -y dependency '*'
+# # Mark all base image packages as dependency so PackageKit only manages overlay packages
+# rum mark -y dependency '*'
 
-# Create rpm-ostree wrapper
-cat > /usr/bin/rpm-ostree << 'WRAPPER'
-#!/usr/bin/env bash
-COMMAND="${1:-}"
-case "$COMMAND" in
-    reset)
-        shift
-        exec rakuos reset-overlay --confirm
-        ;;
-    status)
-        shift
-        exec bootc status "$@"
-        ;;
-    install)
-        shift
-        exec rum install "$@"
-        ;;
-    upgrade)
-        shift
-        exec bootc upgrade "$@"
-        ;;
-    rollback)
-        shift
-        exec bootc rollback "$@"
-        ;;
-    rebase)
-        shift
-        exec bootc switch "$@"
-        ;;
-    uninstall)
-        shift
-        exec rum remove "$@"
-        ;;
-    search)
-        shift
-        exec rum search "$@"
-        ;;
-    *)
-        exec rpm-ostree.real "$@"
-        ;;
-esac
-WRAPPER
+# # Create rpm-ostree wrapper
+# cat > /usr/bin/rpm-ostree << 'WRAPPER'
+# #!/usr/bin/env bash
+# COMMAND="${1:-}"
+# case "$COMMAND" in
+#     reset)
+#         shift
+#         exec rakuos reset-overlay --confirm
+#         ;;
+#     status)
+#         shift
+#         exec bootc status "$@"
+#         ;;
+#     install)
+#         shift
+#         exec rum install "$@"
+#         ;;
+#     upgrade)
+#         shift
+#         exec bootc upgrade "$@"
+#         ;;
+#     rollback)
+#         shift
+#         exec bootc rollback "$@"
+#         ;;
+#     rebase)
+#         shift
+#         exec bootc switch "$@"
+#         ;;
+#     uninstall)
+#         shift
+#         exec rum remove "$@"
+#         ;;
+#     search)
+#         shift
+#         exec rum search "$@"
+#         ;;
+#     *)
+#         exec rpm-ostree.real "$@"
+#         ;;
+# esac
+# WRAPPER
 
-# Make the wrapper executable
-chmod +x /usr/bin/rpm-ostree
+# # Make the wrapper executable
+# chmod +x /usr/bin/rpm-ostree
 
 # Wire up /etc/zshrc.d/ fragment sourcing (Fedora's zsh doesn't do this by default).
 mkdir -p /etc/zshrc.d
