@@ -271,13 +271,9 @@ zsh \
 zstd
 
 # Set Plymouth boot theme to RakuOS branding (theme shipped by rakuos-branding).
-# `-R` forces an immediate dracut initramfs rebuild, which needs
-# modules.dep for the installed kernel -- the kernel was installed with
-# `tsflags=noscripts` so depmod never ran for it, hence "modules.dep is
-# missing. Did you run depmod?". Run depmod on the already-computed
-# QUALIFIED_KERNEL first so dracut has what it needs.
 depmod "$QUALIFIED_KERNEL"
 plymouth-set-default-theme -R rakuos-logo
+rm /boot/initramfs*.img
 
 ## Remove packages
 rum remove -y 'firefox*' \
