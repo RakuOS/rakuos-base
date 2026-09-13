@@ -77,8 +77,7 @@ rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 # Install cachyos kernel
 rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
-rum install -y --skip-unavailable intel-vaapi-driver \
-libopenjph \
+rum install -y --skip-unavailable libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
 
