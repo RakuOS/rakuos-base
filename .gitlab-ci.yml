@@ -1405,6 +1405,168 @@ test-image-nvidia-v3:
       buildah rm "${CTR}" || true
       echo "Image stress test (NVIDIA) passed."
 
+test-image-minimal:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test passed."
+
+test-image-minimal-nvidia:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal-nvidia
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      echo "=== Image stress test: NVIDIA packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test (NVIDIA) passed."
+
+test-image-minimal-v4:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal-v4
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_V4}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test passed."
+
+test-image-minimal-v3:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal-v3
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_V3}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test passed."
+
+test-image-minimal-nvidia-v4:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal-nvidia-v4
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V4}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      echo "=== Image stress test: NVIDIA packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test (NVIDIA) passed."
+
+test-image-minimal-nvidia-v3:
+  extends: .image-test-job
+  stage: test
+  needs:
+    - job: build-push-minimal-nvidia-v3
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V3}:${BRANCH_SLUG}"
+      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      buildah pull "docker://${IMAGE_REF}"
+      CTR=$(buildah from "${IMAGE_REF}")
+
+      echo "=== Image stress test: Justfile + Anaconda packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        rum install -y --allowerasing \
+          --enable-repo=fedora-cisco-openh264 \
+          dracut-live livesys-scripts fuse-overlayfs \
+          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+          qrencode yad
+
+      echo "=== Image stress test: NVIDIA packages ==="
+      buildah run --isolation chroot --network host "${CTR}" -- \
+        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+
+      buildah rm "${CTR}" || true
+      echo "Image stress test (NVIDIA) passed."
+
 .trigger-on-test-fail:
   stage: test
   image: quay.io/fedora/fedora:latest
@@ -1469,6 +1631,42 @@ trigger-on-image-nvidia-fail-v3:
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-v3
+      artifacts: false
+
+trigger-on-image-minimal-fail:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal
+      artifacts: false
+
+trigger-on-image-minimal-nvidia-fail:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal-nvidia
+      artifacts: false
+
+trigger-on-image-minimal-fail-v4:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal-v4
+      artifacts: false
+
+trigger-on-image-minimal-fail-v3:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal-v3
+      artifacts: false
+
+trigger-on-image-minimal-nvidia-fail-v4:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal-nvidia-v4
+      artifacts: false
+
+trigger-on-image-minimal-nvidia-fail-v3:
+  extends: .trigger-on-test-fail
+  needs:
+    - job: test-image-minimal-nvidia-v3
       artifacts: false
 
 sign-image-standard:
@@ -1753,6 +1951,288 @@ sign-image-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
+sign-image-minimal:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-minimal-nvidia:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal-nvidia
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-minimal-v4:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal-v4
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_V4}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL_V4}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-minimal-v3:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal-v3
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_V3}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL_V3}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-minimal-nvidia-v4:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal-nvidia-v4
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V4}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V4}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
+sign-image-minimal-nvidia-v3:
+  stage: sign
+  image: quay.io/buildah/stable:latest
+  tags:
+    - saas-linux-2xlarge-amd64
+  needs:
+    - job: test-image-minimal-nvidia-v3
+      artifacts: false
+  script:
+    - |
+      set -euo pipefail
+      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+        -o /usr/local/bin/cosign
+      chmod +x /usr/local/bin/cosign
+      dnf install -y --quiet jq podman
+      podman login --authfile ~/.docker/config.json \
+        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+      case "${CI_COMMIT_BRANCH}" in
+        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+        "staging")              PRIMARY_TAG_NAME="staging"        ;;
+        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+      esac
+      COSIGN_KEY_ID=$(curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+          | jq -r '.[] | select(.name == "cosign.key") | .id')
+      curl --silent \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          -o /tmp/cosign.key \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+      chmod 600 /tmp/cosign.key
+      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V3}:${PRIMARY_TAG_NAME}..."
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+        -key /tmp/cosign.key \
+        -a "repo=${CI_PROJECT_URL}" \
+        -a "branch=${CI_COMMIT_BRANCH}" \
+        "${IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V3}:${PRIMARY_TAG_NAME}"
+      rm -f /tmp/cosign.key
+      echo "Image signed successfully."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+    - if: '$CI_COMMIT_BRANCH == "rawhide"'
+    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+
 trigger-downstream:
   stage: dispatch
   image: curlimages/curl:latest
@@ -1814,17 +2294,17 @@ notify-discord-minimal:
       optional: true
     - job: sign-image-nvidia-v3
       optional: true
-    - job: build-push-minimal
+    - job: sign-image-minimal
       optional: true
-    - job: build-push-minimal-v4
+    - job: sign-image-minimal-v4
       optional: true
-    - job: build-push-minimal-v3
+    - job: sign-image-minimal-v3
       optional: true
-    - job: build-push-minimal-nvidia
+    - job: sign-image-minimal-nvidia
       optional: true
-    - job: build-push-minimal-nvidia-v4
+    - job: sign-image-minimal-nvidia-v4
       optional: true
-    - job: build-push-minimal-nvidia-v3
+    - job: sign-image-minimal-nvidia-v3
       optional: true
   script:
     - |
