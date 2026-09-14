@@ -76,10 +76,10 @@ rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 # Install cachyos kernel
 rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
-rum install -y --skip-unavailable libopenjph \
+rum install -y --skip-unavailable libva-intel-media-driver \
+libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
-
 
 rum swap -y ffmpeg-free ffmpeg --allowerasing
 rum swap -y fdk-aac-free libfdk-aac --allowerasing
@@ -256,7 +256,6 @@ libertas-firmware \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
-libva-intel-media-driver \
 libxcrypt-compat \
 linux-firmware \
 lm_sensors \
