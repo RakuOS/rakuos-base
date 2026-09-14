@@ -73,7 +73,7 @@ done
 rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
-# Install cachyos kernel
+# Install P03 kernel
 rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
 rum install -y --skip-unavailable libva-intel-media-driver \
