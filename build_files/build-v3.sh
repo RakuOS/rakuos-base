@@ -115,7 +115,9 @@ appstream \
 appstream-data \
 apr \
 apr-util \
+attr \
 aria2 \
+bash-completion \
 bat \
 bat-extras \
 bibata-cursor-theme \
@@ -135,13 +137,16 @@ cups-client \
 cups-filters-driverless \
 cups-ipptool \
 curl \
+device-mapper-persistent-data \
 distrobox \
 dmemcg-booster \
 dnsmasq \
+dns-root-data \
 dwarves \
 du-dust \
 dysk \
 e2fsprogs \
+enchant2 \
 ethtool \
 exfatprogs \
 file \
@@ -185,6 +190,8 @@ libcamera \
 libcamera-gstreamer \
 libcamera-ipa \
 libcamera-tools \
+liberation-sans-fonts \
+liberation-serif-fonts \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
@@ -194,6 +201,7 @@ lolcat \
 lsb_release \
 lshw \
 lsd \
+lvm2 \
 maple-fonts \
 net-tools \
 NetworkManager \
@@ -211,6 +219,7 @@ oversteer-udev \
 pam-u2f \
 pam_yubico \
 pamu2fcfg \
+pciutils \
 pipewire-plugin-libcamera \
 plymouth \
 plymouth-plugin-two-step \
@@ -258,6 +267,9 @@ uutils-coreutils \
 v4l-utils \
 vim \
 virtualbox-guest-additions \
+wget2 \
+wget2-wget\
+wget2-libs \
 wireguard-tools \
 wl-clipboard \
 wlctl \
