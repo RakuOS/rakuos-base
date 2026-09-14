@@ -269,7 +269,7 @@ v4l-utils \
 vim \
 virtualbox-guest-additions \
 wget2 \
-wget2-wget\
+wget2-wget \
 wget2-libs \
 wireguard-tools \
 wl-clipboard \
