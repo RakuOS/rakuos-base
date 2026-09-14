@@ -214,8 +214,6 @@ google-noto-sans-myanmar-fonts \
 google-noto-sans-sundanese-fonts \
 google-noto-serif-myanmar-fonts \
 grub2-tools-extra \
-gstreamer1-plugins-bad-free \
-gstreamer1-plugins-ugly-free \
 gutenprint \
 gutenprint-cups \
 gvfs-fuse \
