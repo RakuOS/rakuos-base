@@ -108,6 +108,19 @@ rum upgrade -y --best --allowerasing 'systemd*'
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
+# Install cpak (https://cpak.it/docs/install) — download the latest release's
+# binaries and verify against the published SHA256SUMS before installing;
+# cpak looks for cpak-storaged beside cpak itself, so both go into /usr/bin.
+CPAK_VERSION=$(curl -fsSL https://api.github.com/repos/Containerpak/cpak/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
+CPAK_BASE="https://github.com/Containerpak/cpak/releases/download/${CPAK_VERSION}"
+curl -fsSL -o /tmp/cpak-linux-amd64 "${CPAK_BASE}/cpak-linux-amd64"
+curl -fsSL -o /tmp/cpak-storaged-linux-amd64 "${CPAK_BASE}/cpak-storaged-linux-amd64"
+curl -fsSL -o /tmp/cpak-SHA256SUMS "${CPAK_BASE}/SHA256SUMS"
+(cd /tmp && sha256sum -c --ignore-missing cpak-SHA256SUMS)
+install -Dm755 /tmp/cpak-linux-amd64 /usr/bin/cpak
+install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
+rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
+
 # install packages
 rum install -y @fonts @hardware-support \
 7zip \
