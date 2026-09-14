@@ -286,13 +286,6 @@ depmod "$QUALIFIED_KERNEL"
 plymouth-set-default-theme -R rakuos-logo
 rm /boot/initramfs*.img
 
-## Remove packages
-rum remove -y 'firefox*' \
-toolbox \
-fedora-flathub-remote \
-fedora-third-party \
-fedora-workstation-repositories
-
 rum swap -y ocl-icd OpenCL-ICD-Loader --allowerasing
 
 # Clean up some .desktops for command line utils
