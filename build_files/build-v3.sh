@@ -109,7 +109,6 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERN
 
 # install packages
 rum install -y @fonts @hardware-support \
-${RAKUOS_RELEASE_PKG} \
 7zip \
 alsa-firmware \
 alsa-sof-firmware \
@@ -332,6 +331,7 @@ qemu-guest-agent \
 quota \
 rakuos-branding \
 rakuos-core \
+${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
 realmd \
