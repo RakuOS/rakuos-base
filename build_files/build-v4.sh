@@ -288,6 +288,7 @@ microcode_ctl \
 mpage \
 mt7xxx-firmware \
 mtr \
+nano \
 net-tools \
 NetworkManager \
 NetworkManager-bluetooth \
