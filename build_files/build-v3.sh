@@ -327,7 +327,6 @@ pipewire-pulseaudio \
 pipewire-utils \
 plymouth \
 plymouth-plugin-two-step \
-plymouth-system-theme \
 podman \
 podman-compose \
 powerstat \
