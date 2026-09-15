@@ -417,11 +417,6 @@ zoxide \
 zsh \
 zstd
 
-# Set Plymouth boot theme to RakuOS branding (theme shipped by rakuos-branding).
-depmod "$QUALIFIED_KERNEL"
-plymouth-set-default-theme -R rakuos-logo
-rm /boot/initramfs*.img
-
 rum swap -y ocl-icd OpenCL-ICD-Loader --allowerasing
 
 # Clean up some .desktops for command line utils
