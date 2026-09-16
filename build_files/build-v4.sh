@@ -98,7 +98,7 @@ rum install -y gstreamer1-plugin-dav1d \
   gstreamer1-plugins-good \
   gstreamer1-plugins-ugly
 
-rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
+rum install -y mesa-dri-drivers mesa-vulkan-drivers mesa-libEGL mesa-libGL mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
 
 rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 
