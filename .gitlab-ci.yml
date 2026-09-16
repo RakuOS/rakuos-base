@@ -2249,6 +2249,18 @@ trigger-downstream:
       artifacts: false
     - job: sign-image-nvidia-v3
       artifacts: false
+    - job: sign-image-minimal
+      artifacts: false
+    - job: sign-image-minimal-v4
+      artifacts: false
+    - job: sign-image-minimal-v3
+      artifacts: false
+    - job: sign-image-minimal-nvidia
+      artifacts: false
+    - job: sign-image-minimal-nvidia-v4
+      artifacts: false
+    - job: sign-image-minimal-nvidia-v3
+      artifacts: false
   script:
     - |
       trigger_pipeline() {

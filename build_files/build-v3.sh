@@ -23,6 +23,7 @@ fi
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
 ## doesn't exist yet.
+dnf5 -y install dnf5-plugins
 rpm --import https://repo.rakuos.org/pubkey.gpg
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
 sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.repo
@@ -72,14 +73,13 @@ done
 rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
-# Install cachyos kernel
+# Install P03 kernel
 rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
 
-rum install -y --skip-unavailable intel-vaapi-driver \
+rum install -y --skip-unavailable libva-intel-media-driver \
 libopenjph \
 pipewire-libs-extra \
 heif-pixbuf-loader
-
 
 rum swap -y ffmpeg-free ffmpeg --allowerasing
 rum swap -y fdk-aac-free libfdk-aac --allowerasing
@@ -89,6 +89,12 @@ rum swap -y libavutil-free libavutil --allowerasing
 rum swap -y libavfilter-free libavfilter --allowerasing
 rum swap -y libswscale-free libswscale --allowerasing
 rum swap -y libavdevice-free libavdevice --allowerasing
+
+rum install -y gstreamer1-plugin-dav1d \
+  gstreamer1-plugin-libav \
+  gstreamer1-plugins-bad \
+  gstreamer1-plugins-good \
+  gstreamer1-plugins-ugly
 
 rum install -y mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 mesa-libEGL.i686 mesa-libGL.i686 libheif libva
 
@@ -101,148 +107,342 @@ rum upgrade -y --best --allowerasing 'systemd*'
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
+# Install cpak (https://cpak.it/docs/install) — download the latest release's
+# binaries and verify against the published SHA256SUMS before installing;
+# cpak looks for cpak-storaged beside cpak itself, so both go into /usr/bin.
+CPAK_VERSION=$(curl -fsSL https://api.github.com/repos/Containerpak/cpak/releases/latest | grep -oP '"tag_name":\s*"\K[^"]+')
+CPAK_BASE="https://github.com/Containerpak/cpak/releases/download/${CPAK_VERSION}"
+curl -fsSL -o /tmp/cpak-linux-amd64 "${CPAK_BASE}/cpak-linux-amd64"
+curl -fsSL -o /tmp/cpak-storaged-linux-amd64 "${CPAK_BASE}/cpak-storaged-linux-amd64"
+curl -fsSL -o /tmp/cpak-SHA256SUMS "${CPAK_BASE}/SHA256SUMS"
+(cd /tmp && sha256sum -c --ignore-missing cpak-SHA256SUMS)
+install -Dm755 /tmp/cpak-linux-amd64 /usr/bin/cpak
+install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
+rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
+
 # install packages
 rum install -y @fonts @hardware-support \
 7zip \
 alsa-firmware \
+alsa-sof-firmware \
+alsa-ucm \
+alsa-utils \
+amd-gpu-firmware \
+amd-ucode-firmware \
 appstream \
 appstream-data \
 apr \
 apr-util \
 aria2 \
+at-spi2-atk \
+at-spi2-core \
+atheros-firmware \
+attr \
+audit \
+audit-rules \
+b43-fwcutter \
+b43-openfwwf \
+bash-color-prompt \
+bash-completion \
 bat \
 bat-extras \
+bc \
 bibata-cursor-theme \
 bind \
 bind-utils \
+bluez-cups \
 bootc \
+brcmfmac-firmware \
+brltty \
 btop \
+btrfs-progs \
+buildah \
+c2esp \
 cava \
 cbonsai \
+chrony \
+cifs-utils \
+cirrus-audio-firmware \
+colord \
+compsize \
+coreutils \
 cowsay \
+cpio \
+cracklib-dicts \
+criu \
+cryptsetup \
+cups \
+cups-browsed \
+cups-client \
+cups-filters \
+cups-filters-driverless \
+cups-ipptool \
+curl \
+cyrus-sasl-plain \
+default-fonts-cjk-mono \
+default-fonts-cjk-sans \
+default-fonts-cjk-serif \
+default-fonts-core-emoji \
+default-fonts-core-math \
+default-fonts-core-mono \
+default-fonts-core-sans \
+default-fonts-core-serif \
+default-fonts-other-mono \
+default-fonts-other-sans \
+default-fonts-other-serif \
+device-mapper-persistent-data \
 distrobox \
 dmemcg-booster \
-dwarves \
+dns-root-data \
+dnsmasq \
+dosfstools \
 du-dust \
+dwarves \
+dymo-cups-drivers \
 dysk \
+e2fsprogs \
+enchant2 \
+ethtool \
+exfatprogs \
 fastfetch \
 fedora-repos-archive \
 ffmpegthumbnailer \
 figlet \
+file \
+filesystem \
+firewalld \
 fish \
 flatpak \
 flatpak-spawn \
+fpaste \
 fresh \
 fuse \
+fuse-overlayfs \
 fwupd \
 fzf \
+gamemode \
 git \
+glibc-all-langpacks \
+gnupg2-scdaemon \
 google-noto-sans-balinese-fonts \
 google-noto-sans-cjk-fonts \
 google-noto-sans-javanese-fonts \
 google-noto-sans-myanmar-fonts \
 google-noto-sans-sundanese-fonts \
 google-noto-serif-myanmar-fonts \
+grub2-efi-ia32 \
 grub2-tools-extra \
+gutenprint \
+gutenprint-cups \
 gvfs-fuse \
 gvfs-mtp \
 gvfs-nfs \
 gvfs-smb \
+hfsplus-tools \
+hostname \
+hplip \
 htop \
+hunspell \
+hunspell-en \
+hunspell-en-AU \
+hunspell-en-CA \
+hunspell-en-GB \
+hyperv-daemons \
+ibus-anthy \
+ibus-chewing \
+ibus-gtk3 \
+ibus-gtk4 \
+ibus-hangul \
+ibus-libpinyin \
+ibus-m17n \
+ibus-typing-booster \
 inotify-tools \
+intel-audio-firmware \
+intel-gpu-firmware \
+intel-lpmd \
+intel-vsc-firmware \
+iptables-nft \
+iptstate \
+iwlegacy-firmware \
+iwlwifi-dvm-firmware \
+iwlwifi-mvm-firmware \
 just \
+kmscon \
+kpartx \
+langpacks-en \
 lazygit \
 libcamera \
 libcamera-gstreamer \
 libcamera-ipa \
 libcamera-tools \
+liberation-sans-fonts \
+liberation-serif-fonts \
+libertas-firmware \
 libimobiledevice-utils \
 libnotify \
 libratbag-ratbagd \
-libXcursor.i686 \
+libva-intel-driver \
 libxcrypt-compat \
+linux-firmware \
 lm_sensors \
 lolcat \
-lshw \
+lrzsz \
+lsb_release \
 lsd \
+lshw \
+lsof \
+lvm2 \
 maple-fonts \
+mcelog \
+mdadm \
+memstrack \
+mesa-dri-drivers \
+mesa-vulkan-drivers \
+microcode_ctl \
+mkpasswd \
+mpage \
+mt7xxx-firmware \
+mtr \
+nano \
+nano-default-editor \
 net-tools \
+NetworkManager \
+NetworkManager-bluetooth \
+NetworkManager-config-connectivity-fedora \
+NetworkManager-wifi \
+NetworkManager-wwan \
+nfs-utils \
+nss-altfiles \
+nss-mdns \
+ntfs-3g \
+ntfsprogs \
+nvidia-gpu-firmware \
 nvme-cli \
 nvtop \
+nxpwireless-firmware \
+open-vm-tools-desktop \
 opendoas \
 openrgb-udev-rules \
+opensc \
 openssh-askpass \
+openssh-server \
 openssl \
+orca \
+os-prober \
 oversteer-udev \
 pam-u2f \
+pam_afs_session \
 pam_yubico \
 pamu2fcfg \
+paps \
+passwdqc \
+pciutils \
+pinentry \
+pinfo \
+pipewire-alsa \
+pipewire-config-raop \
+pipewire-gstreamer \
+pipewire-jack-audio-connection-kit \
 pipewire-plugin-libcamera \
+pipewire-pulseaudio \
+pipewire-utils \
+pkcs11-provider \
+plymouth \
+plymouth-plugin-two-step \
 podman \
 podman-compose \
 powerstat \
+prefixdevname \
+printer-driver-brlaser \
 procs \
+ptouch-driver \
 pulseaudio-utils \
 python3-pip \
 python3-setuptools \
-os-prober \
+qcom-wwan-firmware \
+qemu-guest-agent \
+qemu-user-static-aarch64 \
+quota \
 rakuos-branding \
 rakuos-core \
 ${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
+realmd \
+realtek-firmware \
 ripgrep \
 rsms-inter-fonts \
 rsync \
+samba-client \
 ShellCheck \
+shim-ia32 \
+skopeo \
+slirp4netns \
 solaar-udev \
+sos \
+speech-dispatcher \
+speech-dispatcher-utils \
+spice-vdagent \
+spice-webdavd \
+splix \
 sqlite3 \
 squashfs-tools \
 squashfuse \
+sssd-common \
+sssd-kcm \
 starship \
 sudo-rs \
 surge \
 symlinks \
+system-config-printer-udev \
+systemd-container \
+systemd-resolved \
 tcpdump \
 tealdeer \
 termflix \
+thermald \
+tiwilink-firmware \
 tmux \
 traceroute \
+tree \
 tuned \
 ublue-os-udev-rules \
 udisks2 \
 unrar \
 unzip \
+uresourced \
+usb_modeswitch \
 usbmuxd \
+usbutils \
+util-linux \
 uutils-coreutils \
 v4l-utils \
 vim \
 virtualbox-guest-additions \
+wget2 \
+wget2-libs \
+wget2-wget \
+whois \
 wireguard-tools \
+wireplumber \
 wl-clipboard \
 wlctl \
+words \
+wpa_supplicant \
+xdg-desktop-portal \
+xdg-desktop-portal-gtk \
+xfsprogs \
 xhost \
+xorg-x11-server-Xwayland \
 xorg-x11-xauth \
 yubikey-manager \
 zellij \
+zip \
 zoxide \
 zsh \
 zstd
 
-## Remove packages
-rum remove -y 'firefox*' \
-toolbox \
-fedora-flathub-remote \
-fedora-third-party \
-fedora-workstation-repositories
-
 rum swap -y ocl-icd OpenCL-ICD-Loader --allowerasing
-
-# use CoreOS' generator for emergency/rescue boot
-# see detail: https://github.com/ublue-os/main/issues/653
-CSFG="/usr/lib/systemd/system-generators/coreos-sulogin-force-generator"
-curl -sSLo ${CSFG} https://raw.githubusercontent.com/coreos/fedora-coreos-config/refs/heads/stable/overlay.d/05core/usr/lib/systemd/system-generators/coreos-sulogin-force-generator
-chmod +x ${CSFG}
 
 # Clean up some .desktops for command line utils
 rm /usr/share/applications/btop.desktop
@@ -282,6 +482,7 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
+rum-makecache.timer \
 dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
