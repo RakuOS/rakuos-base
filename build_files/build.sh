@@ -218,6 +218,7 @@ flatpak-spawn \
 fpaste \
 fresh \
 fuse \
+fuse-libs \
 fuse-overlayfs \
 fwupd \
 fzf \
