@@ -28,7 +28,8 @@ rum install -y \
     b43-fwcutter \
     b43-openfwwf \
     brcmfmac-firmware \
-    broadcom-wl
+    broadcom-wl \
+    v4l2loopback
 
 
 tmpdir="$(mktemp -d)"
