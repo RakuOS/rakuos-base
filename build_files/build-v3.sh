@@ -496,7 +496,7 @@ rakuos-user.service
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 
-## Add custom icons
-git clone https://github.com/vinceliuice/Colloid-icon-theme.git /tmp/Colloid-icon-theme
-/tmp/Colloid-icon-theme/install.sh -s all -t all -a -p -b
-rm -rf /tmp/Colloid-icon-theme
+# ## Add custom icons
+# git clone https://github.com/vinceliuice/Colloid-icon-theme.git /tmp/Colloid-icon-theme
+# /tmp/Colloid-icon-theme/install.sh -s all -t all -a -p -b
+# rm -rf /tmp/Colloid-icon-theme
