@@ -458,7 +458,7 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 # Disable services
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
-systemctl mask systemd-remount-fs.service
+#systemctl mask systemd-remount-fs.service
 systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
 
@@ -484,7 +484,6 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
-rum-makecache.timer \
 dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \

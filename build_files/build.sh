@@ -484,7 +484,6 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
-rum-makecache.timer \
 dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
