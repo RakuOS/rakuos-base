@@ -24,6 +24,8 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     nvidia-settings \
     nvidia-driver-cuda \
     nvidia-persistenced \
+    xorg-x11-drv-nvidia-libs \
+    xorg-x11-drv-nvidia-cuda \
     libva-nvidia-driver \
     ${KERNEL_PKG}-devel-matched
 
