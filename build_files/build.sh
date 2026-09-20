@@ -149,6 +149,7 @@ bash-completion \
 bat \
 bat-extras \
 bc \
+bpftool \
 bibata-cursor-theme \
 bind \
 bind-utils \
