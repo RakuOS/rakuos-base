@@ -129,6 +129,7 @@ alsa-ucm \
 alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
+ananicy-cpp \
 appstream \
 appstream-data \
 apr \
@@ -158,6 +159,7 @@ btop \
 btrfs-progs \
 buildah \
 c2esp \
+cachyos-ananicy-rules \
 cava \
 cbonsai \
 chrony \
@@ -375,6 +377,8 @@ ripgrep \
 rsms-inter-fonts \
 rsync \
 samba-client \
+scx-scheds \
+scx-tools \
 ShellCheck \
 shim-ia32 \
 skopeo \
