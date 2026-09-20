@@ -3,3 +3,36 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
+KERNEL_RAKUOS_PKG="kernel-rakuos-v3"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_RAKUOS_PKG="kernel-rakuos-v3-staging"
+fi
+
+KERNEL_P03_PKG="kernel-p03-v3"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KERNEL_P03_PKG="kernel-p03-v3-staging"
+fi
+
+# Determine the installed kernel version
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_P03_PKG})
+
+rum remove -y \
+    ${KERNEL_RAKUOS_PKG} \
+    ${KERNEL_RAKUOS_PKG}-core \
+    ${KERNEL_RAKUOS_PKG}-modules \
+    ${KERNEL_RAKUOS_PKG}-devel \
+    ${KERNEL_RAKUOS_PKG}-devel-matched \
+    broadcom-wl \
+    v4l2loopback
+
+rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
+
+#Build initramfs
+# Generate module dependencies
+depmod "$QUALIFIED_KERNEL"
+
+# Generate initramfs for that kernel
+/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
+--add ostree --add fido2 --add rakuos-overlay -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+
+chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
