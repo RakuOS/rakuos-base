@@ -16,6 +16,7 @@ fi
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_P03_PKG})
 
+# Remove unneeded packages
 rum remove -y \
     ${KERNEL_RAKUOS_PKG} \
     ${KERNEL_RAKUOS_PKG}-core \
@@ -23,9 +24,23 @@ rum remove -y \
     ${KERNEL_RAKUOS_PKG}-devel \
     ${KERNEL_RAKUOS_PKG}-devel-matched \
     broadcom-wl \
-    v4l2loopback
+    v4l2loopback \
+    ananicy-cpp \
+    cachyos-ananicy-rules \
+    scx-scheds \
+    scx-tools
 
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
+
+systemctl mask systemd-oomd.service
+
+# Install P03
+rum install -y \
+    ${KERNEL_P03_PKG} \
+    ${KERNEL_P03_PKG}-core \
+    ${KERNEL_P03_PKG}-modules \
+    ${KERNEL_P03_PKG}-devel \
+    ${KERNEL_P03_PKG}-devel-matched
 
 #Build initramfs
 # Generate module dependencies
