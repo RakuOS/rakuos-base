@@ -15,9 +15,9 @@ fi
 # Same switch for the kernel: on staging, track kernel-staging's -staging
 # tagged builds (kernel-p03-v3-staging) instead of the stable kernel repo's
 # kernel-p03-v3, so staging images pick up in-flight kernel changes.
-KERNEL_PKG="kernel-p03-v3"
+KERNEL_PKG="kernel-rakuos-v3"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-v3-staging"
+    KERNEL_PKG="kernel-rakuos-v3-staging"
 fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
