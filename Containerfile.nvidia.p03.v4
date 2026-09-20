@@ -1,0 +1,40 @@
+# Global build arg — available to all FROM lines for image tag resolution.
+# Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
+ARG BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-latest}"
+ARG BASE_IMAGE_REPO="quay.io/rakuos/rakuos-base"
+ARG CHUNKAH_CONFIG_STR
+
+# Allow build scripts to be referenced without being copied into the final image
+FROM scratch AS ctx
+COPY build_files /
+
+# Start from the freshly built RakuOS base image for this branch.
+FROM ${BASE_IMAGE_REPO}:${BASE_IMAGE_TAG} AS builder
+ARG BASE_IMAGE_TAG
+ENV BASE_IMAGE_TAG=${BASE_IMAGE_TAG}
+# chunkah repacks the base image's filesystem into a fresh OCI image and does
+# NOT carry forward the base Containerfile's `ENV RAKUOS_STAGING` into the
+# published image config, so nvidia-v4.sh can't just inherit it — it has to
+# be passed in here explicitly too (see .gitlab-ci.yml build-push-nvidia-v4).
+ARG RAKUOS_STAGING="0"
+ENV RAKUOS_STAGING=${RAKUOS_STAGING}
+
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
+    /ctx/nvidia-p03-v4.sh
+
+RUN bootc container lint
+
+FROM quay.io/coreos/chunkah AS chunkah
+ARG CHUNKAH_CONFIG_STR
+RUN --mount=from=builder,src=/,target=/chunkah,ro \
+    --mount=type=bind,target=/run/src,rw \
+        chunkah build --prune /sysroot/ --max-layers 64 --threads 16 --compressed \
+          --label ostree.commit- --label ostree.final-diffid- \
+          > /run/src/out.ociarchive
+
+FROM oci-archive:out.ociarchive
+LABEL containers.bootc=1
