@@ -493,7 +493,8 @@ dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
-podman-prune.timer
+podman-prune.timer \
+ananicy-cpp.service
 
 systemctl enable --global \
 rakuos-user.service
