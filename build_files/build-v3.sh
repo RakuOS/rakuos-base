@@ -462,7 +462,7 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
-systemctl mask systemd-oomd.service
+#systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
 
 # Statically enable getty on tty2-6 -- confirmed on real hardware that
