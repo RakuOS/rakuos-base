@@ -13,8 +13,6 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KERNEL_P03_PKG="kernel-p03-v3-staging"
 fi
 
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_P03_PKG})
 
 # Remove unneeded packages
 rum remove -y \
@@ -41,6 +39,9 @@ rum install -y \
     ${KERNEL_P03_PKG}-modules \
     ${KERNEL_P03_PKG}-devel \
     ${KERNEL_P03_PKG}-devel-matched
+
+# Determine the installed kernel version
+QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_P03_PKG})
 
 #Build initramfs
 # Generate module dependencies
