@@ -16,9 +16,9 @@ fi
 # track kernel-staging's -staging tagged builds (kernel-p03-v2-staging)
 # instead of the stable kernel repo's kernel-p03-v2, so staging images pick
 # up in-flight kernel changes.
-KERNEL_PKG="kernel-p03-v2"
+KERNEL_PKG="kernel-rakuos-v2"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-v2-staging"
+    KERNEL_PKG="kernel-rakuos-v2-staging"
 fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
@@ -130,6 +130,7 @@ alsa-ucm \
 alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
+ananicy-cpp \
 appstream \
 appstream-data \
 apr \
@@ -148,6 +149,7 @@ bash-completion \
 bat \
 bat-extras \
 bc \
+bpftool \
 bibata-cursor-theme \
 bind \
 bind-utils \
@@ -159,6 +161,7 @@ btop \
 btrfs-progs \
 buildah \
 c2esp \
+cachyos-ananicy-rules \
 cava \
 cbonsai \
 chrony \
@@ -376,6 +379,8 @@ ripgrep \
 rsms-inter-fonts \
 rsync \
 samba-client \
+scx-scheds \
+scx-tools \
 ShellCheck \
 shim-ia32 \
 skopeo \
@@ -459,7 +464,7 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 systemctl disable flatpak-add-fedora-repos.service
 systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
-systemctl mask systemd-oomd.service
+#systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
 
 # Statically enable getty on tty2-6 -- confirmed on real hardware that
@@ -488,7 +493,8 @@ dmemcg-booster.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
-podman-prune.timer
+podman-prune.timer \
+ananicy-cpp.service
 
 systemctl enable --global \
 rakuos-user.service
