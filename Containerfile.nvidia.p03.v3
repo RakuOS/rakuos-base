@@ -1,7 +1,7 @@
 # Global build arg — available to all FROM lines for image tag resolution.
 # Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
 ARG BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-latest}"
-ARG BASE_IMAGE_REPO="quay.io/rakuos/rakuos-base-p03-v4"
+ARG BASE_IMAGE_REPO="quay.io/rakuos/rakuos-base-p03-v3"
 ARG CHUNKAH_CONFIG_STR
 
 # Allow build scripts to be referenced without being copied into the final image
