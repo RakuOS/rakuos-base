@@ -1,8 +1,6 @@
 # Global build arg — available to all FROM lines for image tag resolution.
 # Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
 ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
-ARG BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-latest}"
-ARG BASE_IMAGE_REPO="quay.io/rakuos/rakuos-minimal"
 ARG CHUNKAH_CONFIG_STR
 
 # Allow build scripts to be referenced without being copied into the final image
@@ -10,7 +8,7 @@ FROM scratch AS ctx
 COPY build_files /
 
 # Base Image
-FROM ${BASE_IMAGE_REPO}:${BASE_IMAGE_TAG} AS builder
+FROM quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal:latest AS builder
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
