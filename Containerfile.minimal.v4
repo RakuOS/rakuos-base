@@ -39,7 +39,8 @@ COPY system_files /
 # only ever touches plain files already baked into the layer — never a
 # live mount the build engine itself still has open.
 RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
-    find /tmp -mindepth 1 -delete 2>/dev/null || true
+    find /tmp -mindepth 1 -delete 2>/dev/null || true; \
+    find /boot -mindepth 1 -delete 2>/dev/null || true
 
 RUN bootc container lint
 
