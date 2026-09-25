@@ -26,6 +26,16 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
     /ctx/nvidia.sh
 
+# Clean up real runtime state (systemd units started mid-build, akmods/
+# cryptsetup/etc. lock and socket files) that only ever makes sense on a
+# live booted system, before the lint step inspects the committed image.
+# This runs as its own RUN, after every mounted (--mount=type=secret/
+# cache/tmpfs) build step above has already finished and unmounted, so it
+# only ever touches plain files already baked into the layer — never a
+# live mount the build engine itself still has open.
+RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
+    find /tmp -mindepth 1 -delete 2>/dev/null || true
+
 RUN bootc container lint
 
 FROM quay.io/coreos/chunkah AS chunkah
