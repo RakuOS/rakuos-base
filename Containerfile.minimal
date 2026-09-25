@@ -18,8 +18,8 @@ ENV FEDORA_VERSION=${FEDORA_VERSION}
 ARG RAKUOS_STAGING="0"
 ENV RAKUOS_STAGING=${RAKUOS_STAGING}
 
-RUN rm -rf /opt && ln -s -T /var/opt /opt
-RUN rm -rf /usr/local && ln -s -T /var/usrlocal /usr/local
+RUN rm -rf /opt && ln -s -T var/opt /opt
+RUN rm -rf /usr/local && ln -s -T ../var/usrlocal /usr/local
 RUN mkdir -vp /nix
 COPY system_files /
 
