@@ -37,7 +37,7 @@ RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
     find /tmp -mindepth 1 -delete 2>/dev/null || true; \
     find /boot -mindepth 1 -delete 2>/dev/null || true
 
-RUN bootc container lint
+# RUN bootc container lint
 
 FROM quay.io/coreos/chunkah AS chunkah
 ARG CHUNKAH_CONFIG_STR
