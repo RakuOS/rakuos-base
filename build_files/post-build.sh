@@ -253,3 +253,4 @@ echo "Generating base file manifest..."
 if [ -f /usr/share/rpm-ostree/treefile.json ]; then
     sed -i 's/"selinux": *true/"selinux": false/' /usr/share/rpm-ostree/treefile.json
 fi
+
