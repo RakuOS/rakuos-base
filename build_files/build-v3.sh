@@ -441,6 +441,7 @@ xfsprogs \
 xhost \
 xorg-x11-server-Xwayland \
 xorg-x11-xauth \
+xrdb \
 yubikey-manager \
 zellij \
 zip \
