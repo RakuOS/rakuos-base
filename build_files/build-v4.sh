@@ -467,6 +467,7 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 #systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
+systemctl mask bootloader-update.service
 
 # Statically enable getty on tty2-6 -- confirmed on real hardware that
 # systemd-logind's on-demand autovt@ auto-start (which is supposed to spawn
