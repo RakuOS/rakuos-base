@@ -3739,6 +3739,7 @@ trigger-downstream:
       trigger_pipeline "${TRIGGER_TOKEN_GNOME}" "${PROJECT_ID_GNOME}"
       trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" "${PROJECT_ID_COSMIC}"
       trigger_pipeline "${TRIGGER_TOKEN_NIRI}" "${PROJECT_ID_NIRI}"
+      trigger_pipeline "${TRIGGER_TOKEN_HYPRLAND}" "${PROJECT_ID_HYPRLAND}"
       # minimal is now built directly in this pipeline (build-push-minimal*
       # jobs above) instead of as a separate downstream project.
       # gamescope is based on the kde image, not directly on base — kde's
