@@ -13,11 +13,11 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
 fi
 
 # Same switch for the kernel: on staging, track kernel-staging's -staging
-# tagged builds (kernel-p03-v4-staging) instead of the stable kernel repo's
-# kernel-p03-v4, so staging images pick up in-flight kernel changes.
-KERNEL_PKG="kernel-rakuos-v4"
+# tagged builds (kernel-p03-raku-staging-v4) instead of the stable kernel repo's
+# kernel-p03-raku-v4, so staging images pick up in-flight kernel changes.
+KERNEL_PKG="kernel-p03-raku-v4"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v4-staging"
+    KERNEL_PKG="kernel-p03-raku-staging-v4"
 fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to

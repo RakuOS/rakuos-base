@@ -4,9 +4,9 @@ set -ouex pipefail
 
 # Same staging switch as build-v3.sh — RAKUOS_STAGING is inherited here as
 # an image ENV baked into the rakuos-base image this stage builds FROM.
-KERNEL_PKG="kernel-rakuos-v3"
+KERNEL_PKG="kernel-p03-raku-v3"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v3-staging"
+    KERNEL_PKG="kernel-p03-raku-staging-v3"
 fi
 
 # Determine the installed kernel version
