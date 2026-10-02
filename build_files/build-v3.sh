@@ -129,7 +129,6 @@ alsa-ucm \
 alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
-ananicy-cpp \
 appstream \
 appstream-data \
 apr \
@@ -160,7 +159,6 @@ btop \
 btrfs-progs \
 buildah \
 c2esp \
-cachyos-ananicy-rules \
 cava \
 cbonsai \
 chrony \
