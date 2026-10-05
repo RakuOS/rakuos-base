@@ -129,6 +129,7 @@ alsa-ucm \
 alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
+ananicy-cpp \
 appstream \
 appstream-data \
 apr \
@@ -159,6 +160,7 @@ btop \
 btrfs-progs \
 buildah \
 c2esp \
+cachyos-ananicy-rules \
 cava \
 cbonsai \
 chrony \
@@ -489,6 +491,7 @@ rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
 dmemcg-booster.service \
+ananicy-cpp.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
