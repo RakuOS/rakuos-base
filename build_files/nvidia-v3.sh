@@ -4,9 +4,9 @@ set -ouex pipefail
 
 # Same staging switch as build-v3.sh — RAKUOS_STAGING is inherited here as
 # an image ENV baked into the rakuos-base image this stage builds FROM.
-KERNEL_PKG="kernel-rakuos-v3"
+KERNEL_PKG="kernel-p03-raku-v3"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v3-staging"
+    KERNEL_PKG="kernel-p03-raku-staging-v3"
 fi
 
 # Determine the installed kernel version
@@ -40,14 +40,14 @@ NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
 # that expression fails to compile. Rewrite the two call sites to use the
 # kernel's own lazy_percpu_counter_add_atomic() primitive directly -- it's
 # static inline (header-only), so no export/symbol issues.
-# NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
-# if [[ -f "$NVIDIA_SRC" ]] && grep -q 'atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);' "$NVIDIA_SRC"; then
-#     echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
-#     sed -i \
-#         -e 's/atomic_long_add_return(numPages, \&mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm->rss_stat[MM_SHMEMPAGES], numPages);/' \
-#         -e 's/atomic_long_add_return(-mm_work->num_pages, \&mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm_work->mm->rss_stat[MM_SHMEMPAGES], -mm_work->num_pages);/' \
-#         "$NVIDIA_SRC"
-# fi
+NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
+if [[ -f "$NVIDIA_SRC" ]] && grep -q 'atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);' "$NVIDIA_SRC"; then
+    echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
+    sed -i \
+        -e 's/atomic_long_add_return(numPages, \&mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm->rss_stat[MM_SHMEMPAGES], numPages);/' \
+        -e 's/atomic_long_add_return(-mm_work->num_pages, \&mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm_work->mm->rss_stat[MM_SHMEMPAGES], -mm_work->num_pages);/' \
+        "$NVIDIA_SRC"
+fi
 
 # dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
 # more clang jobs than the build container's memory cgroup can hold — the

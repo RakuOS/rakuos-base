@@ -51,7 +51,7 @@ stages:
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-2xlarge-amd64
+    - saas-linux-large-amd64
   before_script:
     - |
       case "${CI_COMMIT_BRANCH}" in
@@ -1255,777 +1255,777 @@ build-push-minimal-nvidia-v3:
 #   TRIGGER_TOKEN_BASE  — pipeline trigger token for this project
 #   GITLAB_API_TOKEN    — api-scoped token for pipeline cancellation
 
-build-push-base-p03-v4:
-  extends: .buildah-job
-  stage: build-push-p03
-  needs:
-    - job: build-push-base-v4
-  script:
-    - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base-p03-v4.env
+# build-push-base-p03-v4:
+#   extends: .buildah-job
+#   stage: build-push-p03
+#   needs:
+#     - job: build-push-base-v4
+#   script:
+#     - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base-p03-v4.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base-p03-v4.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base-p03-v4.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.p03.v4 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC}" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.p03.v4 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_V4#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-base-p03-v4.env
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_V4#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-base-p03-v4.env
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-minimal-p03-v4:
-  extends: .buildah-job
-  stage: build-push-p03
-  needs:
-    - job: build-push-minimal-v4
-  script:
-    - printf 'TAGS=\nBRANCH_SLUG=\n' > build-minimal-p03-v4.env
+# build-push-minimal-p03-v4:
+#   extends: .buildah-job
+#   stage: build-push-p03
+#   needs:
+#     - job: build-push-minimal-v4
+#   script:
+#     - printf 'TAGS=\nBRANCH_SLUG=\n' > build-minimal-p03-v4.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-p03-v4.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-p03-v4.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.minimal.p03.v4 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.minimal.p03.v4 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-minimal-p03-v4.env
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-minimal-p03-v4.env
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-nvidia-p03-v4:
-  extends: .buildah-job
-  stage: build-push-nvidia
-  needs:
-    - job: build-push-base-p03-v4
-  script:
-    - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia-p03-v4.env
+# build-push-nvidia-p03-v4:
+#   extends: .buildah-job
+#   stage: build-push-nvidia
+#   needs:
+#     - job: build-push-base-p03-v4
+#   script:
+#     - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia-p03-v4.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia-p03-v4.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia-p03-v4.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — NVIDIA modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — NVIDIA modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.nvidia.p03.v4 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_P03_V4}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.nvidia.p03.v4 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_P03_V4}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-nvidia-p03-v4.env
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-nvidia-p03-v4.env
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-minimal-nvidia-p03-v4:
-  extends: .buildah-job
-  stage: build-push-nvidia
-  needs:
-    - job: build-push-minimal-p03-v4
-  script:
-    - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-minimal-nvidia-p03-v4.env
+# build-push-minimal-nvidia-p03-v4:
+#   extends: .buildah-job
+#   stage: build-push-nvidia
+#   needs:
+#     - job: build-push-minimal-p03-v4
+#   script:
+#     - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-minimal-nvidia-p03-v4.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-nvidia-p03-v4.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-nvidia-p03-v4.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — NVIDIA modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — NVIDIA modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.minimal.nvidia.p03.v4 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal NVIDIA)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.minimal.nvidia.p03.v4 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal NVIDIA)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-minimal-nvidia-p03-v4.env
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-minimal-nvidia-p03-v4.env
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-base-p03-v3:
-  extends: .buildah-job
-  stage: build-push-p03
-  needs:
-    - job: build-push-base-v3
-  script:
-    - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base-p03-v3.env
+# build-push-base-p03-v3:
+#   extends: .buildah-job
+#   stage: build-push-p03
+#   needs:
+#     - job: build-push-base-v3
+#   script:
+#     - printf 'TAGS=\nBRANCH_SLUG=\n' > build-base-p03-v3.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base-p03-v3.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-base-p03-v3.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.p03.v3 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC}" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.p03.v3 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC}" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_V3#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-base-p03-v3.env
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_V3#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-base-p03-v3.env
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-minimal-p03-v3:
-  extends: .buildah-job
-  stage: build-push-p03
-  needs:
-    - job: build-push-minimal-v3
-  script:
-    - printf 'TAGS=\nBRANCH_SLUG=\n' > build-minimal-p03-v3.env
+# build-push-minimal-p03-v3:
+#   extends: .buildah-job
+#   stage: build-push-p03
+#   needs:
+#     - job: build-push-minimal-v3
+#   script:
+#     - printf 'TAGS=\nBRANCH_SLUG=\n' > build-minimal-p03-v3.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-p03-v3.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-p03-v3.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.minimal.p03.v3 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.minimal.p03.v3 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-minimal-p03-v3.env
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-minimal-p03-v3.env
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-nvidia-p03-v3:
-  extends: .buildah-job
-  stage: build-push-nvidia
-  needs:
-    - job: build-push-base-p03-v3
-  script:
-    - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia-p03-v3.env
+# build-push-nvidia-p03-v3:
+#   extends: .buildah-job
+#   stage: build-push-nvidia
+#   needs:
+#     - job: build-push-base-p03-v3
+#   script:
+#     - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-nvidia-p03-v3.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia-p03-v3.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-nvidia-p03-v3.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — NVIDIA modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — NVIDIA modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.nvidia.p03.v3 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_P03_V3}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.nvidia.p03.v3 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_P03_V3}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (NVIDIA)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-nvidia-p03-v3.env
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-nvidia-p03-v3.env
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-build-push-minimal-nvidia-p03-v3:
-  extends: .buildah-job
-  stage: build-push-nvidia
-  needs:
-    - job: build-push-minimal-p03-v3
-  script:
-    - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-minimal-nvidia-p03-v3.env
+# build-push-minimal-nvidia-p03-v3:
+#   extends: .buildah-job
+#   stage: build-push-nvidia
+#   needs:
+#     - job: build-push-minimal-p03-v3
+#   script:
+#     - printf 'TAGS_NVIDIA=\nBRANCH_SLUG=\n' > build-minimal-nvidia-p03-v3.env
 
-    - |
-      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DATE_TAG}"
-      else
-        TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}.${DATE_TAG}"
-      fi
-      export TAGS BRANCH_SLUG
-      printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-nvidia-p03-v3.env
+#     - |
+#       if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG}.${DATE_TAG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DATE_TAG}"
+#       else
+#         TAGS="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG} ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}.${DATE_TAG}"
+#       fi
+#       export TAGS BRANCH_SLUG
+#       printf 'TAGS_NVIDIA=%s\nBRANCH_SLUG=%s\n' "${TAGS}" "${BRANCH_SLUG}" > build-minimal-nvidia-p03-v3.env
 
-    - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:ci-temp-${CI_PIPELINE_ID}"
+#     - export TEMP_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:ci-temp-${CI_PIPELINE_ID}"
 
-    - |
-      MOK_SECRET_FLAG=""
-      SECURE_FILE_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
-      if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
-          curl --silent \
-              --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-              -o /tmp/MOK.key \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
-          chmod 600 /tmp/MOK.key
-          MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
-          echo "MOK.key downloaded — NVIDIA modules will be signed"
-      else
-          echo "MOK.key not found in Secure Files — skipping module signing"
-      fi
+#     - |
+#       MOK_SECRET_FLAG=""
+#       SECURE_FILE_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "MOK.key") | .id' 2>/dev/null || true)
+#       if [[ -n "${SECURE_FILE_ID}" ]] && [[ "${SECURE_FILE_ID}" != "null" ]]; then
+#           curl --silent \
+#               --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#               -o /tmp/MOK.key \
+#               "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${SECURE_FILE_ID}/download"
+#           chmod 600 /tmp/MOK.key
+#           MOK_SECRET_FLAG="--secret id=mok_key,src=/tmp/MOK.key"
+#           echo "MOK.key downloaded — NVIDIA modules will be signed"
+#       else
+#           echo "MOK.key not found in Secure Files — skipping module signing"
+#       fi
 
-    - |
-      buildah build \
-        --file Containerfile.minimal.nvidia.p03.v3 \
-        --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
-        --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}" \
-        --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --skip-unused-stages=false \
-        -v "$(pwd)":/run/src --security-opt=label=disable \
-        ${MOK_SECRET_FLAG} \
-        --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
-        --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal NVIDIA)" \
-        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
-        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
-        --label "org.opencontainers.image.vendor=RakuOS" \
-        --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
-        --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
-        --label "containers.bootc=1" \
-        --tag "${TEMP_TAG}" \
-        .
+#     - |
+#       buildah build \
+#         --file Containerfile.minimal.nvidia.p03.v3 \
+#         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
+#         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}" \
+#         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+#         --skip-unused-stages=false \
+#         -v "$(pwd)":/run/src --security-opt=label=disable \
+#         ${MOK_SECRET_FLAG} \
+#         --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+#         --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
+#         --label "org.opencontainers.image.description=${IMAGE_DESC} (Minimal NVIDIA)" \
+#         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+#         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+#         --label "org.opencontainers.image.vendor=RakuOS" \
+#         --label "org.opencontainers.image.keywords=${IMAGE_KEYWORDS}" \
+#         --label "org.rakuos.fedora.version=${FEDORA_VERSION}" \
+#         --label "containers.bootc=1" \
+#         --tag "${TEMP_TAG}" \
+#         .
 
-    - |
-      if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
-        buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-        if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG}"
-          ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
-        else
-          PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}"
-          ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
-        fi
-        echo "Pushing ${PRIMARY_QUAY_TAG}"
-        buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
-        REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3#quay.io/}"
-        PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
-        DIGEST=$(curl -sf \
-          -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-          "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-          | jq -r '.tags[0].manifest_digest')
-        echo "Manifest digest: ${DIGEST}"
-        for alias in ${ALIAS_TAGS}; do
-          echo "Aliasing :${alias} → ${DIGEST}"
-          curl -sf -X PUT \
-            -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"manifest_digest\": \"${DIGEST}\"}" \
-            "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
-        done
-        echo "All tags pushed and aliased."
-      fi
-  artifacts:
-    reports:
-      dotenv: build-minimal-nvidia-p03-v3.env
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+#     - |
+#       if [ "${CI_PIPELINE_SOURCE}" != "merge_request_event" ]; then
+#         buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#         if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${DEFAULT_TAG}"
+#           ALIAS_TAGS="${DEFAULT_TAG}.${DATE_TAG} ${DATE_TAG}"
+#         else
+#           PRIMARY_QUAY_TAG="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}"
+#           ALIAS_TAGS="${BRANCH_SLUG}.${DATE_TAG}"
+#         fi
+#         echo "Pushing ${PRIMARY_QUAY_TAG}"
+#         buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+#         REPO_PATH="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3#quay.io/}"
+#         PRIMARY_TAG_NAME="${PRIMARY_QUAY_TAG##*:}"
+#         DIGEST=$(curl -sf \
+#           -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#           "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+#           | jq -r '.tags[0].manifest_digest')
+#         echo "Manifest digest: ${DIGEST}"
+#         for alias in ${ALIAS_TAGS}; do
+#           echo "Aliasing :${alias} → ${DIGEST}"
+#           curl -sf -X PUT \
+#             -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"manifest_digest\": \"${DIGEST}\"}" \
+#             "https://quay.io/api/v1/repository/${REPO_PATH}/tag/${alias}"
+#         done
+#         echo "All tags pushed and aliased."
+#       fi
+#   artifacts:
+#     reports:
+#       dotenv: build-minimal-nvidia-p03-v3.env
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 # ============================================================
 # RPM DB Stress Tests + Immediate Failure Response
@@ -2369,221 +2369,221 @@ test-image-minimal-nvidia-v3:
       buildah rm "${CTR}" || true
       echo "Image stress test (NVIDIA) passed."
 
-test-image-standard-p03-v4:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-base-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-standard-p03-v4:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-base-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_V4}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test passed."
 
-test-image-nvidia-p03-v4:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-nvidia-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-nvidia-p03-v4:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-nvidia-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      echo "=== Image stress test: NVIDIA packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+#       echo "=== Image stress test: NVIDIA packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test (NVIDIA) passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test (NVIDIA) passed."
 
-test-image-minimal-p03-v4:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-minimal-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-minimal-p03-v4:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-minimal-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test passed."
 
-test-image-minimal-nvidia-p03-v4:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-minimal-nvidia-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-minimal-nvidia-p03-v4:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-minimal-nvidia-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      echo "=== Image stress test: NVIDIA packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+#       echo "=== Image stress test: NVIDIA packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test (NVIDIA) passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test (NVIDIA) passed."
 
-test-image-standard-p03-v3:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-base-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-standard-p03-v3:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-base-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_V3}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test passed."
 
-test-image-nvidia-p03-v3:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-nvidia-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-nvidia-p03-v3:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-nvidia-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      echo "=== Image stress test: NVIDIA packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+#       echo "=== Image stress test: NVIDIA packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test (NVIDIA) passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test (NVIDIA) passed."
 
-test-image-minimal-p03-v3:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-minimal-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-minimal-p03-v3:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-minimal-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test passed."
 
-test-image-minimal-nvidia-p03-v3:
-  extends: .image-test-job
-  stage: test
-  needs:
-    - job: build-push-minimal-nvidia-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}"
-      buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      buildah pull "docker://${IMAGE_REF}"
-      CTR=$(buildah from "${IMAGE_REF}")
+# test-image-minimal-nvidia-p03-v3:
+#   extends: .image-test-job
+#   stage: test
+#   needs:
+#     - job: build-push-minimal-nvidia-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       IMAGE_REF="${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${BRANCH_SLUG}"
+#       buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       buildah pull "docker://${IMAGE_REF}"
+#       CTR=$(buildah from "${IMAGE_REF}")
 
-      echo "=== Image stress test: Justfile + Anaconda packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        rum install -y --allowerasing \
-          --enable-repo=fedora-cisco-openh264 \
-          dracut-live livesys-scripts fuse-overlayfs \
-          anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
-          qrencode yad
+#       echo "=== Image stress test: Justfile + Anaconda packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         rum install -y --allowerasing \
+#           --enable-repo=fedora-cisco-openh264 \
+#           dracut-live livesys-scripts fuse-overlayfs \
+#           anaconda-live libblockdev-btrfs libblockdev-lvm libblockdev-dm \
+#           qrencode yad
 
-      echo "=== Image stress test: NVIDIA packages ==="
-      buildah run --isolation chroot --network host "${CTR}" -- \
-        bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
+#       echo "=== Image stress test: NVIDIA packages ==="
+#       buildah run --isolation chroot --network host "${CTR}" -- \
+#         bash -c 'for pkg in nvidia-gpu-firmware mesa-vulkan-drivers; do rum reinstall -y --allowerasing "$pkg" || rum install -y --allowerasing "$pkg"; done'
 
-      buildah rm "${CTR}" || true
-      echo "Image stress test (NVIDIA) passed."
+#       buildah rm "${CTR}" || true
+#       echo "Image stress test (NVIDIA) passed."
 
 .trigger-on-test-fail:
   stage: test
@@ -2687,53 +2687,53 @@ trigger-on-image-minimal-nvidia-fail-v3:
     - job: test-image-minimal-nvidia-v3
       artifacts: false
 
-trigger-on-image-standard-fail-p03-v4:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-standard-p03-v4
-      artifacts: false
+# trigger-on-image-standard-fail-p03-v4:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-standard-p03-v4
+#       artifacts: false
 
-trigger-on-image-nvidia-fail-p03-v4:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-nvidia-p03-v4
-      artifacts: false
+# trigger-on-image-nvidia-fail-p03-v4:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-nvidia-p03-v4
+#       artifacts: false
 
-trigger-on-image-minimal-fail-p03-v4:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-minimal-p03-v4
-      artifacts: false
+# trigger-on-image-minimal-fail-p03-v4:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-minimal-p03-v4
+#       artifacts: false
 
-trigger-on-image-minimal-nvidia-fail-p03-v4:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-minimal-nvidia-p03-v4
-      artifacts: false
+# trigger-on-image-minimal-nvidia-fail-p03-v4:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-minimal-nvidia-p03-v4
+#       artifacts: false
 
-trigger-on-image-standard-fail-p03-v3:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-standard-p03-v3
-      artifacts: false
+# trigger-on-image-standard-fail-p03-v3:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-standard-p03-v3
+#       artifacts: false
 
-trigger-on-image-nvidia-fail-p03-v3:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-nvidia-p03-v3
-      artifacts: false
+# trigger-on-image-nvidia-fail-p03-v3:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-nvidia-p03-v3
+#       artifacts: false
 
-trigger-on-image-minimal-fail-p03-v3:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-minimal-p03-v3
-      artifacts: false
+# trigger-on-image-minimal-fail-p03-v3:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-minimal-p03-v3
+#       artifacts: false
 
-trigger-on-image-minimal-nvidia-fail-p03-v3:
-  extends: .trigger-on-test-fail
-  needs:
-    - job: test-image-minimal-nvidia-p03-v3
-      artifacts: false
+# trigger-on-image-minimal-nvidia-fail-p03-v3:
+#   extends: .trigger-on-test-fail
+#   needs:
+#     - job: test-image-minimal-nvidia-p03-v3
+#       artifacts: false
 
 sign-image-standard:
   stage: sign
@@ -3299,381 +3299,381 @@ sign-image-minimal-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rawhide"'
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-standard-p03-v4:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-standard-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_P03_V4}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_P03_V4}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-standard-p03-v4:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-standard-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_P03_V4}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_P03_V4}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-nvidia-p03-v4:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-nvidia-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-nvidia-p03-v4:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-nvidia-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-minimal-p03-v4:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-minimal-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-minimal-p03-v4:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-minimal-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V4}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-minimal-nvidia-p03-v4:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-minimal-nvidia-p03-v4
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-minimal-nvidia-p03-v4:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-minimal-nvidia-p03-v4
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V4}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-standard-p03-v3:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-standard-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_P03_V3}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_P03_V3}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-standard-p03-v3:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-standard-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_P03_V3}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_P03_V3}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-nvidia-p03-v3:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-nvidia-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-nvidia-p03-v3:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-nvidia-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-minimal-p03-v3:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-minimal-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-minimal-p03-v3:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-minimal-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_V3}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
-sign-image-minimal-nvidia-p03-v3:
-  stage: sign
-  image: quay.io/buildah/stable:latest
-  tags:
-    - saas-linux-medium-amd64
-  needs:
-    - job: test-image-minimal-nvidia-p03-v3
-      artifacts: false
-  script:
-    - |
-      set -euo pipefail
-      curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
-        -o /usr/local/bin/cosign
-      chmod +x /usr/local/bin/cosign
-      dnf install -y --quiet jq podman
-      podman login --authfile ~/.docker/config.json \
-        -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
-      case "${CI_COMMIT_BRANCH}" in
-        "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
-        "staging")              PRIMARY_TAG_NAME="staging"        ;;
-        "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
-        "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
-        *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
-      esac
-      COSIGN_KEY_ID=$(curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
-          | jq -r '.[] | select(.name == "cosign.key") | .id')
-      curl --silent \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          -o /tmp/cosign.key \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
-      chmod 600 /tmp/cosign.key
-      echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}..."
-      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
-        -key /tmp/cosign.key \
-        -a "repo=${CI_PROJECT_URL}" \
-        -a "branch=${CI_COMMIT_BRANCH}" \
-        "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}"
-      rm -f /tmp/cosign.key
-      echo "Image signed successfully."
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH == "staging"'
-    - if: '$CI_COMMIT_BRANCH == "rawhide"'
-    - if: '$CI_COMMIT_BRANCH == "rakuosel"'
+# sign-image-minimal-nvidia-p03-v3:
+#   stage: sign
+#   image: quay.io/buildah/stable:latest
+#   tags:
+#     - saas-linux-medium-amd64
+#   needs:
+#     - job: test-image-minimal-nvidia-p03-v3
+#       artifacts: false
+#   script:
+#     - |
+#       set -euo pipefail
+#       curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+#         -o /usr/local/bin/cosign
+#       chmod +x /usr/local/bin/cosign
+#       dnf install -y --quiet jq podman
+#       podman login --authfile ~/.docker/config.json \
+#         -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+#       case "${CI_COMMIT_BRANCH}" in
+#         "${CI_DEFAULT_BRANCH}") PRIMARY_TAG_NAME="${DEFAULT_TAG}" ;;
+#         "staging")              PRIMARY_TAG_NAME="staging"        ;;
+#         "rawhide")              PRIMARY_TAG_NAME="rawhide"        ;;
+#         "rakuosel")             PRIMARY_TAG_NAME="rakuosel"       ;;
+#         *) PRIMARY_TAG_NAME="$(printf '%s' "${CI_COMMIT_BRANCH}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')" ;;
+#       esac
+#       COSIGN_KEY_ID=$(curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files" \
+#           | jq -r '.[] | select(.name == "cosign.key") | .id')
+#       curl --silent \
+#           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+#           -o /tmp/cosign.key \
+#           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/secure_files/${COSIGN_KEY_ID}/download"
+#       chmod 600 /tmp/cosign.key
+#       echo "Signing ${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}..."
+#       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+#         -key /tmp/cosign.key \
+#         -a "repo=${CI_PROJECT_URL}" \
+#         -a "branch=${CI_COMMIT_BRANCH}" \
+#         "${IMAGE_REGISTRY_QUAY_MINIMAL_P03_NVIDIA_V3}:${PRIMARY_TAG_NAME}"
+#       rm -f /tmp/cosign.key
+#       echo "Image signed successfully."
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#     - if: '$CI_COMMIT_BRANCH == "staging"'
+#     - if: '$CI_COMMIT_BRANCH == "rawhide"'
+#     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 trigger-downstream:
   stage: dispatch
@@ -3705,22 +3705,22 @@ trigger-downstream:
       artifacts: false
     - job: sign-image-minimal-nvidia-v3
       artifacts: false
-    - job: sign-image-standard-p03-v4
-      artifacts: false
-    - job: sign-image-nvidia-p03-v4
-      artifacts: false
-    - job: sign-image-minimal-p03-v4
-      artifacts: false
-    - job: sign-image-minimal-nvidia-p03-v4
-      artifacts: false
-    - job: sign-image-standard-p03-v3
-      artifacts: false
-    - job: sign-image-nvidia-p03-v3
-      artifacts: false
-    - job: sign-image-minimal-p03-v3
-      artifacts: false
-    - job: sign-image-minimal-nvidia-p03-v3
-      artifacts: false
+    # - job: sign-image-standard-p03-v4
+    #   artifacts: false
+    # - job: sign-image-nvidia-p03-v4
+    #   artifacts: false
+    # - job: sign-image-minimal-p03-v4
+    #   artifacts: false
+    # - job: sign-image-minimal-nvidia-p03-v4
+    #   artifacts: false
+    # - job: sign-image-standard-p03-v3
+    #   artifacts: false
+    # - job: sign-image-nvidia-p03-v3
+    #   artifacts: false
+    # - job: sign-image-minimal-p03-v3
+    #   artifacts: false
+    # - job: sign-image-minimal-nvidia-p03-v3
+    #   artifacts: false
   script:
     - |
       trigger_pipeline() {
@@ -3739,6 +3739,7 @@ trigger-downstream:
       trigger_pipeline "${TRIGGER_TOKEN_GNOME}" "${PROJECT_ID_GNOME}"
       trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" "${PROJECT_ID_COSMIC}"
       trigger_pipeline "${TRIGGER_TOKEN_NIRI}" "${PROJECT_ID_NIRI}"
+      trigger_pipeline "${TRIGGER_TOKEN_HYPRLAND}" "${PROJECT_ID_HYPRLAND}"
       # minimal is now built directly in this pipeline (build-push-minimal*
       # jobs above) instead of as a separate downstream project.
       # gamescope is based on the kde image, not directly on base — kde's
@@ -3780,22 +3781,22 @@ notify-discord-minimal:
       optional: true
     - job: sign-image-minimal-nvidia-v3
       optional: true
-    - job: sign-image-standard-p03-v4
-      optional: true
-    - job: sign-image-nvidia-p03-v4
-      optional: true
-    - job: sign-image-minimal-p03-v4
-      optional: true
-    - job: sign-image-minimal-nvidia-p03-v4
-      optional: true
-    - job: sign-image-standard-p03-v3
-      optional: true
-    - job: sign-image-nvidia-p03-v3
-      optional: true
-    - job: sign-image-minimal-p03-v3
-      optional: true
-    - job: sign-image-minimal-nvidia-p03-v3
-      optional: true
+    # - job: sign-image-standard-p03-v4
+    #   optional: true
+    # - job: sign-image-nvidia-p03-v4
+    #   optional: true
+    # - job: sign-image-minimal-p03-v4
+    #   optional: true
+    # - job: sign-image-minimal-nvidia-p03-v4
+    #   optional: true
+    # - job: sign-image-standard-p03-v3
+    #   optional: true
+    # - job: sign-image-nvidia-p03-v3
+    #   optional: true
+    # - job: sign-image-minimal-p03-v3
+    #   optional: true
+    # - job: sign-image-minimal-nvidia-p03-v3
+    #   optional: true
   script:
     - |
       set -euo pipefail
