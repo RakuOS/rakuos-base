@@ -131,6 +131,10 @@ alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
 ananicy-cpp \
+apparmor-libs \
+apparmor-parser \
+apparmor-profiles \
+apparmor-utils \
 appstream \
 appstream-data \
 apr \
@@ -337,6 +341,7 @@ os-prober \
 oversteer-udev \
 pam-u2f \
 pam_afs_session \
+pam_apparmor \
 pam_yubico \
 pamu2fcfg \
 paps \
@@ -362,6 +367,8 @@ printer-driver-brlaser \
 procs \
 ptouch-driver \
 pulseaudio-utils \
+python3-apparmor \
+python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 qcom-wwan-firmware \
