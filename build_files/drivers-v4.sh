@@ -4,9 +4,9 @@ set -ouex pipefail
 
 # Same staging switch as build-v4.sh (RAKUOS_STAGING persists as an image
 # ENV from that layer, so it's already set here).
-KERNEL_PKG="kernel-p03-raku-v4"
+KERNEL_PKG="kernel-rakuos-v4"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-raku-staging-v4"
+    KERNEL_PKG="kernel-rakuos-v4-staging"
 fi
 
 # Determine the installed kernel version
@@ -106,7 +106,7 @@ depmod "$QUALIFIED_KERNEL"
 
 # Generate initramfs for that kernel
 /usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
---add ostree --add fido2 --add rakuos-overlay -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
+--add ostree --add fido2 --add rakuos-overlay --omit selinux -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
 

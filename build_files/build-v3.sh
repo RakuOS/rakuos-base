@@ -13,11 +13,11 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
 fi
 
 # Same switch for the kernel: on staging, track kernel-staging's -staging
-# tagged builds (kernel-p03-raku-staging-v3) instead of the stable kernel repo's
-# kernel-p03-raku-v3, so staging images pick up in-flight kernel changes.
-KERNEL_PKG="kernel-p03-raku-v3"
+# tagged builds (kernel-p03-v3-staging) instead of the stable kernel repo's
+# kernel-p03-v3, so staging images pick up in-flight kernel changes.
+KERNEL_PKG="kernel-rakuos-v3"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-raku-staging-v3"
+    KERNEL_PKG="kernel-rakuos-v3-staging"
 fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
@@ -130,6 +130,10 @@ alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
 ananicy-cpp \
+apparmor-libs \
+apparmor-parser \
+apparmor-profiles \
+apparmor-utils \
 appstream \
 appstream-data \
 apr \
@@ -336,6 +340,7 @@ os-prober \
 oversteer-udev \
 pam-u2f \
 pam_afs_session \
+pam_apparmor \
 pam_yubico \
 pamu2fcfg \
 paps \
@@ -361,6 +366,8 @@ printer-driver-brlaser \
 procs \
 ptouch-driver \
 pulseaudio-utils \
+python3-apparmor \
+python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
 qcom-wwan-firmware \

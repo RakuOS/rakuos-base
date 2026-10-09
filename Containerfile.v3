@@ -21,6 +21,7 @@ ENV RAKUOS_STAGING=${RAKUOS_STAGING}
 RUN rm -rf /opt && ln -s -T var/opt /opt
 RUN rm -rf /usr/local && ln -s -T ../var/usrlocal /usr/local
 RUN mkdir -vp /nix
+RUN mkdir -vp /snap
 COPY system_files /
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
