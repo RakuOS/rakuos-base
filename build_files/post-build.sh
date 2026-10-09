@@ -96,9 +96,9 @@ fi
 
 # Same staging switch as build.sh — RAKUOS_STAGING persists as an image ENV
 # from that layer, so it's already set here.
-KERNEL_PKG="kernel-p03-raku-v2"
+KERNEL_PKG="kernel-rakuos-v2"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-raku-staging-v2"
+    KERNEL_PKG="kernel-rakuos-v2-staging"
 fi
 
 cat >> "$PROTECTED_FILE" << EOF

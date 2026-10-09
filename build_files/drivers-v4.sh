@@ -4,9 +4,9 @@ set -ouex pipefail
 
 # Same staging switch as build-v4.sh (RAKUOS_STAGING persists as an image
 # ENV from that layer, so it's already set here).
-KERNEL_PKG="kernel-p03-raku-v4"
+KERNEL_PKG="kernel-rakuos-v4"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-p03-raku-staging-v4"
+    KERNEL_PKG="kernel-rakuos-v4-staging"
 fi
 
 # Determine the installed kernel version
