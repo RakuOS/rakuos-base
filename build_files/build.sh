@@ -371,6 +371,7 @@ python3-apparmor \
 python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
+python3-tkinter \
 qcom-wwan-firmware \
 qemu-guest-agent \
 qemu-user-static-aarch64 \
