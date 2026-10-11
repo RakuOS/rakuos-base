@@ -44,7 +44,7 @@ rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-
 # Fusion ships packages under the same names (nvidia-settings,
 # nvidia-modprobe, nvidia-persistenced). These patterns don't match
 # libva-nvidia-driver or the egl-* libraries, so those still resolve.
-sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-*' /etc/yum.repos.d/rpmfusion-*.repo
+sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-* steam' /etc/yum.repos.d/rpmfusion-*.repo
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 rum remove -y 'selinux-policy*' 'policycoreutils-gui'
