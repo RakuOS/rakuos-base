@@ -40,6 +40,13 @@ dnf5 -y install rakuos-rum rum-dnf-shim
 rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
+# Keep RPM Fusion's NVIDIA driver stack out of every RPM Fusion repo,
+# updates included: the NVIDIA driver comes from the rakuos repo, and RPM
+# Fusion ships packages under the same names (nvidia-settings,
+# nvidia-modprobe, nvidia-persistenced). These patterns don't match
+# libva-nvidia-driver or the egl-* libraries, so those still resolve.
+sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-*' /etc/yum.repos.d/rpmfusion-*.repo
+
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
@@ -372,6 +379,7 @@ python3-apparmor \
 python3-LibAppArmor \
 python3-pip \
 python3-setuptools \
+python3-tkinter \
 qcom-wwan-firmware \
 qemu-guest-agent \
 qemu-user-static-aarch64 \
