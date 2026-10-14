@@ -9,12 +9,18 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KERNEL_PKG="kernel-rakuos-v3-staging"
 fi
 
+# Prebuilt, RakuOS-signed kernel modules (signed-kmods repo) for this kernel:
+# rakuos-kmod-<name>, or rakuos-kmod-<name>-staging for the staging kernel.
+# Nothing is compiled or signed here any more.
+KMOD_SUFFIX=""
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KMOD_SUFFIX="-staging"
+fi
+
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 rum install -y \
-    akmods \
-    dkms \
     ${KERNEL_PKG}-devel \
     ${KERNEL_PKG}-devel-matched \
     gcc \
@@ -29,19 +35,13 @@ rum install -y \
     b43-openfwwf \
     brcmfmac-firmware \
     broadcom-wl \
-    v4l2loopback
+    rakuos-kmod-wl${KMOD_SUFFIX} \
+    v4l2loopback \
+    rakuos-kmod-v4l2loopback${KMOD_SUFFIX}
 
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
-
-# Build akmod packages (e.g. broadcom-wl) for the installed kernel.
-# akmods installs the resulting kmod RPM so the .ko lands in
-# /usr/lib/modules/$QUALIFIED_KERNEL/extra/ where the signing loop picks it up.
-echo "Building akmods for kernel ${QUALIFIED_KERNEL}..."
-akmods --kernels "$QUALIFIED_KERNEL" --rebuild
-# Install any built kmod RPMs from the cache
-find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r rum install -y
 
 # ASUS G733ZM HDA audio firmware — sits in /usr/lib/firmware unused on other hardware.
 # The modprobe config that activates it is written at runtime via `rakuos setup-g733zm-audio`.
@@ -51,41 +51,12 @@ curl -fsSL \
     "https://raw.githubusercontent.com/Hyperchaotic/G733ZM-audio-fix/main/hda-jack-retask.fw" \
     -o /usr/lib/firmware/hda-jack-retask.fw
 
-# Sign all DKMS extra modules with MOK key (skipped silently if key not present)
-MOK_KEY="/run/secrets/mok_key"
-MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
-SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
-if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
-    echo "Signing all extra kernel modules..."
-    while IFS= read -r ko; do
-        case "$ko" in
-            *.ko.xz)
-                bare="${ko%.xz}"
-                xz -dk "$ko"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                xz -f "$bare"
-                ;;
-            *.ko.zst)
-                bare="${ko%.zst}"
-                zstd -dq "$ko" -o "$bare"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                zstd -qf "$bare" -o "$ko"
-                rm -f "$bare"
-                ;;
-            *.ko)
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$ko"
-                ;;
-        esac
-        echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
-        \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
-    echo "Module signing complete."
-else
-    echo "MOK key or sign-file not available — skipping module signing."
-fi
+# Out-of-tree modules (rakuos-kmod-*) arrive already signed with the RakuOS
+# key by the signed-kmods CI, so there's no module signing step here.
 
 # Sign the kernel vmlinuz with MOK key
 VMLINUZ="/usr/lib/modules/${QUALIFIED_KERNEL}/vmlinuz"
+MOK_KEY="/run/secrets/mok_key"
 MOK_CERT_DER="/usr/share/rakuos/sb_pubkey.der"
 if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
     echo "Signing kernel ${QUALIFIED_KERNEL}..."
