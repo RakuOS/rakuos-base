@@ -51,7 +51,7 @@ stages:
           export BRANCH_SLUG="${DEFAULT_TAG}"
           ;;
         "staging")
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="45"
           export BRANCH_SLUG="staging"
           ;;
         "rawhide")
