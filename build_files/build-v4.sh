@@ -164,7 +164,7 @@ install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
 rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
 
 # install packages
-rum install -y @fonts @hardware-support \
+rum install -y --skip-unavailable @fonts @hardware-support \
 7zip \
 alsa-firmware \
 alsa-sof-firmware \
@@ -463,7 +463,6 @@ tmux \
 traceroute \
 tree \
 tuned \
-ublue-os-udev-rules \
 udisks2 \
 unrar \
 unzip \
