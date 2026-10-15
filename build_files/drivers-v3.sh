@@ -22,7 +22,8 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERN
 
 # Every module the signed-kmods repo builds, except NVIDIA (the nvidia
 # scripts install rakuos-kmod-nvidia; nvidia-580xx is for a later legacy
-# image). Each package pulls in its companion userspace/firmware package
+# image) and VirtualBox (users add rakuos-kmod-VirtualBox to their overlay
+# along with VirtualBox itself). Each package pulls in its companion userspace/firmware package
 # (xone, xpadneo, broadcom-wl, v4l2loopback, ...) through its dependencies.
 # Keep in sync with DECK_KMODS in rakuos-gamescope's drivers.sh.
 KMODS=(
@@ -33,7 +34,6 @@ KMODS=(
     mediatek-mt7927 xtables-addons
     intel-ipu6 intel-vision sc0710
     nct6687d ryzen_smu zenergy
-    VirtualBox
 )
 
 rum install -y \
