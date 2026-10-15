@@ -20,6 +20,22 @@ fi
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
+# Every module the signed-kmods repo builds, except NVIDIA (the nvidia
+# scripts install rakuos-kmod-nvidia; nvidia-580xx is for a later legacy
+# image). Each package pulls in its companion userspace/firmware package
+# (xone, xpadneo, broadcom-wl, v4l2loopback, ...) through its dependencies.
+# Keep in sync with DECK_KMODS in rakuos-gamescope's drivers.sh.
+KMODS=(
+    wl v4l2loopback
+    xone xpadneo xpad-noone
+    hid-fanatecff hid-tmff2 t150-driver new-lg4ff logitech-trueforce
+    openrazer ayaneo-leds
+    mediatek-mt7927 xtables-addons
+    intel-ipu6 intel-vision sc0710
+    nct6687d ryzen_smu zenergy
+    VirtualBox
+)
+
 rum install -y \
     ${KERNEL_PKG}-devel \
     ${KERNEL_PKG}-devel-matched \
@@ -35,9 +51,8 @@ rum install -y \
     b43-openfwwf \
     brcmfmac-firmware \
     broadcom-wl \
-    rakuos-kmod-wl${KMOD_SUFFIX} \
     v4l2loopback \
-    rakuos-kmod-v4l2loopback${KMOD_SUFFIX}
+    $(printf "rakuos-kmod-%s${KMOD_SUFFIX} " "${KMODS[@]}")
 
 
 tmpdir="$(mktemp -d)"
