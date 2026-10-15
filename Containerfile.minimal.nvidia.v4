@@ -18,6 +18,9 @@ ENV BASE_IMAGE_TAG=${BASE_IMAGE_TAG}
 # be passed in here explicitly too (see .gitlab-ci.yml build-push-minimal-nvidia-v4).
 ARG RAKUOS_STAGING="0"
 ENV RAKUOS_STAGING=${RAKUOS_STAGING}
+# 1 for the legacy NVIDIA (580xx) images; nvidia*.sh reads it from the
+# RUN environment (see the *-nvidia-legacy jobs in .gitlab-ci.yml).
+ARG NVIDIA_LEGACY="0"
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \

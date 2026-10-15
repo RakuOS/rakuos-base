@@ -17,32 +17,40 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KMOD_SUFFIX="-staging"
 fi
 
+# Legacy images (NVIDIA_LEGACY=1, a build arg from the *-nvidia-legacy CI
+# jobs) ship the 580xx driver, the last branch for Maxwell, Pascal and Volta:
+# the same packages with a -580xx suffix, and the current driver's libraries
+# kept out instead of the 580xx ones.
+NV=""
+NV_EXCLUDES=(libnvidia-cfg-580xx libnvidia-gpucomp-580xx nvidia-driver-580xx-cuda-libs libnvidia-ml-580xx)
+if [ "${NVIDIA_LEGACY:-0}" = "1" ]; then
+    NV="-580xx"
+    NV_EXCLUDES=(libnvidia-cfg libnvidia-gpucomp nvidia-driver-cuda-libs libnvidia-ml)
+fi
+
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 rum install -y --setopt=tsflags=noscripts --skip-broken \
-    --exclude=libnvidia-cfg-580xx \
-    --exclude=libnvidia-gpucomp-580xx \
-    --exclude=nvidia-driver-580xx-cuda-libs \
-    --exclude=libnvidia-ml-580xx \
-    rakuos-kmod-nvidia${KMOD_SUFFIX} \
-    nvidia-driver \
-    nvidia-modprobe \
-    nvidia-settings \
-    nvidia-driver-cuda \
-    nvidia-persistenced \
-    nvidia-driver-libs.i686 \
-    nvidia-driver-cuda-libs.i686 \
-    xorg-x11-nvidia \
+    $(printf -- '--exclude=%s ' "${NV_EXCLUDES[@]}") \
+    rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} \
+    nvidia-driver${NV} \
+    nvidia-modprobe${NV} \
+    nvidia-settings${NV} \
+    nvidia-driver${NV}-cuda \
+    nvidia-persistenced${NV} \
+    nvidia-driver${NV}-libs.i686 \
+    nvidia-driver${NV}-cuda-libs.i686 \
+    xorg-x11-nvidia${NV} \
     libva-nvidia-driver \
     ${KERNEL_PKG}-devel-matched
 
 # --skip-broken above would quietly drop the kernel modules if they couldn't
 # be installed (e.g. not yet built for this kernel/driver version); an
 # NVIDIA image without them is broken, so fail the build instead.
-rpm -q "rakuos-kmod-nvidia${KMOD_SUFFIX}" || {
-    echo "ERROR: rakuos-kmod-nvidia${KMOD_SUFFIX} is not installed; is it built for ${QUALIFIED_KERNEL} and this nvidia-driver version?"
+rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" || {
+    echo "ERROR: rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} is not installed; is it built for ${QUALIFIED_KERNEL} and this nvidia-driver version?"
     exit 1
 }
 
@@ -56,9 +64,15 @@ rpm -q "rakuos-kmod-nvidia${KMOD_SUFFIX}" || {
 # # Install any built kmod RPMs from the cache
 # find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
-# Enable NVIDIA power management services
-systemctl enable nvidia-powerd.service \
-     nvidia-persistenced.service
+# Enable NVIDIA power management services (the 580xx driver may not ship
+# nvidia-powerd, so only enable the units that are there).
+for unit in nvidia-powerd.service nvidia-persistenced.service; do
+    if systemctl cat "$unit" >/dev/null 2>&1; then
+        systemctl enable "$unit"
+    else
+        echo "WARNING: $unit not installed; not enabling it"
+    fi
+done
 
 # The NVIDIA modules (rakuos-kmod-nvidia*) arrive already signed with the
 # RakuOS key by the signed-kmods CI, so there's no module signing step here.
@@ -97,16 +111,13 @@ PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/nvidia.sh)
-nvidia-driver
-nvidia-modprobe
-nvidia-settings
-libnvidia-gpucomp
-libnvidia-cfg
-libnvidia-ml
-nvidia-persistenced
-libva-nvidia-driver
 EOF
-echo "rakuos-kmod-nvidia${KMOD_SUFFIX}" >> "$PROTECTED_FILE"
+for pkg in nvidia-driver nvidia-modprobe nvidia-settings libnvidia-gpucomp \
+           libnvidia-cfg libnvidia-ml nvidia-persistenced; do
+    echo "${pkg}${NV}" >> "$PROTECTED_FILE"
+done
+echo "libva-nvidia-driver" >> "$PROTECTED_FILE"
+echo "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" >> "$PROTECTED_FILE"
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 
