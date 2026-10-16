@@ -543,6 +543,7 @@ rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
+rakuos-rescue-entries.path \
 dmemcg-booster.service \
 ananicy-cpp.service \
 nix.mount \
