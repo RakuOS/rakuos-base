@@ -515,6 +515,8 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 #systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
+# bootupd's bootloader updater fails on RakuOS; rakuos-bootloader-update.service
+# (rakuos-core, enabled below) keeps shim and GRUB on the ESP current instead.
 systemctl mask bootloader-update.service
 
 # Statically enable getty on tty2-6 -- confirmed on real hardware that
@@ -539,6 +541,8 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
+rakuos-bootloader-update.service \
+rakuos-rescue-entries.service \
 dmemcg-booster.service \
 ananicy-cpp.service \
 nix.mount \
