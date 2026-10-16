@@ -54,6 +54,15 @@ rum install -y \
     v4l2loopback \
     $(printf "rakuos-kmod-%s${KMOD_SUFFIX} " "${KMODS[@]}")
 
+# The signed-kmods packages carry modules only for the kernels that were
+# current when they were built. One that predates this kernel installs
+# without complaint and ships nothing loadable, so fail the build instead.
+for pkg in $(printf "rakuos-kmod-%s${KMOD_SUFFIX} " "${KMODS[@]}"); do
+    grep -q "^/usr/lib/modules/${QUALIFIED_KERNEL}/" < <(rpm -ql "$pkg") || {
+        echo "ERROR: $(rpm -q "$pkg") has no modules for ${QUALIFIED_KERNEL}; rebuild signed-kmods"
+        exit 1
+    }
+done
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT

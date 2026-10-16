@@ -53,6 +53,11 @@ rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" || {
     echo "ERROR: rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} is not installed; is it built for ${QUALIFIED_KERNEL} and this nvidia-driver version?"
     exit 1
 }
+# ...and it must carry modules for this kernel, not just an older one.
+grep -q "^/usr/lib/modules/${QUALIFIED_KERNEL}/" < <(rpm -ql "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") || {
+    echo "ERROR: $(rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") has no modules for ${QUALIFIED_KERNEL}; rebuild signed-kmods"
+    exit 1
+}
 
 # # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
 # # akmods installs the resulting kmod RPM so the .ko lands in
