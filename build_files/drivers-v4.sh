@@ -23,8 +23,10 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERN
 # Every module the signed-kmods repo builds, except NVIDIA (the nvidia
 # scripts install rakuos-kmod-nvidia; nvidia-580xx is for a later legacy
 # image), VirtualBox (users add rakuos-kmod-VirtualBox to their overlay
-# along with VirtualBox itself) and openrazer (it misbehaves with Razer's RGB
-# hub; users with Razer peripherals can add rakuos-kmod-openrazer). Each
+# along with VirtualBox itself), openrazer (it misbehaves with Razer's RGB
+# hub; users with Razer peripherals can add rakuos-kmod-openrazer) and
+# mediatek-mt7927 (it caused problems with a MediaTek USB Wi-Fi adapter; users
+# who need it add rakuos-kmod-mediatek-mt7927). Each
 # package pulls in its companion userspace/firmware package (xone, xpadneo,
 # broadcom-wl, v4l2loopback, ...) through its dependencies.
 # Keep in sync with DECK_KMODS in rakuos-gamescope's drivers.sh.
@@ -33,7 +35,7 @@ KMODS=(
     xone xpadneo xpad-noone
     hid-fanatecff hid-tmff2 t150-driver new-lg4ff logitech-trueforce
     ayaneo-leds
-    mediatek-mt7927 xtables-addons
+    xtables-addons
     intel-ipu6 intel-vision sc0710
     nct6687d ryzen_smu zenergy
 )
