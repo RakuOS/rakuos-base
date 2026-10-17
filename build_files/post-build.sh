@@ -6,7 +6,16 @@ set -ouex pipefail
 # not the repo enabled by default. Desktop images enable it temporarily in
 # their own build.sh if they need Terra-sourced packages, then disable it
 # again in their post-build.sh, matching this same disabled end state.
-rum config-manager --set-disabled terra
+rum config-manager --default --set-disabled terra
+
+# RPM Fusion is opt-in the same way. Record which of its repos the release
+# packages turn on by default (-updates on a stable Fedora, -updates-testing
+# on a branched one; never -debuginfo/-source), so desktop images turn
+# exactly those back on in their build.sh, then disable every RPM Fusion repo.
+mkdir -p /usr/share/rakuos
+rum repolist | awk '$1 ~ /^rpmfusion-/ && $2 == "enabled" {print $1}' > /usr/share/rakuos/rpmfusion-default-repos
+[ -s /usr/share/rakuos/rpmfusion-default-repos ] || { echo "ERROR: no enabled RPM Fusion repos found"; exit 1; }
+rum config-manager --default --set-disabled 'rpmfusion-*'
 
 # Mark all base image packages as dependency so Rum only manages overlay packages
 rum mark -y dependency '*'
@@ -223,7 +232,6 @@ termflix
 tmux
 traceroute
 tuned
-ublue-os-udev-rules
 unrar
 unzip
 usbmuxd

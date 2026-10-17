@@ -36,6 +36,35 @@ sed -i '/^\[rakuos-v4\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.
 ## regardless).
 dnf5 -y install rakuos-rum rum-dnf-shim
 
+## Move every repo file into rum's shipped dir, /usr/share/rum/repos.d, so
+## the image's repos all live there and /etc stays free for users' own repos
+## and changes. Packages that own repo files (fedora-repos etc., installed by
+## dnf into /usr/share/dnf5/repos.d or /etc/yum.repos.d) are reinstalled
+## with rum, which installs repo files there itself, so the rpmdb stays
+## right. Anything left, like the rakuos.repo dnf5 added above, is moved.
+REPO_OWNERS=$(rpm -qf --qf '%{NAME}\n' /usr/share/dnf5/repos.d/*.repo /etc/yum.repos.d/*.repo 2>/dev/null | grep -v 'not owned' | sort -u || true)
+if [ -n "$REPO_OWNERS" ]; then
+    rum reinstall -y $REPO_OWNERS || echo "WARNING: couldn't reinstall $REPO_OWNERS; moving their repo files instead"
+fi
+mkdir -p /usr/share/rum/repos.d
+for repo in /usr/share/dnf5/repos.d/*.repo /etc/yum.repos.d/*.repo; do
+    [ -e "$repo" ] || continue
+    mv -f "$repo" /usr/share/rum/repos.d/
+done
+
+# Repo files that came with packages. rum installs a package's repo files
+# into /usr/share/rum/repos.d (relocated from /etc/yum.repos.d and
+# /usr/share/dnf5/repos.d); ones dnf installed are still in those dirs. Lists
+# the files matching a pattern across all three, so the edits below change the
+# shipped defaults in place and /etc/rum.repos.d stays empty for users' own
+# changes.
+shipped_repo_files() {
+    local dir
+    for dir in /usr/share/rum/repos.d /etc/yum.repos.d /usr/share/dnf5/repos.d; do
+        ls $dir/$1 2>/dev/null || true
+    done
+}
+
 ## rpmfusion release RPMs
 rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
@@ -45,7 +74,9 @@ rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-
 # Fusion ships packages under the same names (nvidia-settings,
 # nvidia-modprobe, nvidia-persistenced). These patterns don't match
 # libva-nvidia-driver or the egl-* libraries, so those still resolve.
-sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-* steam' /etc/yum.repos.d/rpmfusion-*.repo
+RPMFUSION_REPO_FILES=$(shipped_repo_files 'rpmfusion-*.repo')
+[ -n "$RPMFUSION_REPO_FILES" ] || { echo "ERROR: no rpmfusion repo files found"; exit 1; }
+sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-* steam' $RPMFUSION_REPO_FILES
 
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 rum remove -y 'selinux-policy*' 'policycoreutils-gui'
@@ -55,9 +86,13 @@ rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
 
 rum install -y --no-gpgchecks --repofrompath "terra,https://repos.fyralabs.com/terra${FEDORA_VERSION}" terra-release
 
+# Edit Terra's shipped repo files in place (see shipped_repo_files above).
+TERRA_REPO_FILES=$(shipped_repo_files 'terra*.repo')
+[ -n "$TERRA_REPO_FILES" ] || { echo "ERROR: no terra repo files found"; exit 1; }
+
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
-sed -i '/^priority=/d' /etc/yum.repos.d/terra*.repo
-sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor' /etc/yum.repos.d/terra.repo
+sed -i '/^priority=/d' $TERRA_REPO_FILES
+sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor scx-scheds scx-scheds-git scx-tools scx-tools-git' $(shipped_repo_files terra.repo)
 
 
 # Download Terra AppStream data for rakuos-software
@@ -130,7 +165,7 @@ install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
 rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
 
 # install packages
-rum install -y @fonts @hardware-support \
+rum install -y --skip-unavailable @fonts @hardware-support \
 7zip \
 alsa-firmware \
 alsa-sof-firmware \
@@ -429,7 +464,6 @@ tmux \
 traceroute \
 tree \
 tuned \
-ublue-os-udev-rules \
 udisks2 \
 unrar \
 unzip \
@@ -483,6 +517,8 @@ systemctl mask akmods-keygen@akmods-keygen.service
 systemctl mask systemd-remount-fs.service
 #systemctl mask systemd-oomd.service
 systemctl mask rpm-ostreed-automatic.timer
+# bootupd's bootloader updater fails on RakuOS; rakuos-bootloader-update.service
+# (rakuos-core, enabled below) keeps shim and GRUB on the ESP current instead.
 systemctl mask bootloader-update.service
 
 # Statically enable getty on tty2-6 -- confirmed on real hardware that
@@ -507,6 +543,10 @@ rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
+rakuos-bootloader-update.service \
+rakuos-rescue-entries.service \
+rakuos-rescue-entries.path \
+rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \
 nix.mount \

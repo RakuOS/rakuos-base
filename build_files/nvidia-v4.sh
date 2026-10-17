@@ -9,62 +9,53 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KERNEL_PKG="kernel-rakuos-v4-staging"
 fi
 
+# Prebuilt, RakuOS-signed NVIDIA kernel modules (signed-kmods repo) for this
+# kernel: rakuos-kmod-nvidia, or rakuos-kmod-nvidia-staging for the staging
+# kernel. Nothing is compiled or signed here any more.
+KMOD_SUFFIX=""
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    KMOD_SUFFIX="-staging"
+fi
+
+# Legacy images (NVIDIA_LEGACY=1, a build arg from the *-nvidia-legacy CI
+# jobs) ship the 580xx driver, the last branch for Maxwell, Pascal and Volta:
+# the same packages with a -580xx suffix, and the current driver's libraries
+# kept out instead of the 580xx ones.
+NV=""
+NV_EXCLUDES=(libnvidia-cfg-580xx libnvidia-gpucomp-580xx nvidia-driver-580xx-cuda-libs libnvidia-ml-580xx)
+if [ "${NVIDIA_LEGACY:-0}" = "1" ]; then
+    NV="-580xx"
+    NV_EXCLUDES=(libnvidia-cfg libnvidia-gpucomp nvidia-driver-cuda-libs libnvidia-ml)
+fi
+
 # Determine the installed kernel version
 QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 rum install -y --setopt=tsflags=noscripts --skip-broken \
-    --exclude=libnvidia-cfg-580xx \
-    --exclude=libnvidia-gpucomp-580xx \
-    --exclude=nvidia-driver-580xx-cuda-libs \
-    --exclude=libnvidia-ml-580xx \
-    dkms-nvidia \
-    nvidia-driver \
-    nvidia-modprobe \
-    nvidia-settings \
-    nvidia-driver-cuda \
-    nvidia-persistenced \
-    nvidia-driver-libs.i686 \
-    nvidia-driver-cuda-libs.i686 \
-    xorg-x11-nvidia \
+    $(printf -- '--exclude=%s ' "${NV_EXCLUDES[@]}") \
+    rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} \
+    nvidia-driver${NV} \
+    nvidia-modprobe${NV} \
+    nvidia-settings${NV} \
+    nvidia-driver${NV}-cuda \
+    nvidia-persistenced${NV} \
+    nvidia-driver${NV}-libs.i686 \
+    nvidia-driver${NV}-cuda-libs.i686 \
+    xorg-x11-nvidia${NV} \
     libva-nvidia-driver \
     ${KERNEL_PKG}-devel-matched
 
-
-# Build DKMS module for the installed kernel
-# Force ld.bfd — gold linker fails with NVIDIA's -r + --gc-sections combination
-NVIDIA_VER=$(rpm -q --queryformat '%{VERSION}\n' dkms-nvidia)
-
-# nv-vm.c's nv_account_mm_alloc/nv_account_mm_free fall into a legacy
-# fallback branch (predating even percpu_counter) that pokes mm->rss_stat
-# as a bare struct with a `.count[]` array member via
-# atomic_long_add_return(). This kernel's mm->rss_stat is a
-# `struct lazy_percpu_counter[]` (Fedora 44+), which has no such member, so
-# that expression fails to compile. Rewrite the two call sites to use the
-# kernel's own lazy_percpu_counter_add_atomic() primitive directly -- it's
-# static inline (header-only), so no export/symbol issues.
-# NVIDIA_SRC="/usr/src/nvidia-${NVIDIA_VER}/kernel-open/nvidia/nv-vm.c"
-# if [[ -f "$NVIDIA_SRC" ]] && grep -q 'atomic_long_add_return(numPages, &mm->rss_stat\.count\[MM_SHMEMPAGES\]);' "$NVIDIA_SRC"; then
-#     echo "Patching nv-vm.c for lazy_percpu_counter rss_stat layout..."
-#     sed -i \
-#         -e 's/atomic_long_add_return(numPages, \&mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm->rss_stat[MM_SHMEMPAGES], numPages);/' \
-#         -e 's/atomic_long_add_return(-mm_work->num_pages, \&mm_work->mm->rss_stat\.count\[MM_SHMEMPAGES\]);/lazy_percpu_counter_add_atomic(\&mm_work->mm->rss_stat[MM_SHMEMPAGES], -mm_work->num_pages);/' \
-#         "$NVIDIA_SRC"
-# fi
-
-# dkms defaults parallel_jobs to nproc, which on high-core CI runners spawns
-# more clang jobs than the build container's memory cgroup can hold — the
-# whole make tree gets SIGTERM'd mid-build once memory runs out. Cap jobs to
-# what's actually available (~1.5GB/job) instead of raw core count.
-MEM_AVAIL_MB=$(( $(awk '/MemAvailable/{print $2}' /proc/meminfo) / 1024 ))
-PARALLEL_JOBS=$(( MEM_AVAIL_MB / 1500 ))
-NPROC=$(nproc)
-(( PARALLEL_JOBS > NPROC )) && PARALLEL_JOBS=$NPROC
-(( PARALLEL_JOBS < 1 )) && PARALLEL_JOBS=1
-
-LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" -j "${PARALLEL_JOBS}" --force || {
-    echo "DKMS build failed — make.log:"
-    cat /var/lib/dkms/nvidia/${NVIDIA_VER}/build/make.log || true
+# --skip-broken above would quietly drop the kernel modules if they couldn't
+# be installed (e.g. not yet built for this kernel/driver version); an
+# NVIDIA image without them is broken, so fail the build instead.
+rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" || {
+    echo "ERROR: rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} is not installed; is it built for ${QUALIFIED_KERNEL} and this nvidia-driver version?"
+    exit 1
+}
+# ...and it must carry modules for this kernel, not just an older one.
+grep -q "^/usr/lib/modules/${QUALIFIED_KERNEL}/" < <(rpm -ql "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") || {
+    echo "ERROR: $(rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") has no modules for ${QUALIFIED_KERNEL}; rebuild signed-kmods"
     exit 1
 }
 
@@ -78,46 +69,22 @@ LD=ld.bfd dkms install -m nvidia -v "${NVIDIA_VER}" -k "${QUALIFIED_KERNEL}" -j 
 # # Install any built kmod RPMs from the cache
 # find /var/cache/akmods -name "*.rpm" ! -name "*src.rpm" | xargs -r dnf5.real install -y
 
-# Enable NVIDIA power management services
-systemctl enable nvidia-powerd.service \
-     nvidia-persistenced.service
+# Enable NVIDIA power management services (the 580xx driver may not ship
+# nvidia-powerd, so only enable the units that are there).
+for unit in nvidia-powerd.service nvidia-persistenced.service; do
+    if systemctl cat "$unit" >/dev/null 2>&1; then
+        systemctl enable "$unit"
+    else
+        echo "WARNING: $unit not installed; not enabling it"
+    fi
+done
 
-# Sign all DKMS extra modules with MOK key (skipped silently if key not present)
-# Must happen BEFORE kernel-p03-devel-matched is removed (sign-file lives there).
-MOK_KEY="/run/secrets/mok_key"
-MOK_CERT="/usr/share/rakuos/sb_pubkey.der"
-SIGN_FILE="/usr/src/kernels/${QUALIFIED_KERNEL}/scripts/sign-file"
-if [[ -f "$MOK_KEY" ]] && [[ -f "$SIGN_FILE" ]]; then
-    echo "Signing all extra kernel modules..."
-    while IFS= read -r ko; do
-        case "$ko" in
-            *.ko.xz)
-                bare="${ko%.xz}"
-                xz -dk "$ko"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                xz -f "$bare"
-                ;;
-            *.ko.zst)
-                bare="${ko%.zst}"
-                zstd -dq "$ko" -o "$bare"
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$bare"
-                zstd -qf "$bare" -o "$ko"
-                rm -f "$bare"
-                ;;
-            *.ko)
-                "$SIGN_FILE" sha256 "$MOK_KEY" "$MOK_CERT" "$ko"
-                ;;
-        esac
-        echo "  Signed: $(basename "$ko")"
-    done < <(find "/usr/lib/modules/${QUALIFIED_KERNEL}/extra" \
-        \( -name "*.ko" -o -name "*.ko.xz" -o -name "*.ko.zst" \) 2>/dev/null)
-    echo "Module signing complete."
-else
-    echo "MOK key or sign-file not available — skipping module signing."
-fi
+# The NVIDIA modules (rakuos-kmod-nvidia*) arrive already signed with the
+# RakuOS key by the signed-kmods CI, so there's no module signing step here.
 
 # Sign the kernel vmlinuz with MOK key
 VMLINUZ="/usr/lib/modules/${QUALIFIED_KERNEL}/vmlinuz"
+MOK_KEY="/run/secrets/mok_key"
 MOK_CERT_DER="/usr/share/rakuos/sb_pubkey.der"
 if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
     echo "Signing kernel ${QUALIFIED_KERNEL}..."
@@ -149,16 +116,13 @@ PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 cat >> "$PROTECTED_FILE" << 'EOF'
 
 # Base image packages (from rakuos-base/build_files/nvidia.sh)
-dkms-nvidia
-nvidia-driver
-nvidia-modprobe
-nvidia-settings
-libnvidia-gpucomp
-libnvidia-cfg
-libnvidia-ml
-nvidia-persistenced
-libva-nvidia-driver
 EOF
+for pkg in nvidia-driver nvidia-modprobe nvidia-settings libnvidia-gpucomp \
+           libnvidia-cfg libnvidia-ml nvidia-persistenced; do
+    echo "${pkg}${NV}" >> "$PROTECTED_FILE"
+done
+echo "libva-nvidia-driver" >> "$PROTECTED_FILE"
+echo "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" >> "$PROTECTED_FILE"
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 
