@@ -14,6 +14,12 @@ workflow:
     - when: never
 
 variables:
+  # Runner tag for every job: the RakuOS homelab runners (both registered
+  # with the "rakuos-homelab" tag; GitLab gives each job to whichever is
+  # free). To fall back to GitLab's own runners, set RUNNER_TAG as a CI/CD
+  # variable (project or group), e.g. "saas-linux-large-amd64"; settings
+  # variables override this default.
+  RUNNER_TAG: "rakuos-homelab"
   IMAGE_REGISTRY: "registry.gitlab.com/rakuos/images/rakuos-base"
   IMAGE_REGISTRY_NVIDIA: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia"
   IMAGE_REGISTRY_QUAY: "quay.io/rakuos/rakuos-base"
@@ -51,7 +57,7 @@ stages:
 .buildah-job:
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-large-amd64
+    - $RUNNER_TAG
   before_script:
     - |
       case "${CI_COMMIT_BRANCH}" in
@@ -1860,7 +1866,7 @@ build-push-minimal-nvidia-legacy-v3:
   extends: .buildah-job
   timeout: 3 hours
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_BRANCH == "staging"'
@@ -2369,7 +2375,7 @@ test-image-minimal-nvidia-legacy-v3:
   stage: test
   image: quay.io/fedora/fedora:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   allow_failure: true
   script:
     - |
@@ -2507,7 +2513,7 @@ sign-image-standard:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-standard
       artifacts: false
@@ -2554,7 +2560,7 @@ sign-image-nvidia:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia
       artifacts: false
@@ -2601,7 +2607,7 @@ sign-image-standard-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-standard-v4
       artifacts: false
@@ -2648,7 +2654,7 @@ sign-image-standard-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-standard-v3
       artifacts: false
@@ -2695,7 +2701,7 @@ sign-image-nvidia-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia-v4
       artifacts: false
@@ -2742,7 +2748,7 @@ sign-image-nvidia-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia-v3
       artifacts: false
@@ -2789,7 +2795,7 @@ sign-image-minimal:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal
       artifacts: false
@@ -2836,7 +2842,7 @@ sign-image-minimal-nvidia:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia
       artifacts: false
@@ -2883,7 +2889,7 @@ sign-image-minimal-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-v4
       artifacts: false
@@ -2930,7 +2936,7 @@ sign-image-minimal-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-v3
       artifacts: false
@@ -2977,7 +2983,7 @@ sign-image-minimal-nvidia-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia-v4
       artifacts: false
@@ -3024,7 +3030,7 @@ sign-image-minimal-nvidia-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia-v3
       artifacts: false
@@ -3071,7 +3077,7 @@ sign-image-nvidia-legacy:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia-legacy
       artifacts: false
@@ -3118,7 +3124,7 @@ sign-image-nvidia-legacy-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia-legacy-v4
       artifacts: false
@@ -3165,7 +3171,7 @@ sign-image-nvidia-legacy-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-nvidia-legacy-v3
       artifacts: false
@@ -3212,7 +3218,7 @@ sign-image-minimal-nvidia-legacy:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia-legacy
       artifacts: false
@@ -3259,7 +3265,7 @@ sign-image-minimal-nvidia-legacy-v4:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia-legacy-v4
       artifacts: false
@@ -3306,7 +3312,7 @@ sign-image-minimal-nvidia-legacy-v3:
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: test-image-minimal-nvidia-legacy-v3
       artifacts: false
@@ -3353,7 +3359,7 @@ trigger-downstream:
   stage: dispatch
   image: curlimages/curl:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: sign-image-standard
       artifacts: false
@@ -3420,7 +3426,7 @@ notify-discord-minimal:
   stage: dispatch
   image: curlimages/curl:latest
   tags:
-    - saas-linux-medium-amd64
+    - $RUNNER_TAG
   needs:
     - job: sign-image-standard
       optional: true
