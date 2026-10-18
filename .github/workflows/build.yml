@@ -1,0 +1,242 @@
+# ============================================================
+# RakuOS Base Image — GitHub Actions
+# ============================================================
+# GitLab (gitlab.com/rakuos/images/rakuos-base) is the source of truth and
+# push-mirrors every branch here. Builds start by hand (Actions › "Build
+# base images" › Run workflow, pick the branch in "Use workflow from") or
+# from the upstream image's workflow. Pushes from the mirror never start a
+# build.
+#
+# Same images, tags and signatures as the GitLab pipeline: 18 images,
+# each pushed to quay.io and signed. 6 base and minimal images first,
+# then the 12 NVIDIA images built FROM them. Variants whose Containerfile
+# doesn't exist on the chosen branch are skipped. No RPM database test jobs:
+# GitHub's runners never corrupted the rpm database.
+#
+# Generated from one template for all image repos; keep them in step.
+#
+# Secrets (org level):
+#   QUAY_USER, QUAY_TOKEN       quay.io robot login
+#   QUAY_API_TOKEN              quay.io API token (tag aliases)
+#   GITLAB_SECURE_FILES_TOKEN   GitLab project access token on rakuos-base
+#                               (read_api, Developer): cosign.key + MOK.key
+#   COSIGN_PASSWORD             optional: password of cosign.key (the
+#                               GitLab pipeline has none set either)
+#   WEBSITE_CI_API_TOKEN, WEBSITE_HOST       rakuos.org image-update notice
+#   DISPATCH_TOKEN              GitHub token allowed to start workflows in
+#                               the image repos (kde, gnome, cosmic, niri, hyprland)
+#   TRIGGER_TOKEN_KDE           GitLab trigger token (downstream: gitlab)
+#   TRIGGER_TOKEN_GNOME         GitLab trigger token (downstream: gitlab)
+#   TRIGGER_TOKEN_COSMIC        GitLab trigger token (downstream: gitlab)
+#   TRIGGER_TOKEN_NIRI          GitLab trigger token (downstream: gitlab)
+#   TRIGGER_TOKEN_HYPRLAND      GitLab trigger token (downstream: gitlab)
+
+name: Build base images
+
+on:
+  workflow_dispatch:
+    inputs:
+      fedora_version:
+        description: "Fedora version to build on (empty = the branch's default)"
+        required: false
+        default: ""
+      downstream:
+        description: "Start the kde, gnome, cosmic, niri, hyprland build(s) afterwards"
+        type: choice
+        options: [github, gitlab, none]
+        default: github
+
+concurrency:
+  group: build-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_URL: "https://gitlab.com/rakuos/images/rakuos-base"
+
+jobs:
+  build-base:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "base", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base", base_repo: "", extra: "", desc: "" }
+          - { name: "base-v4", containerfile: "Containerfile.v4", repo: "quay.io/rakuos/rakuos-base-v4", base_repo: "", extra: "", desc: "" }
+          - { name: "base-v3", containerfile: "Containerfile.v3", repo: "quay.io/rakuos/rakuos-base-v3", base_repo: "", extra: "", desc: "" }
+          - { name: "minimal", containerfile: "Containerfile.minimal", repo: "quay.io/rakuos/rakuos-minimal", base_repo: "", extra: "", desc: " (Minimal)" }
+          - { name: "minimal-v4", containerfile: "Containerfile.minimal.v4", repo: "quay.io/rakuos/rakuos-minimal-v4", base_repo: "", extra: "", desc: " (Minimal)" }
+          - { name: "minimal-v3", containerfile: "Containerfile.minimal.v3", repo: "quay.io/rakuos/rakuos-minimal-v3", base_repo: "", extra: "", desc: " (Minimal)" }
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check variant exists on this branch
+        id: exists
+        run: |
+          if [ -f "${{ matrix.containerfile }}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.containerfile }} isn't on ${{ github.ref_name }}, skipping ${{ matrix.name }}"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Free disk space
+        if: steps.exists.outputs.build == 'true'
+        uses: ublue-os/remove-unwanted-software@v9
+
+      - name: Build, push and sign
+        if: steps.exists.outputs.build == 'true'
+        env:
+          CONTAINERFILE: ${{ matrix.containerfile }}
+          QUAY_REPO: ${{ matrix.repo }}
+          DESC_SUFFIX: ${{ matrix.desc }}
+          KIND: fedora
+          BASE_REPO: ${{ matrix.base_repo }}
+          EXTRA_BUILD_ARGS: ${{ matrix.extra }}
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+          QUAY_API_TOKEN: ${{ secrets.QUAY_API_TOKEN }}
+          GITLAB_SECURE_FILES_TOKEN: ${{ secrets.GITLAB_SECURE_FILES_TOKEN }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          FEDORA_VERSION_OVERRIDE: ${{ inputs.fedora_version }}
+        run: .github/scripts/run-build.sh
+
+      # Lets the NVIDIA builds on top of this image tell whether it was
+      # rebuilt in this run (they'd otherwise build on yesterday's image).
+      - name: Mark as built
+        if: steps.exists.outputs.build == 'true'
+        run: touch built
+      - uses: actions/upload-artifact@v4
+        if: steps.exists.outputs.build == 'true'
+        with:
+          name: built-${{ matrix.name }}
+          path: built
+          retention-days: 1
+
+  build-nvidia:
+    name: ${{ matrix.name }}
+    needs: build-base
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "nvidia", containerfile: "Containerfile.nvidia", repo: "quay.io/rakuos/rakuos-base-nvidia", base_repo: "", extra: "", desc: " (NVIDIA)", parent: "base" }
+          - { name: "nvidia-v4", containerfile: "Containerfile.nvidia.v4", repo: "quay.io/rakuos/rakuos-base-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "", desc: " (NVIDIA)", parent: "base-v4" }
+          - { name: "nvidia-v3", containerfile: "Containerfile.nvidia.v3", repo: "quay.io/rakuos/rakuos-base-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "", desc: " (NVIDIA)", parent: "base-v3" }
+          - { name: "nvidia-legacy", containerfile: "Containerfile.nvidia", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy", base_repo: "", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base" }
+          - { name: "nvidia-legacy-v4", containerfile: "Containerfile.nvidia.v4", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v4" }
+          - { name: "nvidia-legacy-v3", containerfile: "Containerfile.nvidia.v3", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v3" }
+          - { name: "minimal-nvidia", containerfile: "Containerfile.minimal.nvidia", repo: "quay.io/rakuos/rakuos-minimal-nvidia", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal" }
+          - { name: "minimal-nvidia-v4", containerfile: "Containerfile.minimal.nvidia.v4", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
+          - { name: "minimal-nvidia-v3", containerfile: "Containerfile.minimal.nvidia.v3", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
+          - { name: "minimal-nvidia-legacy", containerfile: "Containerfile.minimal.nvidia", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal" }
+          - { name: "minimal-nvidia-legacy-v4", containerfile: "Containerfile.minimal.nvidia.v4", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
+          - { name: "minimal-nvidia-legacy-v3", containerfile: "Containerfile.minimal.nvidia.v3", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check variant exists on this branch
+        id: exists
+        run: |
+          if [ -f "${{ matrix.containerfile }}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.containerfile }} isn't on ${{ github.ref_name }}, skipping ${{ matrix.name }}"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check ${{ matrix.parent }} was built in this run
+        if: steps.exists.outputs.build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: built-${{ matrix.parent }}
+
+      - name: Free disk space
+        if: steps.exists.outputs.build == 'true'
+        uses: ublue-os/remove-unwanted-software@v9
+
+      - name: Build, push and sign
+        if: steps.exists.outputs.build == 'true'
+        env:
+          CONTAINERFILE: ${{ matrix.containerfile }}
+          QUAY_REPO: ${{ matrix.repo }}
+          DESC_SUFFIX: ${{ matrix.desc }}
+          KIND: derived
+          BASE_REPO: ${{ matrix.base_repo }}
+          EXTRA_BUILD_ARGS: ${{ matrix.extra }}
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+          QUAY_API_TOKEN: ${{ secrets.QUAY_API_TOKEN }}
+          GITLAB_SECURE_FILES_TOKEN: ${{ secrets.GITLAB_SECURE_FILES_TOKEN }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          FEDORA_VERSION_OVERRIDE: ${{ inputs.fedora_version }}
+        run: .github/scripts/run-build.sh
+
+  notify-website:
+    name: notify rakuos.org
+    needs: [build-base, build-nvidia]
+    if: ${{ success() && (github.ref_name == 'main' || github.ref_name == 'staging' || github.ref_name == 'rakuosel') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Post image update
+        env:
+          WEBSITE_CI_API_TOKEN: ${{ secrets.WEBSITE_CI_API_TOKEN }}
+          WEBSITE_HOST: ${{ secrets.WEBSITE_HOST }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          DATE_TAG="$(date -u +%Y%m%d)"
+          case "${BRANCH}" in
+            main)     CHANNEL="main";    PRIMARY_TAG_NAME="latest" ;;
+            staging)  CHANNEL="staging"; PRIMARY_TAG_NAME="staging" ;;
+            rakuosel) CHANNEL="main";    PRIMARY_TAG_NAME="rakuosel" ;;
+          esac
+          PAYLOAD="{\"channel\": \"${CHANNEL}\", \"name\": \"rakuos-minimal\", \"version\": \"${PRIMARY_TAG_NAME}.${DATE_TAG}\"}"
+          curl -sS -f -X POST -H "Authorization: Bearer ${WEBSITE_CI_API_TOKEN}" \
+            -H "Content-Type: application/json" -d "${PAYLOAD}" \
+            "http://${WEBSITE_HOST}:8080/api/image-update"
+
+  trigger-downstream:
+    name: start downstream image builds
+    needs: [build-base, build-nvidia]
+    if: ${{ success() && inputs.downstream != 'none' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Start GitHub workflows
+        if: ${{ inputs.downstream == 'github' }}
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          for repo in rakuos-kde rakuos-gnome rakuos-cosmic rakuos-niri rakuos-hyprland; do
+            echo "Starting rakuos/${repo} build.yml on ${BRANCH}"
+            gh workflow run build.yml -R "rakuos/${repo}" --ref "${BRANCH}"
+          done
+
+      - name: Trigger GitLab pipelines
+        if: ${{ inputs.downstream == 'gitlab' }}
+        env:
+          BRANCH: ${{ github.ref_name }}
+          TRIGGER_TOKEN_KDE: ${{ secrets.TRIGGER_TOKEN_KDE }}
+          TRIGGER_TOKEN_GNOME: ${{ secrets.TRIGGER_TOKEN_GNOME }}
+          TRIGGER_TOKEN_COSMIC: ${{ secrets.TRIGGER_TOKEN_COSMIC }}
+          TRIGGER_TOKEN_NIRI: ${{ secrets.TRIGGER_TOKEN_NIRI }}
+          TRIGGER_TOKEN_HYPRLAND: ${{ secrets.TRIGGER_TOKEN_HYPRLAND }}
+        run: |
+          set -euo pipefail
+          trigger_pipeline() {
+            echo "Triggering GitLab project ${2} (${3}) ref=${BRANCH}"
+            curl -sS --fail-with-body -X POST \
+              --form "token=${1}" --form "ref=${BRANCH}" \
+              "https://gitlab.com/api/v4/projects/${2}/trigger/pipeline" >/dev/null
+          }
+          trigger_pipeline "${TRIGGER_TOKEN_KDE}" 81410885 kde
+          trigger_pipeline "${TRIGGER_TOKEN_GNOME}" 81410883 gnome
+          trigger_pipeline "${TRIGGER_TOKEN_COSMIC}" 81410880 cosmic
+          trigger_pipeline "${TRIGGER_TOKEN_NIRI}" 84472487 niri
+          trigger_pipeline "${TRIGGER_TOKEN_HYPRLAND}" 87065949 hyprland
