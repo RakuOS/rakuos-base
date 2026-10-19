@@ -194,12 +194,15 @@ pipewire-alsa.i686
 net-tools
 nvme-cli
 nvtop
+oo7-daemon
+oo7-portal
 opendoas
 openrgb-udev-rules
 openssh-askpass
 openssl
 oversteer-udev
 pam-u2f
+pam_oo7
 pam_yubico
 pamu2fcfg
 pipewire-plugin-libcamera

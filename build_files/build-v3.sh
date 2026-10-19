@@ -370,6 +370,8 @@ nvidia-gpu-firmware \
 nvme-cli \
 nvtop \
 nxpwireless-firmware \
+oo7-daemon \
+oo7-portal \
 open-vm-tools-desktop \
 opendoas \
 openrgb-udev-rules \
@@ -383,6 +385,7 @@ oversteer-udev \
 pam-u2f \
 pam_afs_session \
 pam_apparmor \
+pam_oo7 \
 pam_yubico \
 pamu2fcfg \
 paps \
