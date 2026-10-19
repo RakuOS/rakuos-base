@@ -315,6 +315,7 @@ intel-lpmd \
 intel-vsc-firmware \
 iptables-nft \
 iptstate \
+iputils \
 iwlegacy-firmware \
 iwlwifi-dvm-firmware \
 iwlwifi-mvm-firmware \

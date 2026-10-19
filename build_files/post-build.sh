@@ -170,6 +170,7 @@ gvfs-nfs
 gvfs-smb
 htop
 inotify-tools
+iputils
 just
 lazygit
 libcamera
