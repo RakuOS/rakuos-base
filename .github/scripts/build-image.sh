@@ -72,6 +72,13 @@ dnf install -y --quiet jq
 # native overlay works here.
 sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
   /etc/containers/storage.conf
+# buildah puts the upper dir of RUN --mount=type=bind,rw overlays in its
+# temp dir (/var/tmp by default), which here sits on the container's own
+# overlayfs root; the kernel overlay driver refuses an upper dir there
+# ("setting up overlay of /src ... invalid argument"). Keep it on the ext4
+# volume instead.
+export TMPDIR=/var/lib/containers/tmp
+mkdir -p "${TMPDIR}"
 buildah info | jq -c '.store | {GraphDriverName, GraphOptions, GraphStatus}' || true
 
 # Download a file from rakuos-base's GitLab Secure Files; fail if missing.
