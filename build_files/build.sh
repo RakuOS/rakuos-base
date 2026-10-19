@@ -557,8 +557,12 @@ flatpak-cleanup.timer \
 flatpak-repair.timer \
 podman-prune.timer
 
+# oo7 is the Secret Service (org.freedesktop.secrets). Nothing else starts
+# it: the package has no D-Bus activation file and no preset enables it, so
+# without this pam_oo7 times out at login and apps have no secrets store.
 systemctl enable --global \
-rakuos-user.service
+rakuos-user.service \
+oo7-daemon.service
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
