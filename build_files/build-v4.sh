@@ -66,8 +66,11 @@ shipped_repo_files() {
 }
 
 ## rpmfusion release RPMs
-rum install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
-              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+# From RPM Fusion's main server, not the mirrors.rpmfusion.org redirector:
+# for a release still in development (45) it sent every request to one
+# mirror whose hostname didn't resolve, failing the build.
+rum install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
+              https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
 # Keep RPM Fusion's NVIDIA driver stack out of every RPM Fusion repo,
 # updates included: the NVIDIA driver comes from the rakuos repo, and RPM
