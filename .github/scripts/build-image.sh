@@ -64,6 +64,16 @@ echo "Building ${CONTAINERFILE} → ${PRIMARY_QUAY_TAG} (+ ${ALIAS_TAGS})"
 
 dnf install -y --quiet jq
 
+# Use the kernel's overlay driver instead of the image's default
+# fuse-overlayfs. On the GitHub runners' kernel (6.17-azure) chunkah reading
+# the builder rootfs through fuse-overlayfs produced layers buildah could not
+# unpack ("unpacking failed ... unexpected EOF") in every variant. The
+# container is privileged and /var/lib/containers is an ext4 volume, so
+# native overlay works here.
+sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
+  /etc/containers/storage.conf
+buildah info | jq -c '.store | {GraphDriverName, GraphOptions, GraphStatus}' || true
+
 # Download a file from rakuos-base's GitLab Secure Files; fail if missing.
 fetch_secure_file() {
   local name="$1" dest="$2" id

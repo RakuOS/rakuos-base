@@ -3,10 +3,9 @@
 # GitLab pipeline uses, so the buildah version and behaviour match.
 #
 # Like the GitLab jobs, buildah keeps its storage and /var/tmp inside the
-# container (the image's own fuse-overlayfs setup). Bind-mounting them from
-# the host broke importing chunkah's oci-archive ("unpacking failed ...
-# unexpected EOF"). The runner's disk is big enough for that now; only the
-# build context is bound in.
+# container (/var/lib/containers is an image volume on the runner's disk);
+# only the build context is bound in. build-image.sh switches buildah from
+# fuse-overlayfs to the kernel overlay driver.
 set -euo pipefail
 
 WORK=/mnt/work
