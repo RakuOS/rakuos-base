@@ -51,7 +51,7 @@ RUN --mount=from=builder,src=/,target=/chunkah,ro \
     --mount=type=bind,target=/run/src,rw \
         chunkah build --prune /sysroot/ --max-layers 64 --threads 4 --compressed \
           --label ostree.commit- --label ostree.final-diffid- \
-          > /run/src/out.ociarchive
+          --output oci:/run/src/out
 
-FROM oci-archive:out.ociarchive
+FROM oci:out
 LABEL containers.bootc=1
