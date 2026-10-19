@@ -11,20 +11,32 @@ sudo mkdir -p "${WORK}" /mnt/containers /mnt/var-tmp
 sudo cp -a . "${WORK}/"
 df -h / /mnt
 
-sudo podman run --rm --privileged \
+export BRANCH="${GITHUB_REF_NAME}"
+export RUN_ID="${GITHUB_RUN_ID}"
+export REVISION="${GITHUB_SHA}"
+export FEDORA_VERSION_OVERRIDE="${FEDORA_VERSION_OVERRIDE:-}"
+
+# Variables handed to the build container. `podman run -e NAME` copies NAME
+# from podman's own environment, and sudo clears the environment, so they
+# have to be kept explicitly with --preserve-env (this also keeps the
+# secrets off the command line).
+PASS_VARS=(
+  CONTAINERFILE QUAY_REPO DESC_SUFFIX KIND BASE_REPO EXTRA_BUILD_ARGS
+  QUAY_USER QUAY_TOKEN QUAY_API_TOKEN GITLAB_SECURE_FILES_TOKEN COSIGN_PASSWORD
+  BRANCH RUN_ID REVISION SOURCE_URL FEDORA_VERSION_OVERRIDE
+)
+env_args=()
+for v in "${PASS_VARS[@]}"; do
+  env_args+=(-e "${v}")
+done
+
+sudo --preserve-env="$(IFS=,; echo "${PASS_VARS[*]}")" podman run --rm --privileged \
   --security-opt label=disable \
   -v "${WORK}":/src -w /src \
   -v /mnt/containers:/var/lib/containers \
   -v /mnt/var-tmp:/var/tmp \
   -e STORAGE_DRIVER=overlay -e BUILDAH_FORMAT=oci \
-  -e CONTAINERFILE -e QUAY_REPO -e DESC_SUFFIX -e KIND \
-  -e BASE_REPO -e EXTRA_BUILD_ARGS \
-  -e QUAY_USER -e QUAY_TOKEN -e QUAY_API_TOKEN \
-  -e GITLAB_SECURE_FILES_TOKEN -e COSIGN_PASSWORD \
-  -e BRANCH="${GITHUB_REF_NAME}" \
-  -e FEDORA_VERSION_OVERRIDE="${FEDORA_VERSION_OVERRIDE:-}" \
-  -e RUN_ID="${GITHUB_RUN_ID}" \
-  -e SOURCE_URL -e REVISION="${GITHUB_SHA}" \
+  "${env_args[@]}" \
   quay.io/buildah/stable:latest \
   bash .github/scripts/build-image.sh
 
