@@ -2,14 +2,17 @@
 # Run build-image.sh in the same quay.io/buildah/stable container the
 # GitLab pipeline uses, so the buildah version and behaviour match.
 #
-# GitHub's runners have little room on / but a large temporary disk on
-# /mnt: the build context, buildah's storage and its /var/tmp all go there.
+# Like the GitLab jobs, buildah keeps its storage and /var/tmp inside the
+# container (the image's own fuse-overlayfs setup). Bind-mounting them from
+# the host broke importing chunkah's oci-archive ("unpacking failed ...
+# unexpected EOF"). The runner's disk is big enough for that now; only the
+# build context is bound in.
 set -euo pipefail
 
 WORK=/mnt/work
-sudo mkdir -p "${WORK}" /mnt/containers /mnt/var-tmp
+sudo mkdir -p "${WORK}"
 sudo cp -a . "${WORK}/"
-df -h / /mnt
+df -h /
 
 export BRANCH="${GITHUB_REF_NAME}"
 export RUN_ID="${GITHUB_RUN_ID}"
@@ -33,11 +36,9 @@ done
 sudo --preserve-env="$(IFS=,; echo "${PASS_VARS[*]}")" podman run --rm --privileged \
   --security-opt label=disable \
   -v "${WORK}":/src -w /src \
-  -v /mnt/containers:/var/lib/containers \
-  -v /mnt/var-tmp:/var/tmp \
   -e STORAGE_DRIVER=overlay -e BUILDAH_FORMAT=oci \
   "${env_args[@]}" \
   quay.io/buildah/stable:latest \
   bash .github/scripts/build-image.sh
 
-df -h / /mnt
+df -h /
