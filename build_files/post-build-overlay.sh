@@ -97,13 +97,6 @@ cat >> /usr/share/rakuos/protected-packages.txt << 'EOF'
 # Minimal packages (from rakuos-minimal/build_files/build.sh)
 
 EOF
-# Protect the akmods/rpm-build chain from getting autoremoved as "unused
-# deps" of selinux-policy — the chain itself (akmod-wl -> akmods -> rpm-build)
-# has no real selinux Requires, it's just dnf's install-reason bookkeeping
-# treating them as orphans once selinux-policy (which pulled rpm-plugin-selinux)
-# is gone. mark install only flips reason=dependency -> reason=user in the
-# local db; it does not install/reinstall anything.
-
 rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum install -y libselinux
 
