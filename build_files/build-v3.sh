@@ -440,7 +440,6 @@ scx-tools \
 ShellCheck \
 shim-ia32 \
 skopeo \
-slirp4netns \
 solaar-udev \
 sos \
 speech-dispatcher \
@@ -526,11 +525,13 @@ systemctl mask rpm-ostreed-automatic.timer
 # (rakuos-core, enabled below) keeps shim and GRUB on the ESP current instead.
 systemctl mask bootloader-update.service
 
-# Statically enable getty on tty2-6 -- confirmed on real hardware that
+# Statically enable the console on tty2-6 -- confirmed on real hardware that
 # systemd-logind's on-demand autovt@ auto-start (which is supposed to spawn
-# a getty the moment you switch to an unallocated VT) does not reliably fire
+# a login the moment you switch to an unallocated VT) does not reliably fire
 # on this kernel/image, leaving Ctrl+Alt+F<n> landing on a dead console with no login prompt.
-systemctl enable getty@tty2.service getty@tty3.service getty@tty4.service getty@tty5.service getty@tty6.service
+# On 45 the console is kmscon (autovt@ is an alias of kmsconvt@), so enable
+# kmsconvt@ rather than plain getty@ to match tty1.
+systemctl enable kmsconvt@tty2.service kmsconvt@tty3.service kmsconvt@tty4.service kmsconvt@tty5.service kmsconvt@tty6.service
 
 # sudo requires the drop-in directory to be root-owned, non-world-writable,
 # and executable (0750), and drop-in files to be 0440.
@@ -565,6 +566,14 @@ podman-prune.timer
 systemctl enable --global \
 rakuos-user.service \
 oo7-daemon.service
+
+# Keep the oo7 keyring password in step with the login password: pam_oo7
+# must also be in the password stack, or after passwd/chpasswd the keyring
+# keeps the old password and login auto-unlock fails. Fedora's shadow-utils
+# files only list pam_gnome_keyring there.
+sed -i '/pam_gnome_keyring.so use_authtok/a -password   optional\tpam_oo7.so' /etc/pam.d/passwd /etc/pam.d/chpasswd
+grep -q pam_oo7.so /etc/pam.d/passwd && grep -q pam_oo7.so /etc/pam.d/chpasswd \
+    || { echo "ERROR: pam_oo7 not added to /etc/pam.d/passwd and chpasswd"; exit 1; }
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
