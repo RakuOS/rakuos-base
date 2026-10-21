@@ -81,17 +81,37 @@ export TMPDIR=/var/lib/containers/tmp
 mkdir -p "${TMPDIR}"
 buildah info | jq -c '.store | {GraphDriverName, GraphOptions, GraphStatus}' || true
 
+# Run a registry or network command, retrying any failure. Quay sometimes
+# answers 401/403/404/5xx for a short while; buildah's own --retry treats the
+# 4xx ones as permanent, so retry the whole command here: 5 attempts, waiting
+# 15s, 30s, 60s and 120s. The command line isn't printed (logins carry the
+# token).
+retry() {
+  local attempt=1 max=5 delay=15
+  until "$@"; do
+    if [ "${attempt}" -ge "${max}" ]; then
+      echo "ERROR: $1 failed ${max} times, giving up" >&2
+      return 1
+    fi
+    echo "$1 failed (attempt ${attempt}/${max}); retrying in ${delay}s..." >&2
+    sleep "${delay}"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+CURL_RETRY=(--retry 5 --retry-all-errors --retry-delay 10)
+
 # Download a file from rakuos-base's GitLab Secure Files; fail if missing.
 fetch_secure_file() {
   local name="$1" dest="$2" id
-  id=$(curl -sf --header "PRIVATE-TOKEN: ${GITLAB_SECURE_FILES_TOKEN}" \
+  id=$(curl -sf "${CURL_RETRY[@]}" --header "PRIVATE-TOKEN: ${GITLAB_SECURE_FILES_TOKEN}" \
       "https://gitlab.com/api/v4/projects/${SECURE_FILES_PROJECT}/secure_files" \
       | jq -r --arg n "${name}" '.[] | select(.name == $n) | .id')
   if [ -z "${id}" ] || [ "${id}" = "null" ]; then
     echo "ERROR: ${name} not found in rakuos-base Secure Files" >&2
     exit 1
   fi
-  curl -sf --header "PRIVATE-TOKEN: ${GITLAB_SECURE_FILES_TOKEN}" -o "${dest}" \
+  curl -sf "${CURL_RETRY[@]}" --header "PRIVATE-TOKEN: ${GITLAB_SECURE_FILES_TOKEN}" -o "${dest}" \
       "https://gitlab.com/api/v4/projects/${SECURE_FILES_PROJECT}/secure_files/${id}/download"
   chmod 600 "${dest}"
 }
@@ -116,6 +136,29 @@ if [ "${NEEDS_MOK}" = "1" ]; then
   echo "MOK.key downloaded — modules will be signed"
 fi
 
+# Pull every image the Containerfile builds FROM first, with retries, so
+# buildah build (pull policy "missing") never has to reach the registry
+# itself. Retrying the whole build would repeat it on real build errors.
+from_images() {
+  local repo_default base_repo ref
+  repo_default=$(sed -n 's/^ARG BASE_IMAGE_REPO="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
+  base_repo="${BASE_REPO:-${repo_default}}"
+  awk '/^FROM /{print $2}' "${CONTAINERFILE}" | while read -r ref; do
+    case "${ref}" in scratch | oci-archive:* | oci:*) continue ;; esac
+    ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
+    ref="${ref//'${BASE_IMAGE_REPO}'/${base_repo}}"
+    ref="${ref//'${BASE_IMAGE_TAG}'/${BRANCH_SLUG}}"
+    case "${ref}" in
+      *'$'*) echo "WARNING: can't resolve FROM ${ref}; buildah will pull it" >&2 ;;
+      */*) echo "${ref}" ;;  # registry image (a bare name is an earlier stage)
+    esac
+  done | sort -u
+}
+for ref in $(from_images); do
+  echo "Pulling ${ref}"
+  retry buildah pull --quiet "${ref}" >/dev/null
+done
+
 buildah build \
   --file "${CONTAINERFILE}" \
   "${build_args[@]}" \
@@ -135,18 +178,23 @@ buildah build \
   .
 rm -f /tmp/MOK.key
 
-buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+retry buildah login -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
 echo "Pushing ${PRIMARY_QUAY_TAG}"
-buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
+retry buildah push --compression-format zstd:chunked "${TEMP_TAG}" "docker://${PRIMARY_QUAY_TAG}"
 
 REPO_PATH="${QUAY_REPO#quay.io/}"
-DIGEST=$(curl -sf -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-  "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
-  | jq -r '.tags[0].manifest_digest')
+# The new tag can take a moment to show up in Quay's API after the push.
+quay_digest() {
+  local d
+  d=$(curl -sf -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+    "https://quay.io/api/v1/repository/${REPO_PATH}/tag/?specificTag=${PRIMARY_TAG_NAME}&limit=1" \
+    | jq -r '.tags[0].manifest_digest // empty') && [ -n "${d}" ] && echo "${d}"
+}
+DIGEST=$(retry quay_digest)
 echo "Manifest digest: ${DIGEST}"
 for alias in ${ALIAS_TAGS}; do
   echo "Aliasing :${alias} → ${DIGEST}"
-  curl -sf -X PUT \
+  retry curl -sf -X PUT \
     -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "{\"manifest_digest\": \"${DIGEST}\"}" \
@@ -154,14 +202,14 @@ for alias in ${ALIAS_TAGS}; do
 done
 
 # Sign with the same cosign version and key as the GitLab pipeline.
-curl -fsSL "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
+curl -fsSL "${CURL_RETRY[@]}" "https://github.com/sigstore/cosign/releases/download/v1.0.0/cosign-linux-amd64" \
   -o /usr/local/bin/cosign
 chmod +x /usr/local/bin/cosign
 mkdir -p ~/.docker
-buildah login --authfile ~/.docker/config.json -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
+retry buildah login --authfile ~/.docker/config.json -u "${QUAY_USER}" -p "${QUAY_TOKEN}" quay.io
 fetch_secure_file cosign.key /tmp/cosign.key
 echo "Signing ${PRIMARY_QUAY_TAG}..."
-COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" cosign sign \
+COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" retry cosign sign \
   -key /tmp/cosign.key \
   -a "repo=${SOURCE_URL}" \
   -a "branch=${BRANCH}" \
