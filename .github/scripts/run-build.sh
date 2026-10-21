@@ -32,12 +32,28 @@ for v in "${PASS_VARS[@]}"; do
   env_args+=(-e "${v}")
 done
 
+# Pull the build container first, retrying any failure: Quay sometimes
+# answers 401/403/404/5xx for a short while (5 attempts, waiting 15s, 30s,
+# 60s and 120s).
+BUILD_IMAGE=quay.io/buildah/stable:latest
+attempt=1 delay=15
+until sudo podman pull --quiet "${BUILD_IMAGE}" >/dev/null; do
+  if [ "${attempt}" -ge 5 ]; then
+    echo "ERROR: pulling ${BUILD_IMAGE} failed 5 times, giving up" >&2
+    exit 1
+  fi
+  echo "Pulling ${BUILD_IMAGE} failed (attempt ${attempt}/5); retrying in ${delay}s..." >&2
+  sleep "${delay}"
+  attempt=$((attempt + 1))
+  delay=$((delay * 2))
+done
+
 sudo --preserve-env="$(IFS=,; echo "${PASS_VARS[*]}")" podman run --rm --privileged \
   --security-opt label=disable \
   -v "${WORK}":/src -w /src \
   -e STORAGE_DRIVER=overlay -e BUILDAH_FORMAT=oci \
   "${env_args[@]}" \
-  quay.io/buildah/stable:latest \
+  "${BUILD_IMAGE}" \
   bash .github/scripts/build-image.sh
 
 df -h /
