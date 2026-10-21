@@ -87,6 +87,23 @@ done
 unset _GNU_COREUTILS _name _gnu
 /usr/libexec/rakuos/setup-uutils image-default
 
+# pam_oo7 forks /usr/libexec/oo7-daemon-login at login with the login
+# process's stdout/stderr, and the helper logs at INFO to stderr. Under greetd
+# (COSMIC, Niri, Hyprland) that's the VT, so "oo7_daemon_login: Starting ...",
+# "Listening on ..." and "Secret delivered to daemon" were printed on the
+# console at every login. Wrap the helper so its output goes to the journal
+# (tag oo7-daemon-login); stdin, which carries the password, is untouched.
+if [ -x /usr/libexec/oo7-daemon-login ] && [ ! -e /usr/libexec/oo7-daemon-login.real ]; then
+    mv /usr/libexec/oo7-daemon-login /usr/libexec/oo7-daemon-login.real
+    cat > /usr/libexec/oo7-daemon-login << 'EOF'
+#!/bin/sh
+# RakuOS: send oo7-daemon-login's log output to the journal instead of the
+# login terminal. The real helper is oo7-daemon-login.real.
+exec systemd-cat -t oo7-daemon-login /usr/libexec/oo7-daemon-login.real "$@"
+EOF
+    chmod 0755 /usr/libexec/oo7-daemon-login
+fi
+
 echo "RakuOS post-build complete."
 
 # ── Build protected-packages.txt ──────────────────────────────────────────────
