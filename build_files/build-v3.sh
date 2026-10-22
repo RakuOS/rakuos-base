@@ -32,8 +32,12 @@ sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.
 ## on, every install/remove/upgrade/swap in this script goes through rum
 ## directly instead of dnf5 (rum-dnf-shim also Obsoletes/Conflicts the real
 ## dnf5/dnf packages, so they're gone from the image after this point
-## regardless).
-dnf5 -y install rakuos-rum rum-dnf-shim
+## regardless). rakuos-rum-repo-overrides ships rum's repo overrides
+## (/usr/share/rum/repos.override.d/20-rakuos.repo): the excludepkgs= that
+## keep Fedora's goverlay, RPM Fusion's NVIDIA driver stack and steam, and
+## Terra's AppArmor and sched_ext packages from replacing the RakuOS builds,
+## so the repo files themselves are left as their packages ship them.
+dnf5 -y install rakuos-rum rum-dnf-shim rakuos-rum-repo-overrides
 
 ## Move every repo file into rum's shipped dir, /usr/share/rum/repos.d, so
 ## the image's repos all live there and /etc stays free for users' own repos
@@ -71,15 +75,6 @@ shipped_repo_files() {
 rum install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-# Keep RPM Fusion's NVIDIA driver stack out of every RPM Fusion repo,
-# updates included: the NVIDIA driver comes from the rakuos repo, and RPM
-# Fusion ships packages under the same names (nvidia-settings,
-# nvidia-modprobe, nvidia-persistenced). These patterns don't match
-# libva-nvidia-driver or the egl-* libraries, so those still resolve.
-RPMFUSION_REPO_FILES=$(shipped_repo_files 'rpmfusion-*.repo')
-[ -n "$RPMFUSION_REPO_FILES" ] || { echo "ERROR: no rpmfusion repo files found"; exit 1; }
-sed -i '/^\[.*\]/a excludepkgs=akmod-nvidia* kmod-nvidia* xorg-x11-drv-nvidia* nvidia-* steam' $RPMFUSION_REPO_FILES
-
 rm /etc/dnf/protected.d/selinux-policy-targeted.conf
 rum remove -y 'selinux-policy*' 'policycoreutils-gui'
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
@@ -94,7 +89,6 @@ TERRA_REPO_FILES=$(shipped_repo_files 'terra*.repo')
 
 # Remove hardcoded priority=80 from terra repo files so our config-manager priorities take effect
 sed -i '/^priority=/d' $TERRA_REPO_FILES
-sed -i '/^\[terra\]/a excludepkgs=apparmor apparmor-devel apparmor-libs apparmor-parser apparmor-profiles apparmor-utils mod_apparmor pam_apparmor python3-apparmor python3-LibAppArmor scx-scheds scx-scheds-git scx-tools scx-tools-git' $(shipped_repo_files terra.repo)
 
 # Download Terra AppStream data for rakuos-software
 TERRA_BASE="https://repos.fyralabs.com/appstream"
