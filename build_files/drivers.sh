@@ -35,8 +35,7 @@ KMODS=(
     xone xpadneo xpad-noone
     hid-fanatecff hid-tmff2 t150-driver new-lg4ff logitech-trueforce
     ayaneo-leds
-    xtables-addons
-    intel-ipu6 intel-vision sc0710
+    sc0710
     nct6687d ryzen_smu zenergy
 )
 
