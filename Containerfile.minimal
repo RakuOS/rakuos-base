@@ -46,11 +46,18 @@ RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
 # RUN bootc container lint
 
 FROM quay.io/coreos/chunkah AS chunkah
+# org.rakuos.kernel.release: the kernel release of this image, what `uname -r`
+# shows once it's booted, read from the finished root filesystem (the only
+# kernel with a vmlinuz). It can't be a CI --label like
+# org.rakuos.fedora.version: the kernel is only known after the build.
 ARG CHUNKAH_CONFIG_STR
 RUN --mount=from=builder,src=/,target=/chunkah,ro \
     --mount=type=bind,target=/run/src,rw \
+        KREL=$(basename "$(dirname "$(ls /chunkah/usr/lib/modules/*/vmlinuz | head -1)")") && \
+        [ -n "$KREL" ] && \
         chunkah build --prune /sysroot/ --max-layers 64 --threads 4 --compressed \
           --label ostree.commit- --label ostree.final-diffid- \
+          --label "org.rakuos.kernel.release=${KREL}" \
           > /run/src/out.ociarchive
 
 FROM oci-archive:out.ociarchive
