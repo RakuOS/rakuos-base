@@ -284,3 +284,11 @@ if [ -f /usr/share/rpm-ostree/treefile.json ]; then
     sed -i 's/"selinux": *true/"selinux": false/' /usr/share/rpm-ostree/treefile.json
 fi
 
+# Regenerate bootupd's update metadata (/usr/lib/bootupd/updates/EFI.json)
+# from the bootloader this image actually ships. The copy from the Fedora
+# bootc base image describes the grub2/shim it was built with; once this
+# build has upgraded grub2 it names a /usr/lib/efi/grub2/<evr> directory that
+# no longer exists, and rakuos-bootloader-update fails with "... missing
+# although .../EFI.json lists grub2 ...". Same command Fedora's bootc image
+# build runs; it only works with / as the root.
+bootupctl backend generate-update-metadata /
