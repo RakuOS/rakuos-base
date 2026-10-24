@@ -32,11 +32,6 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERN
 # Keep in sync with DECK_KMODS in rakuos-gamescope's drivers.sh.
 KMODS=(
     wl v4l2loopback
-    xone xpadneo xpad-noone
-    hid-fanatecff hid-tmff2 t150-driver new-lg4ff logitech-trueforce
-    ayaneo-leds
-    sc0710
-    nct6687d ryzen_smu zenergy
 )
 
 rum install -y \
