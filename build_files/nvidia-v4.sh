@@ -40,11 +40,21 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     nvidia-settings${NV} \
     nvidia-driver${NV}-cuda \
     nvidia-persistenced${NV} \
-    nvidia-driver${NV}-libs.i686 \
-    nvidia-driver${NV}-cuda-libs.i686 \
     xorg-x11-nvidia${NV} \
     libva-nvidia-driver \
     ${KERNEL_PKG}-devel-matched
+
+# 32-bit libraries for Steam and other 32-bit games, each on its own: the
+# repos don't always carry a matching i686 build of everything they need
+# (e.g. no libnvidia-gpucomp-580xx.i686 for the legacy driver), and one that
+# can't be installed would otherwise fail the whole NVIDIA install. Skip it
+# with a warning instead.
+for pkg in "nvidia-driver${NV}-libs.i686" "nvidia-driver${NV}-cuda-libs.i686"; do
+    rum install -y --setopt=tsflags=noscripts \
+        $(printf -- '--exclude=%s ' "${NV_EXCLUDES[@]}") \
+        "$pkg" \
+        || echo "WARNING: skipping $pkg: its 32-bit dependencies aren't available"
+done
 
 # --skip-broken above would quietly drop the kernel modules if they couldn't
 # be installed (e.g. not yet built for this kernel/driver version); an
