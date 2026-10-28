@@ -563,9 +563,13 @@ podman-prune.timer
 # oo7 is the Secret Service (org.freedesktop.secrets). Nothing else starts
 # it: the package has no D-Bus activation file and no preset enables it, so
 # without this pam_oo7 times out at login and apps have no secrets store.
+# oo7 has no SSH agent, so OpenSSH's own takes over from GNOME Keyring's
+# gcr-ssh-agent; SSH_AUTH_SOCK is set in
+# /usr/lib/environment.d/50-rakuos-ssh-agent.conf.
 systemctl enable --global \
 rakuos-user.service \
-oo7-daemon.service
+oo7-daemon.service \
+ssh-agent.socket
 
 # Keep the oo7 keyring password in step with the login password: pam_oo7
 # must also be in the password stack, or after passwd/chpasswd the keyring
