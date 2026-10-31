@@ -12,6 +12,13 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_RELEASE_PKG="rakuos-release-staging"
 fi
 
+# Same for rakuos-core: staging images install rakuos-core-staging, built
+# from rakuos-core's staging branch (it provides rakuos-core).
+RAKUOS_CORE_PKG="rakuos-core"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_CORE_PKG="rakuos-core-staging"
+fi
+
 # Same switch for the kernel: on staging, track kernel-staging's -staging
 # tagged builds (kernel-p03-v3-staging) instead of the stable kernel repo's
 # kernel-p03-v3, so staging images pick up in-flight kernel changes.
@@ -440,7 +447,7 @@ qemu-guest-agent \
 qemu-user-static-aarch64 \
 quota \
 rakuos-branding \
-rakuos-core \
+${RAKUOS_CORE_PKG} \
 ${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
