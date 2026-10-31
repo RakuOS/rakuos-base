@@ -37,7 +37,22 @@ sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.
 ## keep Fedora's goverlay, RPM Fusion's NVIDIA driver stack and steam, and
 ## Terra's AppArmor and sched_ext packages from replacing the RakuOS builds,
 ## so the repo files themselves are left as their packages ship them.
-dnf5 -y install rakuos-rum rum-dnf-shim rakuos-rum-repo-overrides
+##
+## On staging (RAKUOS_STAGING=1) the staging rum goes in instead:
+## rakuos-rum-staging, rum-dnf-shim-staging and
+## rakuos-rum-repo-overrides-staging, built from rum's staging branch. They
+## provide the stable names, so anything that requires rakuos-rum is still
+## satisfied. If the repo has no staging build yet, the stable rum is
+## installed so the image still builds.
+RUM_SUFFIX=""
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    if dnf5 -q repoquery --available rakuos-rum-staging 2>/dev/null | grep -q .; then
+        RUM_SUFFIX="-staging"
+    else
+        echo "WARNING: the repo has no rakuos-rum-staging yet; installing the stable rum"
+    fi
+fi
+dnf5 -y install "rakuos-rum${RUM_SUFFIX}" "rum-dnf-shim${RUM_SUFFIX}" "rakuos-rum-repo-overrides${RUM_SUFFIX}"
 
 ## Move every repo file into rum's shipped dir, /usr/share/rum/repos.d, so
 ## the image's repos all live there and /etc stays free for users' own repos
