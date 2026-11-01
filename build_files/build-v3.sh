@@ -575,6 +575,7 @@ rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
 rakuos-rescue-entries.path \
 rakuos-layers-boot-ok.service \
+var-lib-rakuos-layers.mount \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \
