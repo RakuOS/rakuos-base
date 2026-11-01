@@ -574,6 +574,7 @@ rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
 rakuos-rescue-entries.path \
+rakuos-layers-boot-ok.service \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \
