@@ -104,6 +104,65 @@ EOF
     chmod 0755 /usr/libexec/oo7-daemon-login
 fi
 
+# bootc upgrade/switch stage a new image, after which RakuOS has to prepare
+# the package layers for it (rum layer-prepare, through rakuos-core's
+# after-image-staged) before the reboot, or its first boot runs the layers
+# made for the old image. Wrap bootc so that happens however it's run (a
+# terminal, scripts, the update tools). Every other bootc command goes
+# straight to the real binary, bootc.real.
+if [ -x /usr/bin/bootc ] && [ ! -e /usr/bin/bootc.real ]; then
+    mv /usr/bin/bootc /usr/bin/bootc.real
+    cat > /usr/bin/bootc << 'EOF'
+#!/usr/bin/bash
+# RakuOS: `bootc upgrade` and `bootc switch` prepare the package layers for
+# the image they staged (/usr/libexec/rakuos/after-image-staged). Every
+# other command, and --check/--help, runs the real bootc (bootc.real)
+# unchanged.
+real=/usr/bin/bootc.real
+case "$1" in
+    upgrade|switch) ;;
+    *) exec "$real" "$@" ;;
+esac
+for arg in "$@"; do
+    case "$arg" in
+        --check|-h|--help) exec "$real" "$@" ;;
+    esac
+done
+# --apply would reboot before the layers are prepared, and a soft reboot
+# skips the initrd that switches to the new image's layers: stage first,
+# prepare, then reboot normally.
+args=()
+apply=0
+skip=0
+for arg in "$@"; do
+    if [ "$skip" = 1 ]; then skip=0; continue; fi
+    case "$arg" in
+        --apply) apply=1 ;;
+        --soft-reboot) skip=1 ;;
+        --soft-reboot=*) ;;
+        *) args+=("$arg") ;;
+    esac
+done
+staged() {
+    "$real" status --json 2>/dev/null | jq -r '.status.staged // empty | "\(.ostree.checksum) \(.ostree.deploySerial)"' 2>/dev/null
+}
+before=$(staged)
+"$real" "${args[@]}"
+rc=$?
+after=$(staged)
+# Prepared only for a newly staged image; "no changes" leaves nothing to do.
+if [ "$rc" = 0 ] && [ -n "$after" ] && [ "$after" != "$before" ]; then
+    /usr/libexec/rakuos/after-image-staged
+    if [ "$apply" = 1 ]; then
+        echo "Rebooting into the new image..."
+        systemctl reboot
+    fi
+fi
+exit "$rc"
+EOF
+    chmod 0755 /usr/bin/bootc
+fi
+
 echo "RakuOS post-build complete."
 
 # ── Build protected-packages.txt ──────────────────────────────────────────────
