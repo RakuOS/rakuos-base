@@ -22,7 +22,7 @@ set -euo pipefail
 IMAGE_DESC="RakuOS Base"
 IMAGE_KEYWORDS="bootc,fedora,atomic"
 # org.rakuos.fedora.version label per branch (as in .gitlab-ci.yml).
-FEDORA_MAIN="44"
+FEDORA_MAIN="45"
 FEDORA_STAGING="45"
 # 1 = fetch MOK.key and pass it to the build as the mok_key secret.
 NEEDS_MOK="1"

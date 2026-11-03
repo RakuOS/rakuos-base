@@ -57,7 +57,7 @@ stages:
     - |
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}")
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="45"
           export BRANCH_SLUG="${DEFAULT_TAG}"
           ;;
         "staging")
