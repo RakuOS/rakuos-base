@@ -8,12 +8,14 @@ set -ouex pipefail
 # again in their post-build.sh, matching this same disabled end state.
 rum config-manager --default --set-disabled terra
 
-# RPM Fusion is opt-in the same way. Record which of its repos the release
-# packages turn on by default (-updates on a stable Fedora, -updates-testing
-# on a branched one; never -debuginfo/-source), so desktop images turn
-# exactly those back on in their build.sh, then disable every RPM Fusion repo.
+# RPM Fusion is opt-in the same way. Record its package repos (the release
+# repos and -updates; never -updates-testing, -debuginfo or -source), so
+# desktop images turn exactly those back on in their build.sh and the welcome
+# app turns them on when the user opts in, then disable every RPM Fusion
+# repo. Not what the release packages enable: on a branched Fedora that's
+# -updates-testing, which users would then run without asking for it.
 mkdir -p /usr/share/rakuos
-rum repolist | awk '$1 ~ /^rpmfusion-/ && $2 == "enabled" {print $1}' > /usr/share/rakuos/rpmfusion-default-repos
+rum repo list --all | awk '$1 ~ /^rpmfusion-/ && $1 !~ /-(debuginfo|source)$/ && $1 !~ /-testing/ {print $1}' > /usr/share/rakuos/rpmfusion-default-repos
 [ -s /usr/share/rakuos/rpmfusion-default-repos ] || { echo "ERROR: no enabled RPM Fusion repos found"; exit 1; }
 rum config-manager --default --set-disabled 'rpmfusion-*'
 
