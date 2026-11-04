@@ -12,6 +12,13 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_RELEASE_PKG="rakuos-release-staging"
 fi
 
+# Same for rakuos-core: staging images install rakuos-core-staging, built
+# from rakuos-core's staging branch (it provides rakuos-core).
+RAKUOS_CORE_PKG="rakuos-core"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_CORE_PKG="rakuos-core-staging"
+fi
+
 # Same switch for the kernel: on staging, track kernel-staging's -staging
 # tagged builds (kernel-p03-v3-staging) instead of the stable kernel repo's
 # kernel-p03-v3, so staging images pick up in-flight kernel changes.
@@ -37,7 +44,22 @@ sed -i '/^\[rakuos-v3\]/,/^\[/ s/^enabled=0/enabled=1/' /etc/yum.repos.d/rakuos.
 ## keep Fedora's goverlay, RPM Fusion's NVIDIA driver stack and steam, and
 ## Terra's AppArmor and sched_ext packages from replacing the RakuOS builds,
 ## so the repo files themselves are left as their packages ship them.
-dnf5 -y install rakuos-rum rum-dnf-shim rakuos-rum-repo-overrides
+##
+## On staging (RAKUOS_STAGING=1) the staging rum goes in instead:
+## rakuos-rum-staging, rum-dnf-shim-staging and
+## rakuos-rum-repo-overrides-staging, built from rum's staging branch. They
+## provide the stable names, so anything that requires rakuos-rum is still
+## satisfied. If the repo has no staging build yet, the stable rum is
+## installed so the image still builds.
+RUM_SUFFIX=""
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    if dnf5 -q repoquery --available rakuos-rum-staging 2>/dev/null | grep -q .; then
+        RUM_SUFFIX="-staging"
+    else
+        echo "WARNING: the repo has no rakuos-rum-staging yet; installing the stable rum"
+    fi
+fi
+dnf5 -y install "rakuos-rum${RUM_SUFFIX}" "rum-dnf-shim${RUM_SUFFIX}" "rakuos-rum-repo-overrides${RUM_SUFFIX}"
 
 ## Move every repo file into rum's shipped dir, /usr/share/rum/repos.d, so
 ## the image's repos all live there and /etc stays free for users' own repos
@@ -374,6 +396,8 @@ nvidia-gpu-firmware \
 nvme-cli \
 nvtop \
 nxpwireless-firmware \
+oo7-daemon \
+oo7-portal \
 open-vm-tools-desktop \
 opendoas \
 openrgb-udev-rules \
@@ -387,6 +411,7 @@ oversteer-udev \
 pam-u2f \
 pam_afs_session \
 pam_apparmor \
+pam_oo7 \
 pam_yubico \
 pamu2fcfg \
 paps \
@@ -422,7 +447,7 @@ qemu-guest-agent \
 qemu-user-static-aarch64 \
 quota \
 rakuos-branding \
-rakuos-core \
+${RAKUOS_CORE_PKG} \
 ${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
@@ -437,7 +462,6 @@ scx-tools \
 ShellCheck \
 shim-ia32 \
 skopeo \
-slirp4netns \
 solaar-udev \
 sos \
 speech-dispatcher \
@@ -523,11 +547,13 @@ systemctl mask rpm-ostreed-automatic.timer
 # (rakuos-core, enabled below) keeps shim and GRUB on the ESP current instead.
 systemctl mask bootloader-update.service
 
-# Statically enable getty on tty2-6 -- confirmed on real hardware that
+# Statically enable the console on tty2-6 -- confirmed on real hardware that
 # systemd-logind's on-demand autovt@ auto-start (which is supposed to spawn
-# a getty the moment you switch to an unallocated VT) does not reliably fire
+# a login the moment you switch to an unallocated VT) does not reliably fire
 # on this kernel/image, leaving Ctrl+Alt+F<n> landing on a dead console with no login prompt.
-systemctl enable getty@tty2.service getty@tty3.service getty@tty4.service getty@tty5.service getty@tty6.service
+# On 45 the console is kmscon (autovt@ is an alias of kmsconvt@), so enable
+# kmsconvt@ rather than plain getty@ to match tty1.
+systemctl enable kmsconvt@tty2.service kmsconvt@tty3.service kmsconvt@tty4.service kmsconvt@tty5.service kmsconvt@tty6.service
 
 # sudo requires the drop-in directory to be root-owned, non-world-writable,
 # and executable (0750), and drop-in files to be 0440.
@@ -548,6 +574,9 @@ rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
 rakuos-rescue-entries.path \
+rakuos-layers-boot-ok.service \
+var-lib-rakuos-layers.mount \
+rum-layer-repair.service \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \
@@ -556,8 +585,24 @@ flatpak-cleanup.timer \
 flatpak-repair.timer \
 podman-prune.timer
 
+# oo7 is the Secret Service (org.freedesktop.secrets). Nothing else starts
+# it: the package has no D-Bus activation file and no preset enables it, so
+# without this pam_oo7 times out at login and apps have no secrets store.
+# oo7 has no SSH agent, so OpenSSH's own takes over from GNOME Keyring's
+# gcr-ssh-agent; SSH_AUTH_SOCK is set in
+# /usr/lib/environment.d/50-rakuos-ssh-agent.conf.
 systemctl enable --global \
-rakuos-user.service
+rakuos-user.service \
+oo7-daemon.service \
+ssh-agent.socket
+
+# Keep the oo7 keyring password in step with the login password: pam_oo7
+# must also be in the password stack, or after passwd/chpasswd the keyring
+# keeps the old password and login auto-unlock fails. Fedora's shadow-utils
+# files only list pam_gnome_keyring there.
+sed -i '/pam_gnome_keyring.so use_authtok/a -password   optional\tpam_oo7.so' /etc/pam.d/passwd /etc/pam.d/chpasswd
+grep -q pam_oo7.so /etc/pam.d/passwd && grep -q pam_oo7.so /etc/pam.d/chpasswd \
+    || { echo "ERROR: pam_oo7 not added to /etc/pam.d/passwd and chpasswd"; exit 1; }
 
 # Enable os-prober so grub detects other OSes (e.g. Windows) in dual-boot setups
 echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub

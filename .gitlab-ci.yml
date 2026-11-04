@@ -49,6 +49,7 @@ stages:
   - dispatch
 
 .buildah-job:
+  timeout: 24 hours
   image: quay.io/buildah/stable:latest
   tags:
     - saas-linux-large-amd64
@@ -56,7 +57,7 @@ stages:
     - |
       case "${CI_COMMIT_BRANCH}" in
         "${CI_DEFAULT_BRANCH}")
-          export FEDORA_VERSION="44"
+          export FEDORA_VERSION="45"
           export BRANCH_SLUG="${DEFAULT_TAG}"
           ;;
         "staging")
@@ -95,6 +96,7 @@ stages:
     BUILDAH_FORMAT: oci
 
 build-push-base:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -191,6 +193,7 @@ build-push-base:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-base-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -285,6 +288,7 @@ build-push-base-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-base-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -379,6 +383,7 @@ build-push-base-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -473,6 +478,7 @@ build-push-minimal:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -567,6 +573,7 @@ build-push-minimal-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-base
   script:
@@ -661,6 +668,7 @@ build-push-minimal-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -769,6 +777,7 @@ build-push-nvidia:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -865,6 +874,7 @@ build-push-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -961,6 +971,7 @@ build-push-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1057,6 +1068,7 @@ build-push-minimal-nvidia:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1153,6 +1165,7 @@ build-push-minimal-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1249,6 +1262,7 @@ build-push-minimal-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia-legacy:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1358,6 +1372,7 @@ build-push-nvidia-legacy:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia-legacy-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1455,6 +1470,7 @@ build-push-nvidia-legacy-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-nvidia-legacy-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1552,6 +1568,7 @@ build-push-nvidia-legacy-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia-legacy:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1649,6 +1666,7 @@ build-push-minimal-nvidia-legacy:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia-legacy-v4:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1746,6 +1764,7 @@ build-push-minimal-nvidia-legacy-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 build-push-minimal-nvidia-legacy-v3:
+  timeout: 24 hours
   extends: .buildah-job
   stage: build-push-nvidia
   needs:
@@ -1857,8 +1876,8 @@ build-push-minimal-nvidia-legacy-v3:
 #   GITLAB_API_TOKEN    — api-scoped token for pipeline cancellation
 
 .image-test-job:
+  timeout: 24 hours
   extends: .buildah-job
-  timeout: 3 hours
   tags:
     - saas-linux-medium-amd64
   rules:
@@ -1868,6 +1887,7 @@ build-push-minimal-nvidia-legacy-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 test-image-standard:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -1893,6 +1913,7 @@ test-image-standard:
       echo "Image stress test passed."
 
 test-image-nvidia:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -1922,6 +1943,7 @@ test-image-nvidia:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-standard-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -1947,6 +1969,7 @@ test-image-standard-v4:
       echo "Image stress test passed."
 
 test-image-standard-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -1972,6 +1995,7 @@ test-image-standard-v3:
       echo "Image stress test passed."
 
 test-image-nvidia-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2001,6 +2025,7 @@ test-image-nvidia-v4:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-nvidia-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2030,6 +2055,7 @@ test-image-nvidia-v3:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-minimal:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2055,6 +2081,7 @@ test-image-minimal:
       echo "Image stress test passed."
 
 test-image-minimal-nvidia:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2084,6 +2111,7 @@ test-image-minimal-nvidia:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-minimal-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2109,6 +2137,7 @@ test-image-minimal-v4:
       echo "Image stress test passed."
 
 test-image-minimal-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2134,6 +2163,7 @@ test-image-minimal-v3:
       echo "Image stress test passed."
 
 test-image-minimal-nvidia-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2163,6 +2193,7 @@ test-image-minimal-nvidia-v4:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-minimal-nvidia-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2192,6 +2223,7 @@ test-image-minimal-nvidia-v3:
       echo "Image stress test (NVIDIA) passed."
 
 test-image-nvidia-legacy:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2221,6 +2253,7 @@ test-image-nvidia-legacy:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 test-image-nvidia-legacy-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2250,6 +2283,7 @@ test-image-nvidia-legacy-v4:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 test-image-nvidia-legacy-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2279,6 +2313,7 @@ test-image-nvidia-legacy-v3:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 test-image-minimal-nvidia-legacy:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2308,6 +2343,7 @@ test-image-minimal-nvidia-legacy:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 test-image-minimal-nvidia-legacy-v4:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2337,6 +2373,7 @@ test-image-minimal-nvidia-legacy-v4:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 test-image-minimal-nvidia-legacy-v3:
+  timeout: 24 hours
   extends: .image-test-job
   stage: test
   needs:
@@ -2366,6 +2403,7 @@ test-image-minimal-nvidia-legacy-v3:
       echo "Image stress test (NVIDIA legacy, 580xx) passed."
 
 .trigger-on-test-fail:
+  timeout: 24 hours
   stage: test
   image: quay.io/fedora/fedora:latest
   tags:
@@ -2396,114 +2434,133 @@ test-image-minimal-nvidia-legacy-v3:
       when: on_failure
 
 trigger-on-image-standard-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-standard
       artifacts: false
 
 trigger-on-image-nvidia-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia
       artifacts: false
 
 trigger-on-image-standard-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-standard-v4
       artifacts: false
 
 trigger-on-image-standard-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-standard-v3
       artifacts: false
 
 trigger-on-image-nvidia-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-v4
       artifacts: false
 
 trigger-on-image-nvidia-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-v3
       artifacts: false
 
 trigger-on-image-minimal-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal
       artifacts: false
 
 trigger-on-image-minimal-nvidia-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia
       artifacts: false
 
 trigger-on-image-minimal-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-v4
       artifacts: false
 
 trigger-on-image-minimal-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-v3
       artifacts: false
 
 trigger-on-image-minimal-nvidia-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia-v4
       artifacts: false
 
 trigger-on-image-minimal-nvidia-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia-v3
       artifacts: false
 
 trigger-on-image-nvidia-legacy-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-legacy
       artifacts: false
 
 trigger-on-image-nvidia-legacy-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-legacy-v4
       artifacts: false
 
 trigger-on-image-nvidia-legacy-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-nvidia-legacy-v3
       artifacts: false
 
 trigger-on-image-minimal-nvidia-legacy-fail:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia-legacy
       artifacts: false
 
 trigger-on-image-minimal-nvidia-legacy-fail-v4:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia-legacy-v4
       artifacts: false
 
 trigger-on-image-minimal-nvidia-legacy-fail-v3:
+  timeout: 24 hours
   extends: .trigger-on-test-fail
   needs:
     - job: test-image-minimal-nvidia-legacy-v3
       artifacts: false
 
 sign-image-standard:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2551,6 +2608,7 @@ sign-image-standard:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2598,6 +2656,7 @@ sign-image-nvidia:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-standard-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2645,6 +2704,7 @@ sign-image-standard-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-standard-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2692,6 +2752,7 @@ sign-image-standard-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2739,6 +2800,7 @@ sign-image-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2786,6 +2848,7 @@ sign-image-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2833,6 +2896,7 @@ sign-image-minimal:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2880,6 +2944,7 @@ sign-image-minimal-nvidia:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2927,6 +2992,7 @@ sign-image-minimal-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -2974,6 +3040,7 @@ sign-image-minimal-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3021,6 +3088,7 @@ sign-image-minimal-nvidia-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3068,6 +3136,7 @@ sign-image-minimal-nvidia-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia-legacy:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3115,6 +3184,7 @@ sign-image-nvidia-legacy:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia-legacy-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3162,6 +3232,7 @@ sign-image-nvidia-legacy-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-nvidia-legacy-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3209,6 +3280,7 @@ sign-image-nvidia-legacy-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia-legacy:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3256,6 +3328,7 @@ sign-image-minimal-nvidia-legacy:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia-legacy-v4:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3303,6 +3376,7 @@ sign-image-minimal-nvidia-legacy-v4:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 sign-image-minimal-nvidia-legacy-v3:
+  timeout: 24 hours
   stage: sign
   image: quay.io/buildah/stable:latest
   tags:
@@ -3350,6 +3424,7 @@ sign-image-minimal-nvidia-legacy-v3:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 trigger-downstream:
+  timeout: 24 hours
   stage: dispatch
   image: curlimages/curl:latest
   tags:
@@ -3417,6 +3492,7 @@ trigger-downstream:
     - if: '$CI_COMMIT_BRANCH == "rakuosel"'
 
 notify-discord-minimal:
+  timeout: 24 hours
   stage: dispatch
   image: curlimages/curl:latest
   tags:
