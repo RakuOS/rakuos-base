@@ -38,6 +38,25 @@ fi
 mkdir -p /etc/fastfetch
 ln -sf /usr/share/fastfetch/presets/rakuos/rakuos-fastfetch.jsonc /etc/fastfetch/config.jsonc
 
+# ── Legacy CA bundle paths ────────────────────────────────────────────────────
+# Fedora 45's ca-certificates no longer ships the old Red Hat paths
+# /etc/pki/tls/certs/ca-bundle.crt, ca-bundle.trust.crt and /etc/pki/tls/cert.pem
+# (only /etc/ssl/ and /etc/pki/ca-trust/). Vendor repo files and apps that name
+# them break: Cloudsmith's repos (Devolutions RDM) set sslcacert= to
+# ca-bundle.crt, and librepo then fails with curl error 77. Link them to the
+# bundles update-ca-trust maintains, so they follow trust changes.
+mkdir -p /etc/pki/tls/certs
+for _link in \
+    /etc/pki/tls/certs/ca-bundle.crt:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    /etc/pki/tls/cert.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    /etc/pki/tls/certs/ca-bundle.trust.crt:/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt; do
+    _path=${_link%%:*}; _target=${_link#*:}
+    if [ ! -e "$_path" ] && [ -e "$_target" ]; then
+        ln -s "$_target" "$_path"
+    fi
+done
+unset _link _path _target
+
 # ── sudo-rs bootstrap ─────────────────────────────────────────────────────────
 # Preserve the originals under .og so setup-sudo can register them with
 # `alternatives`, then wire sudo-rs as the system default.
