@@ -405,6 +405,7 @@ opensc \
 openssh-askpass \
 openssh-server \
 openssl \
+openssl3-libs \
 orca \
 os-prober \
 oversteer-udev \
