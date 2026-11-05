@@ -29,7 +29,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
-    /ctx/build-v4.sh && /ctx/drivers-v4.sh && /ctx/post-build.sh
+    /ctx/build-v4.sh && /ctx/drivers-v4.sh && /ctx/post-build.sh && /ctx/assign-components.sh generated && /ctx/reset-mtimes.sh
 
 COPY system_files /
 # Clean up real runtime state (systemd units started mid-build, akmods/
@@ -39,13 +39,19 @@ COPY system_files /
 # cache/tmpfs) build step above has already finished and unmounted, so it
 # only ever touches plain files already baked into the layer — never a
 # live mount the build engine itself still has open.
-RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,source=system_files,target=/run/rakuos-system-files,ro \
+    /ctx/assign-components.sh files rakuos-base-files /run/rakuos-system-files; \
+    find /run -mindepth 1 -delete 2>/dev/null || true; \
     find /tmp -mindepth 1 -delete 2>/dev/null || true; \
-    find /boot -mindepth 1 -delete 2>/dev/null || true
+    find /boot -mindepth 1 -delete 2>/dev/null || true; \
+    /ctx/reset-mtimes.sh
 
 # RUN bootc container lint
 
-FROM quay.io/coreos/chunkah AS chunkah
+# chunkah v0.7.1, pinned: another version can plan layers differently,
+# which would change every layer of the next update.
+FROM quay.io/coreos/chunkah@sha256:71e593421c5de7dcc7c8c5c50e98d3bac572055a76f399f61a491d123c20a523 AS chunkah
 # org.rakuos.kernel.release: the kernel release of this image, what `uname -r`
 # shows once it's booted, read from the finished root filesystem (the only
 # kernel with a vmlinuz). It can't be a CI --label like
@@ -55,7 +61,7 @@ RUN --mount=from=builder,src=/,target=/chunkah,ro \
     --mount=type=bind,target=/run/src,rw \
         KREL=$(basename "$(dirname "$(ls /chunkah/usr/lib/modules/*/vmlinuz | head -1)")") && \
         [ -n "$KREL" ] && \
-        chunkah build --prune /sysroot/ --max-layers 64 --threads 4 --compressed \
+        chunkah build --prune /sysroot/ --max-layers 256 --threads 4 --compressed \
           --label ostree.commit- --label ostree.final-diffid- \
           --label "org.rakuos.kernel.release=${KREL}" \
           > /run/src/out.ociarchive
