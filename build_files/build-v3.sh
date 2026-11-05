@@ -376,6 +376,7 @@ mesa-dri-drivers \
 mesa-vulkan-drivers \
 microcode_ctl \
 mkpasswd \
+mozilla-filesystem \
 mpage \
 mt7xxx-firmware \
 mtr \
