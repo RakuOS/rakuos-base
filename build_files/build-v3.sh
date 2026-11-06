@@ -568,7 +568,6 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 
 #enable enable services
 systemctl enable \
-rakuos-base-protect.service \
 rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-flatpak-watcher.service \
