@@ -7,8 +7,8 @@
 #   CONTAINERFILE      Containerfile to build
 #   QUAY_REPO          quay.io repository to push to
 #   DESC_SUFFIX        appended to IMAGE_DESC in the description label
-#   KIND               "fedora": built FROM Fedora's bootc image for the
-#                      branch's Fedora version (tag latest)
+#   KIND               "fedora": built from nothing (rakuos-base's base and
+#                      minimal images bootstrap their own root filesystem)
 #                      "derived": built FROM another RakuOS image, tag =
 #                      the branch's tag
 #   BASE_REPO          derived only: image repository to build FROM
@@ -119,18 +119,21 @@ fetch_secure_file() {
   chmod 600 "${dest}"
 }
 
-# What to build FROM: Fedora's bootc image, or the RakuOS image this one is
-# derived from (its tag for this branch).
+# What a derived image builds FROM: the RakuOS image it's based on, at this
+# branch's tag. rakuos-base reads BASE_IMAGE (repo:tag), the other repos
+# BASE_IMAGE_REPO and BASE_IMAGE_TAG. Fedora-kind builds pass none of these:
+# they bootstrap their own root.
+BASE_TAG=""
+BASE_IMAGE=""
 if [ "${KIND}" = "derived" ]; then
   BASE_TAG="${BRANCH_SLUG}"
-else
-  BASE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal"
-  BASE_TAG="latest"
+  [ -n "${BASE_REPO:-}" ] && BASE_IMAGE="${BASE_REPO}:${BASE_TAG}"
 fi
 build_args=(--build-arg RAKUOS_STAGING="${RAKUOS_STAGING}"
-            --build-arg FEDORA_VERSION="${FEDORA_VERSION}"
-            --build-arg BASE_IMAGE_TAG="${BASE_TAG}")
+            --build-arg FEDORA_VERSION="${FEDORA_VERSION}")
+[ -n "${BASE_TAG}" ] && build_args+=(--build-arg BASE_IMAGE_TAG="${BASE_TAG}")
 [ -n "${BASE_REPO:-}" ] && build_args+=(--build-arg BASE_IMAGE_REPO="${BASE_REPO}")
+[ -n "${BASE_IMAGE}" ] && build_args+=(--build-arg BASE_IMAGE="${BASE_IMAGE}")
 for arg in ${EXTRA_BUILD_ARGS:-}; do
   build_args+=(--build-arg "${arg}")
 done
@@ -148,13 +151,18 @@ fi
 # buildah build (pull policy "missing") never has to reach the registry
 # itself. Retrying the whole build would repeat it on real build errors.
 from_images() {
-  local repo_default base_repo ref
+  local repo_default base_repo image_default base_image tag_default base_tag ref
   repo_default=$(sed -n 's/^ARG BASE_IMAGE_REPO="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
   base_repo="${BASE_REPO:-${repo_default}}"
+  tag_default=$(sed -n 's/^ARG BASE_IMAGE_TAG="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
+  base_tag="${BASE_TAG:-${tag_default}}"
+  image_default=$(sed -n 's/^ARG BASE_IMAGE="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
+  base_image="${BASE_IMAGE:-${image_default}}"
   awk '/^FROM /{print $2}' "${CONTAINERFILE}" | while read -r ref; do
     case "${ref}" in scratch | oci-archive:* | oci:*) continue ;; esac
     ref="${ref//'${BASE_IMAGE_REPO}'/${base_repo}}"
-    ref="${ref//'${BASE_IMAGE_TAG}'/${BASE_TAG}}"
+    ref="${ref//'${BASE_IMAGE_TAG}'/${base_tag}}"
+    ref="${ref//'${BASE_IMAGE}'/${base_image}}"
     ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
     case "${ref}" in
       *'$'*) echo "WARNING: can't resolve FROM ${ref}; buildah will pull it" >&2 ;;

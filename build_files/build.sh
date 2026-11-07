@@ -111,8 +111,12 @@ shipped_repo_files() {
 rum install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-rum remove -y 'selinux-policy*' 'policycoreutils-gui'
+# SELinux: the bootstrapped root never has it (RakuOS uses AppArmor); a root
+# built FROM Fedora's bootc image does.
+rm -f /etc/dnf/protected.d/selinux-policy-targeted.conf
+if rpm -q selinux-policy >/dev/null 2>&1; then
+    rum remove -y 'selinux-policy*' 'policycoreutils-gui'
+fi
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
@@ -145,8 +149,13 @@ for REPO in $TERRA_REPOS; do
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
 
-#remove fedora kernel and zram config
-rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
+# Remove Fedora's kernel and zram config, where the root has them (the
+# bootstrapped root has neither).
+FEDORA_KERNEL_PKGS=$(rpm -q --qf '%{NAME}\n' kernel kernel-core kernel-modules kernel-modules-core \
+    kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults 2>/dev/null | grep -v 'not installed' || true)
+if [ -n "$FEDORA_KERNEL_PKGS" ]; then
+    rum remove -y --no-autoremove $FEDORA_KERNEL_PKGS
+fi
 rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
 
 # Install P03 kernel

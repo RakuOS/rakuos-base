@@ -1,0 +1,48 @@
+# Packages rum bootstraps into the empty root that rakuos-base (and
+# rakuos-minimal) is built on, with no weak dependencies. Modeled on Fedora's
+# bootc "minimal" manifest (gitlab.com/fedora/bootc/base-images, minimal/ and
+# fedora-includes/generic.yaml), minus:
+#   - selinux-policy-targeted and container-selinux: RakuOS uses AppArmor
+#   - kernel: build.sh installs kernel-rakuos-<ISA level>
+# Everything else on top (rum, RakuOS packages, drivers) comes from build.sh,
+# drivers.sh and post-build.sh, as it did on top of Fedora's image.
+
+# Release identity and repos (build.sh swaps in rakuos-release).
+fedora-release
+fedora-repos-archive
+
+# generic.yaml
+systemd-resolved
+kmscon
+
+# minimal/manifest.yaml
+coreutils
+dnf5
+tpm2-tools
+
+# minimal/bootc.yaml
+systemd
+systemd-pam
+dbus
+bootc
+xfsprogs
+e2fsprogs
+dosfstools
+
+# minimal/ostree.yaml
+ostree
+nss-altfiles
+
+# minimal/bootupd.yaml (x86_64)
+bootupd
+grub2
+grub2-efi-x64
+efibootmgr
+shim
+microcode_ctl
+
+# Tools the image build scripts use before build.sh's big install brings in
+# the rest (build.sh unpacks Terra's AppStream icons with tar, post-build.sh
+# uses awk).
+tar
+gawk

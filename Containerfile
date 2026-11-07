@@ -1,9 +1,10 @@
 # One Containerfile for every rakuos-base image. CI picks the image with
 # build args instead of a separate Containerfile per image:
 #
-#   BASE_IMAGE_REPO / BASE_IMAGE_TAG  what to build FROM: Fedora's bootc image
-#                       for the base and minimal images, or the base/minimal
-#                       image just built for this branch for the NVIDIA ones
+#   BASE_IMAGE          what to build FROM. Unset for the base and minimal
+#                       images: they build on rakuos-rootfs, a root filesystem
+#                       bootstrapped from nothing below. The NVIDIA images set
+#                       it to the base/minimal image just built for this branch.
 #   RAKUOS_ISA_LEVEL    v2, v3 or v4: kernel flavor and rakuos-v3/v4 repos
 #   RAKUOS_VARIANT      base or minimal (minimal also runs post-build-overlay.sh)
 #   RAKUOS_GPU          none, or nvidia for the NVIDIA images, which only run
@@ -13,15 +14,32 @@
 #
 # Global build args: available to the FROM lines below.
 ARG FEDORA_VERSION="45"
-ARG BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-45-minimal"
-ARG BASE_IMAGE_TAG="latest"
+ARG BASE_IMAGE="rakuos-rootfs"
 ARG CHUNKAH_CONFIG_STR
 
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
-FROM ${BASE_IMAGE_REPO}:${BASE_IMAGE_TAG} AS builder
+# The root filesystem, bootstrapped from nothing: rum installs a minimal
+# package set (build_files/bootstrap/packages.txt) into an empty directory
+# and bootstrap.sh does the rest of what Fedora's bootc image build does.
+# Only the base and minimal images use it; for the NVIDIA ones (built FROM a
+# finished image) this stage is an empty directory.
+FROM quay.io/fedora/fedora:${FEDORA_VERSION} AS rootfs-builder
+ARG RAKUOS_GPU="none"
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    if [ "${RAKUOS_GPU}" = "none" ]; then \
+        /ctx/bootstrap/bootstrap.sh /target; \
+    else \
+        mkdir -p /target; \
+    fi
+
+FROM scratch AS rakuos-rootfs
+COPY --from=rootfs-builder /target/ /
+
+FROM ${BASE_IMAGE} AS builder
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION

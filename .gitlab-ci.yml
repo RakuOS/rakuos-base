@@ -138,8 +138,6 @@ build-push-base:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="none" \
@@ -238,8 +236,6 @@ build-push-base-v4:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="none" \
@@ -338,8 +334,6 @@ build-push-base-v3:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="none" \
@@ -438,8 +432,6 @@ build-push-minimal:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="none" \
@@ -538,8 +530,6 @@ build-push-minimal-v4:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="none" \
@@ -638,8 +628,6 @@ build-push-minimal-v3:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
-        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
-        --build-arg BASE_IMAGE_TAG="latest" \
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="none" \
@@ -751,6 +739,7 @@ build-push-nvidia:
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="quay.io/rakuos/rakuos-base:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -857,6 +846,7 @@ build-push-nvidia-v4:
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_V4}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -957,6 +947,7 @@ build-push-nvidia-v3:
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_V3}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1057,6 +1048,7 @@ build-push-minimal-nvidia:
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1157,6 +1149,7 @@ build-push-minimal-nvidia-v4:
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL_V4}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1257,6 +1250,7 @@ build-push-minimal-nvidia-v3:
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL_V3}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1365,6 +1359,7 @@ build-push-nvidia-legacy:
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="quay.io/rakuos/rakuos-base:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1472,6 +1467,7 @@ build-push-nvidia-legacy-v4:
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_V4}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1573,6 +1569,7 @@ build-push-nvidia-legacy-v3:
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="base" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_V3}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1674,6 +1671,7 @@ build-push-minimal-nvidia-legacy:
         --build-arg RAKUOS_ISA_LEVEL="v2" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1775,6 +1773,7 @@ build-push-minimal-nvidia-legacy-v4:
         --build-arg RAKUOS_ISA_LEVEL="v4" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL_V4}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1876,6 +1875,7 @@ build-push-minimal-nvidia-legacy-v3:
         --build-arg RAKUOS_ISA_LEVEL="v3" \
         --build-arg RAKUOS_VARIANT="minimal" \
         --build-arg RAKUOS_GPU="nvidia" \
+        --build-arg BASE_IMAGE="${IMAGE_REGISTRY_QUAY_MINIMAL_V3}:${BRANCH_SLUG}" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
