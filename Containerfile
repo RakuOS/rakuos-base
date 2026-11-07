@@ -117,5 +117,8 @@ RUN --mount=from=builder,src=/,target=/chunkah,ro \
           --label "org.rakuos.kernel.release=${KREL}" \
           > /run/src/out.ociarchive
 
-FROM oci-archive:out.ociarchive
+# Built on its own (--target final) after the chunkah stage has written
+# out.ociarchive: buildah doesn't know this stage depends on that file and
+# could otherwise start it first ("archive file not found").
+FROM oci-archive:out.ociarchive AS final
 LABEL containers.bootc=1

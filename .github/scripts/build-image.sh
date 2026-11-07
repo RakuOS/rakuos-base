@@ -175,12 +175,23 @@ for ref in $(from_images); do
   retry buildah pull --quiet "${ref}" >/dev/null
 done
 
+# Two steps: the chunkah stage writes out.ociarchive, then the final stage
+# (FROM oci-archive:out.ociarchive AS final) is built from it. In one build
+# buildah could start the final stage before the archive exists ("archive
+# file not found"): it doesn't know that stage depends on the file, and a
+# stage waiting for an earlier one lets another stage run meanwhile.
 buildah build \
   --file "${CONTAINERFILE}" \
   "${build_args[@]}" \
   --skip-unused-stages=false \
   -v "$(pwd)":/run/src --security-opt=label=disable \
   "${secret_args[@]}" \
+  --target chunkah \
+  .
+buildah build \
+  --file "${CONTAINERFILE}" \
+  "${build_args[@]}" \
+  --target final \
   --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
   --label "org.opencontainers.image.description=${IMAGE_DESC}${DESC_SUFFIX}" \
