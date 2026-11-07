@@ -93,7 +93,10 @@ COPY system_files /
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,source=system_files,target=/run/rakuos-system-files,ro \
     /ctx/assign-components.sh files rakuos-base-files /run/rakuos-system-files; \
-    find /run -mindepth 1 -delete 2>/dev/null || true; \
+    # Not /run/src: CI binds the build directory (the checkout, Containerfile
+    # included) there for every RUN (-v $(pwd):/run/src), and deleting it
+    # emptied the checkout before the final build step could read it.
+    find /run -mindepth 1 -maxdepth 1 ! -path /run/src -exec rm -rf {} + 2>/dev/null || true; \
     find /tmp -mindepth 1 -delete 2>/dev/null || true; \
     find /boot -mindepth 1 -delete 2>/dev/null || true; \
     /ctx/reset-mtimes.sh
