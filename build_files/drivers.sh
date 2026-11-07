@@ -2,11 +2,12 @@
 
 set -ouex pipefail
 
-# Same staging switch as build.sh (RAKUOS_STAGING persists as an image ENV
-# from that layer, so it's already set here).
-KERNEL_PKG="kernel-rakuos-v2"
+# Same kernel choice as build.sh. RAKUOS_ISA_LEVEL and RAKUOS_STAGING are
+# build args, so they're in the environment of every build step.
+RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
+KERNEL_PKG="kernel-rakuos-${RAKUOS_ISA_LEVEL}"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v2-staging"
+    KERNEL_PKG="${KERNEL_PKG}-staging"
 fi
 
 # Prebuilt, RakuOS-signed kernel modules (signed-kmods repo) for this kernel:

@@ -19,13 +19,18 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_CORE_PKG="rakuos-core-staging"
 fi
 
-# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
-# track kernel-staging's -staging tagged builds (kernel-p03-v2-staging)
-# instead of the stable kernel repo's kernel-p03-v2, so staging images pick
-# up in-flight kernel changes.
-KERNEL_PKG="kernel-rakuos-v2"
+# Kernel flavor for this image's x86-64 ISA level (RAKUOS_ISA_LEVEL = v2,
+# v3 or v4, a --build-arg from CI). On the staging branch (RAKUOS_STAGING=1)
+# use the kernel's -staging builds so staging images pick up in-flight
+# kernel changes.
+RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
+case "${RAKUOS_ISA_LEVEL}" in
+    v2|v3|v4) ;;
+    *) echo "Unknown RAKUOS_ISA_LEVEL '${RAKUOS_ISA_LEVEL}' (want v2, v3 or v4)" >&2; exit 1 ;;
+esac
+KERNEL_PKG="kernel-rakuos-${RAKUOS_ISA_LEVEL}"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v2-staging"
+    KERNEL_PKG="${KERNEL_PKG}-staging"
 fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
@@ -34,6 +39,15 @@ fi
 dnf5 -y install dnf5-plugins
 rpm --import https://repo.rakuos.org/pubkey.gpg
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
+# v3 images also use the rakuos-v3 repo; v4 images use both v3 and v4.
+case "${RAKUOS_ISA_LEVEL}" in
+    v3) isa_repos="v3" ;;
+    v4) isa_repos="v3 v4" ;;
+    *)  isa_repos="" ;;
+esac
+for isa in ${isa_repos}; do
+    sed -i "/^\[rakuos-${isa}\]/,/^\[/ s/^enabled=0/enabled=1/" /etc/yum.repos.d/rakuos.repo
+done
 
 ## Install rum + the dnf/dnf5 shims as the very first packages — from here
 ## on, every install/remove/upgrade/swap in this script goes through rum

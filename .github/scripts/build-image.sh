@@ -7,12 +7,15 @@
 #   CONTAINERFILE      Containerfile to build
 #   QUAY_REPO          quay.io repository to push to
 #   DESC_SUFFIX        appended to IMAGE_DESC in the description label
-#   KIND               "fedora": built on Fedora bootc, gets FEDORA_VERSION
-#                      "derived": built FROM another RakuOS image, gets
-#                      BASE_IMAGE_TAG (the branch's tag)
+#   KIND               "fedora": built FROM Fedora's bootc image for the
+#                      branch's Fedora version (tag latest)
+#                      "derived": built FROM another RakuOS image, tag =
+#                      the branch's tag
 #   BASE_REPO          derived only: image repository to build FROM
 #                      (empty = the Containerfile's default)
-#   EXTRA_BUILD_ARGS   space-separated KEY=VALUE build args
+#   EXTRA_BUILD_ARGS   space-separated KEY=VALUE build args (RAKUOS_ISA_LEVEL,
+#                      RAKUOS_VARIANT, RAKUOS_GPU, NVIDIA_LEGACY: one
+#                      Containerfile builds every image of a repo)
 # Plus BRANCH, FEDORA_VERSION_OVERRIDE, RUN_ID, SOURCE_URL, REVISION and the
 # secrets QUAY_USER, QUAY_TOKEN, QUAY_API_TOKEN, GITLAB_SECURE_FILES_TOKEN,
 # COSIGN_PASSWORD.
@@ -116,13 +119,18 @@ fetch_secure_file() {
   chmod 600 "${dest}"
 }
 
-build_args=(--build-arg RAKUOS_STAGING="${RAKUOS_STAGING}")
+# What to build FROM: Fedora's bootc image, or the RakuOS image this one is
+# derived from (its tag for this branch).
 if [ "${KIND}" = "derived" ]; then
-  build_args+=(--build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}")
-  [ -n "${BASE_REPO:-}" ] && build_args+=(--build-arg BASE_IMAGE_REPO="${BASE_REPO}")
+  BASE_TAG="${BRANCH_SLUG}"
 else
-  build_args+=(--build-arg FEDORA_VERSION="${FEDORA_VERSION}")
+  BASE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal"
+  BASE_TAG="latest"
 fi
+build_args=(--build-arg RAKUOS_STAGING="${RAKUOS_STAGING}"
+            --build-arg FEDORA_VERSION="${FEDORA_VERSION}"
+            --build-arg BASE_IMAGE_TAG="${BASE_TAG}")
+[ -n "${BASE_REPO:-}" ] && build_args+=(--build-arg BASE_IMAGE_REPO="${BASE_REPO}")
 for arg in ${EXTRA_BUILD_ARGS:-}; do
   build_args+=(--build-arg "${arg}")
 done
@@ -145,9 +153,9 @@ from_images() {
   base_repo="${BASE_REPO:-${repo_default}}"
   awk '/^FROM /{print $2}' "${CONTAINERFILE}" | while read -r ref; do
     case "${ref}" in scratch | oci-archive:* | oci:*) continue ;; esac
-    ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
     ref="${ref//'${BASE_IMAGE_REPO}'/${base_repo}}"
-    ref="${ref//'${BASE_IMAGE_TAG}'/${BRANCH_SLUG}}"
+    ref="${ref//'${BASE_IMAGE_TAG}'/${BASE_TAG}}"
+    ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
     case "${ref}" in
       *'$'*) echo "WARNING: can't resolve FROM ${ref}; buildah will pull it" >&2 ;;
       */*) echo "${ref}" ;;  # registry image (a bare name is an earlier stage)

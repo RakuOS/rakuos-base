@@ -29,7 +29,7 @@ variables:
   IMAGE_REGISTRY_QUAY_MINIMAL_V3: "quay.io/rakuos/rakuos-minimal-v3"
   IMAGE_REGISTRY_QUAY_MINIMAL_NVIDIA_V3: "quay.io/rakuos/rakuos-minimal-nvidia-v3"
   # Legacy NVIDIA (580xx driver: Maxwell, Pascal, Volta) images, built with
-  # NVIDIA_LEGACY=1 from the same Containerfile.*nvidia* as the images above.
+  # NVIDIA_LEGACY=1 from the same Containerfile as the images above.
   IMAGE_REGISTRY_NVIDIA_LEGACY: "registry.gitlab.com/rakuos/images/rakuos-base/nvidia-legacy"
   IMAGE_REGISTRY_QUAY_NVIDIA_LEGACY: "quay.io/rakuos/rakuos-base-nvidia-legacy"
   IMAGE_REGISTRY_QUAY_NVIDIA_LEGACY_V4: "quay.io/rakuos/rakuos-base-nvidia-legacy-v4"
@@ -138,6 +138,11 @@ build-push-base:
         --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -230,9 +235,14 @@ build-push-base-v4:
 
     - |
       buildah build \
-        --file Containerfile.v4 \
+        --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -325,9 +335,14 @@ build-push-base-v3:
 
     - |
       buildah build \
-        --file Containerfile.v3 \
+        --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -420,9 +435,14 @@ build-push-minimal:
 
     - |
       buildah build \
-        --file Containerfile.minimal \
+        --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -515,9 +535,14 @@ build-push-minimal-v4:
 
     - |
       buildah build \
-        --file Containerfile.minimal.v4 \
+        --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -610,9 +635,14 @@ build-push-minimal-v3:
 
     - |
       buildah build \
-        --file Containerfile.minimal.v3 \
+        --file Containerfile \
         --build-arg FEDORA_VERSION="${FEDORA_VERSION}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal" \
+        --build-arg BASE_IMAGE_TAG="latest" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="none" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -714,9 +744,13 @@ build-push-nvidia:
 
     - |
       buildah build \
-        --file Containerfile.nvidia \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg BASE_IMAGE_REPO="quay.io/rakuos/rakuos-base" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -816,10 +850,13 @@ build-push-nvidia-v4:
 
     - |
       buildah build \
-        --file Containerfile.nvidia.v4 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V4}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -913,10 +950,13 @@ build-push-nvidia-v3:
 
     - |
       buildah build \
-        --file Containerfile.nvidia.v3 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V3}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1010,10 +1050,13 @@ build-push-minimal-nvidia:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1107,10 +1150,13 @@ build-push-minimal-nvidia-v4:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia.v4 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_V4}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1204,10 +1250,13 @@ build-push-minimal-nvidia-v3:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia.v3 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_V3}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1308,10 +1357,14 @@ build-push-nvidia-legacy:
 
     - |
       buildah build \
-        --file Containerfile.nvidia \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg BASE_IMAGE_REPO="quay.io/rakuos/rakuos-base" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1411,11 +1464,14 @@ build-push-nvidia-legacy-v4:
 
     - |
       buildah build \
-        --file Containerfile.nvidia.v4 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V4}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1509,11 +1565,14 @@ build-push-nvidia-legacy-v3:
 
     - |
       buildah build \
-        --file Containerfile.nvidia.v3 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_V3}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="base" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1607,11 +1666,14 @@ build-push-minimal-nvidia-legacy:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg RAKUOS_ISA_LEVEL="v2" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1705,11 +1767,14 @@ build-push-minimal-nvidia-legacy-v4:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia.v4 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_V4}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg RAKUOS_ISA_LEVEL="v4" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \
@@ -1803,11 +1868,14 @@ build-push-minimal-nvidia-legacy-v3:
 
     - |
       buildah build \
-        --file Containerfile.minimal.nvidia.v3 \
+        --file Containerfile \
         --build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}" \
         --build-arg BASE_IMAGE_REPO="${IMAGE_REGISTRY_QUAY_MINIMAL_V3}" \
         --build-arg RAKUOS_STAGING="${RAKUOS_STAGING}" \
         --build-arg NVIDIA_LEGACY="1" \
+        --build-arg RAKUOS_ISA_LEVEL="v3" \
+        --build-arg RAKUOS_VARIANT="minimal" \
+        --build-arg RAKUOS_GPU="nvidia" \
         --skip-unused-stages=false \
         -v "$(pwd)":/run/src --security-opt=label=disable \
         ${MOK_SECRET_FLAG} \

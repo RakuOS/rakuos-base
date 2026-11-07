@@ -201,9 +201,9 @@ else
 fi
 
 # The kernel this image installed: kernel-rakuos-v2/-v3/-v4, with -staging on
-# the staging channel. build.sh, build-v3.sh and build-v4.sh each pick their
-# own, so read it back from the rpmdb instead of hardcoding v2 (which left the
-# v3/v4 kernels unprotected).
+# the staging channel. build.sh picks it from RAKUOS_ISA_LEVEL, so read it
+# back from the rpmdb instead of hardcoding v2 (which left the v3/v4 kernels
+# unprotected).
 KERNEL_PKG=$(rpm -qa --qf '%{NAME}\n' 'kernel-rakuos-v*' | grep -E '^kernel-rakuos-v[0-9]+(-staging)?$' | head -n 1)
 [ -n "$KERNEL_PKG" ] || { echo "ERROR: no kernel-rakuos-v* package installed"; exit 1; }
 echo "Protecting kernel package ${KERNEL_PKG}"
