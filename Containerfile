@@ -28,6 +28,8 @@ COPY build_files /
 # finished image) this stage is an empty directory.
 FROM quay.io/fedora/fedora:${FEDORA_VERSION} AS rootfs-builder
 ARG RAKUOS_GPU="none"
+ARG RAKUOS_ISA_LEVEL="v2"
+ARG RAKUOS_STAGING="0"
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     if [ "${RAKUOS_GPU}" = "none" ]; then \

@@ -17,15 +17,37 @@ ROOT="$1"
 HERE="$(dirname "$(readlink -f "$0")")"
 mkdir -p "${ROOT}"
 
-# ── rum ───────────────────────────────────────────────────────────────────────
+# ── RakuOS repo and rum ───────────────────────────────────────────────────────
 # rum's --bootstrap mode (rakuos-rum-staging, from rum's staging branch)
-# installs into the empty root with that root's own rpmdb.
-# RUM=/path/to/rum uses that binary instead (local testing).
+# installs into the empty root with that root's own rpmdb, from the repos of
+# this build container (/etc/yum.repos.d), set up the way build.sh sets up
+# the image's: the RakuOS repo, plus rakuos-v3 for v3 images and rakuos-v3
+# and rakuos-v4 for v4 images (RAKUOS_ISA_LEVEL, a --build-arg from CI), and
+# rum's repo overrides (the excludepkgs= that keep Fedora's builds of
+# packages RakuOS rebuilds out).
+# RUM=/path/to/rum uses that binary instead and skips the repo setup (local
+# testing; the ISA repos are still enabled if rakuos.repo is there).
+RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
+case "${RAKUOS_ISA_LEVEL}" in
+    v2) isa_repos="" ;;
+    v3) isa_repos="v3" ;;
+    v4) isa_repos="v3 v4" ;;
+    *) echo "Unknown RAKUOS_ISA_LEVEL '${RAKUOS_ISA_LEVEL}' (want v2, v3 or v4)" >&2; exit 1 ;;
+esac
 if [ -z "${RUM:-}" ]; then
     rpm --import https://repo.rakuos.org/pubkey.gpg
     dnf -y install dnf5-plugins
     dnf -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
-    dnf -y install rakuos-rum-staging
+fi
+if [ -f /etc/yum.repos.d/rakuos.repo ]; then
+    for isa in ${isa_repos}; do
+        sed -i "/^\[rakuos-${isa}\]/,/^\[/ s/^enabled=0/enabled=1/" /etc/yum.repos.d/rakuos.repo
+        grep -A3 "^\[rakuos-${isa}\]" /etc/yum.repos.d/rakuos.repo | grep -q '^enabled=1' \
+            || { echo "ERROR: couldn't enable rakuos-${isa} in /etc/yum.repos.d/rakuos.repo" >&2; exit 1; }
+    done
+fi
+if [ -z "${RUM:-}" ]; then
+    dnf -y install rakuos-rum-staging rakuos-rum-repo-overrides-staging
     RUM=rum
 fi
 if ! "${RUM}" --help 2>/dev/null | grep -q -- '--bootstrap'; then
@@ -35,6 +57,18 @@ fi
 
 # ── Packages ──────────────────────────────────────────────────────────────────
 mapfile -t PACKAGES < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${HERE}/packages.txt")
+# RakuOS's release and branding packages from the start, never Fedora's:
+# rakuos-release-common replaces fedora-release/-common (and provides the
+# system-release(<version>) fedora-repos needs), rakuos-branding replaces
+# fedora-logos/redhat-logos/system-logos. Staging images (RAKUOS_STAGING=1)
+# get rakuos-release-staging, as in build.sh. The Fedora packages are
+# excluded outright so nothing can pull them in.
+RAKUOS_RELEASE_PKG="rakuos-release"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_RELEASE_PKG="rakuos-release-staging"
+fi
+PACKAGES+=("${RAKUOS_RELEASE_PKG}" rakuos-branding)
+FEDORA_BRANDING="fedora-release,fedora-release-common,fedora-release-identity-*,fedora-release-container,fedora-logos,fedora-logos-*,redhat-logos,generic-release,generic-logos"
 # Fedora's kernel-install would try to build an initramfs for a kernel
 # package; with layout=ostree it leaves that to the image build (drivers.sh
 # runs dracut for kernel-rakuos). Set it before anything is installed.
@@ -64,7 +98,13 @@ mkdir -p "${ROOT}/usr/lib"
 awk -F: '$1 != "root"' "${HERE}/static-ids/passwd" > "${ROOT}/usr/lib/passwd"
 awk -F: '$1 !~ /^(root|wheel|systemd-journal|tss|kvm|adm)$/' "${HERE}/static-ids/group" > "${ROOT}/usr/lib/group"
 
-"${RUM}" --installroot "${ROOT}" --bootstrap --no-recommends install -y "${PACKAGES[@]}"
+"${RUM}" --installroot "${ROOT}" --bootstrap --no-recommends --exclude "${FEDORA_BRANDING}" install -y "${PACKAGES[@]}"
+fedora_left=$(rpm --root "${ROOT}" -qa --qf '%{NAME}\n' | grep -E '^(fedora-release|fedora-logos|redhat-logos|generic-release|generic-logos)' || true)
+if [ -n "${fedora_left}" ]; then
+    echo "ERROR: Fedora release/branding packages got installed: ${fedora_left}" >&2
+    exit 1
+fi
+rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common rakuos-branding
 
 in_root() { chroot "${ROOT}" "$@"; }
 

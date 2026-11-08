@@ -7,8 +7,9 @@
 # Everything else on top (rum, RakuOS packages, drivers) comes from build.sh,
 # drivers.sh and post-build.sh, as it did on top of Fedora's image.
 
-# Release identity and repos (build.sh swaps in rakuos-release).
-fedora-release
+# Release identity: rakuos-release (or -staging) and rakuos-branding are
+# added by bootstrap.sh, so fedora-release and fedora-logos never go in.
+# Fedora's repo files (fedora-repos) still come in as a dependency.
 fedora-repos-archive
 
 # generic.yaml
