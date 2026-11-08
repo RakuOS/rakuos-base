@@ -139,3 +139,9 @@ echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") package
 
 echo "Generating base file manifest..."
 /usr/libexec/rakuos/generate-base-manifest
+
+# System accounts the NVIDIA packages created go to nss-altfiles like the
+# rest (see finalize-accounts.sh, installed by the system image's post-build).
+if [ -x /usr/libexec/rakuos/finalize-accounts ]; then
+    /usr/libexec/rakuos/finalize-accounts
+fi

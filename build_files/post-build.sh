@@ -372,3 +372,10 @@ fi
 # although .../EFI.json lists grub2 ...". Same command Fedora's bootc image
 # build runs; it only works with / as the root.
 bootupctl backend generate-update-metadata /
+
+# System accounts this build's package installs created go to nss-altfiles
+# with the rest (and any without a pinned ID in bootstrap/static-ids/ are
+# listed in the log). Installed into the image so the desktop images'
+# post-build.sh can run the same step after their own package installs.
+install -Dm0755 /ctx/finalize-accounts.sh /usr/libexec/rakuos/finalize-accounts
+/usr/libexec/rakuos/finalize-accounts
