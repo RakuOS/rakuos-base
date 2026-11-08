@@ -608,6 +608,7 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 systemctl enable \
 rakuos-overlay-sync.service \
 rakuos-setup.service \
+rakuos-account-ids.service \
 rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
