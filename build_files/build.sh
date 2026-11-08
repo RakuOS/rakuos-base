@@ -195,17 +195,29 @@ QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERN
 # Install cpak (https://cpak.it/docs/install) — download the latest release's
 # binaries and verify against the published SHA256SUMS before installing;
 # cpak looks for cpak-storaged beside cpak itself, so both go into /usr/bin.
-# GitHub sometimes answers 403 on the shared CI runners, and the unauthenticated
-# releases API is rate limited per IP; take the latest tag from the
-# releases/latest redirect instead of the API, and retry every download.
-CURL_RETRY=(--retry 5 --retry-all-errors --retry-delay 10)
-CPAK_VERSION=$(curl -fsSLI "${CURL_RETRY[@]}" -o /dev/null -w '%{url_effective}' \
-    https://github.com/Containerpak/cpak/releases/latest | sed 's#.*/releases/tag/##')
-[ -n "${CPAK_VERSION}" ] || { echo "ERROR: could not find the latest cpak release"; exit 1; }
-CPAK_BASE="https://github.com/Containerpak/cpak/releases/download/${CPAK_VERSION}"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-linux-amd64 "${CPAK_BASE}/cpak-linux-amd64"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-storaged-linux-amd64 "${CPAK_BASE}/cpak-storaged-linux-amd64"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-SHA256SUMS "${CPAK_BASE}/SHA256SUMS"
+# releases/latest/download/<asset> redirects straight to the file, so no
+# version lookup is needed. github.com's release download URLs sometimes
+# answer 504 for a while (the API's asset endpoint keeps working), so when a
+# download fails, fetch that asset through the API instead. The API is rate
+# limited per IP for unauthenticated use, which is why it's only the fallback.
+CURL_RETRY=(--retry 3 --retry-all-errors --retry-delay 10)
+CPAK_BASE="https://github.com/Containerpak/cpak/releases/latest/download"
+CPAK_API="https://api.github.com/repos/Containerpak/cpak/releases/latest"
+CPAK_RELEASE_JSON=""
+fetch_cpak() {  # fetch_cpak <asset> <dest>
+    curl -fsSL "${CURL_RETRY[@]}" -o "$2" "${CPAK_BASE}/$1" && return 0
+    echo "github.com download of $1 failed; trying the releases API"
+    [ -n "${CPAK_RELEASE_JSON}" ] || CPAK_RELEASE_JSON=$(curl -fsSL "${CURL_RETRY[@]}" "${CPAK_API}")
+    local url
+    url=$(awk -v want="$1" '/"url": ".*\/releases\/assets\/[0-9]+"/ { u = $2 }
+        /"name": / { n = $2; gsub(/[",]/, "", n); if (n == want) { gsub(/[",]/, "", u); print u; exit } }' \
+        <<< "${CPAK_RELEASE_JSON}")
+    [ -n "${url}" ] || { echo "ERROR: cpak release has no asset $1"; return 1; }
+    curl -fsSL "${CURL_RETRY[@]}" -H 'Accept: application/octet-stream' -o "$2" "${url}"
+}
+fetch_cpak cpak-linux-amd64 /tmp/cpak-linux-amd64
+fetch_cpak cpak-storaged-linux-amd64 /tmp/cpak-storaged-linux-amd64
+fetch_cpak SHA256SUMS /tmp/cpak-SHA256SUMS
 (cd /tmp && sha256sum -c --ignore-missing cpak-SHA256SUMS)
 install -Dm755 /tmp/cpak-linux-amd64 /usr/bin/cpak
 install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
