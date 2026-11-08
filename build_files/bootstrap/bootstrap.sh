@@ -106,6 +106,34 @@ if [ -n "${fedora_left}" ]; then
 fi
 rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common rakuos-branding
 
+# rpm, systemd and ostree are RakuOS's own builds (RPM 6 without the SELinux
+# plugin, our systemd and ostree); rum's repo overrides keep Fedora's builds
+# out. Check every installed package of theirs is a version the RakuOS repos
+# publish, so a Fedora build can never slip in unnoticed.
+if [ -f /etc/yum.repos.d/rakuos.repo ]; then
+    rakuos_builds=$(dnf -q repoquery --repo 'rakuos*' --qf '%{name}-%{evr}.%{arch}\n' 2>/dev/null | sort -u)
+    [ -n "${rakuos_builds}" ] || { echo "ERROR: couldn't list the RakuOS repos' packages" >&2; exit 1; }
+    # Installed rpm*/systemd*/ostree* packages the RakuOS repos also build
+    # (rpm-sequoia, say, is Fedora's and stays out of the check).
+    rakuos_names=$(sed -E 's/-[^-]+-[^-]+$//' <<< "${rakuos_builds}" | sort -u)
+    own_pkgs=$(rpm --root "${ROOT}" -qa --qf '%{name} %{name}-%{evr}.%{arch}\n' \
+        | awk 'NR == FNR { ours[$1] = 1; next } ($1 ~ /^(rpm|python3-rpm|systemd|ostree)/) && ($1 in ours) { print $2 }' \
+            <(echo "${rakuos_names}") - | sort)
+    for pkg in rpm systemd ostree; do
+        grep -q "^${pkg}-[0-9]" <<< "${own_pkgs}" || { echo "ERROR: ${pkg} isn't installed" >&2; exit 1; }
+    done
+    not_ours=$(comm -23 <(echo "${own_pkgs}") <(echo "${rakuos_builds}"))
+    if [ -n "${not_ours}" ]; then
+        echo "ERROR: these aren't the RakuOS repo's builds:" >&2
+        echo "${not_ours}" >&2
+        exit 1
+    fi
+    echo "rpm/systemd/ostree from the RakuOS repo:"
+    echo "${own_pkgs}"
+else
+    echo "WARNING: no rakuos.repo in the build container; can't check where rpm/systemd/ostree came from"
+fi
+
 in_root() { chroot "${ROOT}" "$@"; }
 
 # ── Files packages ship that a bootc image doesn't want ───────────────────────
