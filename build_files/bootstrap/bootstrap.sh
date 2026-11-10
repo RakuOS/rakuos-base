@@ -59,15 +59,19 @@ fi
 mapfile -t PACKAGES < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${HERE}/packages.txt")
 # RakuOS's release and branding packages from the start, never Fedora's:
 # rakuos-release-common replaces fedora-release/-common (and provides the
-# system-release(<version>) fedora-repos needs), rakuos-branding replaces
-# fedora-logos/redhat-logos/system-logos. Staging images (RAKUOS_STAGING=1)
+# system-release(<version>) fedora-repos needs), rakuos-logos replaces
+# fedora-logos/redhat-logos/system-logos. Of the rest of rakuos-branding
+# only what both base and minimal ship: the Plymouth and GRUB themes and the
+# fastfetch preset. The base image adds the rakuos-branding meta package
+# (GTK theme, icon theme, fonts config) in build.sh. Staging images (RAKUOS_STAGING=1)
 # get rakuos-release-staging, as in build.sh. The Fedora packages are
 # excluded outright so nothing can pull them in.
 RAKUOS_RELEASE_PKG="rakuos-release"
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_RELEASE_PKG="rakuos-release-staging"
 fi
-PACKAGES+=("${RAKUOS_RELEASE_PKG}" rakuos-branding)
+BRANDING=(rakuos-logos rakuos-plymouth-theme rakuos-grub-theme rakuos-fastfetch-preset)
+PACKAGES+=("${RAKUOS_RELEASE_PKG}" "${BRANDING[@]}")
 FEDORA_BRANDING="fedora-release,fedora-release-common,fedora-release-identity-*,fedora-release-container,fedora-logos,fedora-logos-*,redhat-logos,generic-release,generic-logos"
 # Fedora's kernel-install would try to build an initramfs for a kernel
 # package; with layout=ostree it leaves that to the image build (drivers.sh
@@ -104,7 +108,7 @@ if [ -n "${fedora_left}" ]; then
     echo "ERROR: Fedora release/branding packages got installed: ${fedora_left}" >&2
     exit 1
 fi
-rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common rakuos-branding
+rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common "${BRANDING[@]}"
 
 # rpm, systemd and ostree are RakuOS's own builds (RPM 6 without the SELinux
 # plugin, our systemd and ostree); rum's repo overrides keep Fedora's builds

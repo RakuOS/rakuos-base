@@ -312,11 +312,13 @@ procs
 pulseaudio-utils
 python3-pip
 python3-setuptools
-rakuos-branding
+rakuos-logos
+rakuos-plymouth-theme
+rakuos-grub-theme
+rakuos-fastfetch-preset
 rakuos-core
 rakuos-release
 rakuos-settings
-rakuos-wallpapers
 ripgrep
 rsms-inter-fonts
 rsync
@@ -350,6 +352,12 @@ zoxide
 zsh
 zstd
 EOF
+
+# Only the base image has the full branding and the wallpapers (the minimal
+# image ships the logos, Plymouth, GRUB and fastfetch branding only).
+if [ "${RAKUOS_VARIANT:-base}" != "minimal" ]; then
+    printf '%s\n' rakuos-branding rakuos-gtk-theme rakuos-icon-theme rakuos-fonts-config rakuos-wallpapers >> "$PROTECTED_FILE"
+fi
 
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 

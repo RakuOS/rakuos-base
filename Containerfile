@@ -6,7 +6,8 @@
 #                       bootstrapped from nothing below. The NVIDIA images set
 #                       it to the base/minimal image just built for this branch.
 #   RAKUOS_ISA_LEVEL    v2, v3 or v4: kernel flavor and rakuos-v3/v4 repos
-#   RAKUOS_VARIANT      base or minimal (minimal also runs post-build-overlay.sh)
+#   RAKUOS_VARIANT      base or minimal (minimal runs build-minimal.sh instead
+#                       of build.sh, and also post-build-overlay.sh)
 #   RAKUOS_GPU          none, or nvidia for the NVIDIA images, which only run
 #                       nvidia.sh on top of the image they're built FROM
 #   NVIDIA_LEGACY       1 for the legacy NVIDIA (580xx) images
@@ -72,7 +73,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     set -e; \
     case "${RAKUOS_GPU}" in \
       none) \
-        /ctx/build.sh; \
+        if [ "${RAKUOS_VARIANT}" = "minimal" ]; then /ctx/build-minimal.sh; else /ctx/build.sh; fi; \
         /ctx/drivers.sh; \
         /ctx/post-build.sh; \
         if [ "${RAKUOS_VARIANT}" = "minimal" ]; then /ctx/post-build-overlay.sh; fi ;; \

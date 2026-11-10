@@ -1,4 +1,7 @@
 #!/bin/bash
+# build.sh: the base image's package installs and setup. The minimal image
+# runs build-minimal.sh instead (RAKUOS_VARIANT=minimal); keep the two in
+# step where both should change.
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
