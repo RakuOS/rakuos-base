@@ -73,8 +73,17 @@ dnf install -y --quiet jq
 # unpack ("unpacking failed ... unexpected EOF") in every variant. The
 # container is privileged and /var/lib/containers is an ext4 volume, so
 # native overlay works here.
-sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
-  /etc/containers/storage.conf
+# quay.io/buildah/stable sets fuse-overlayfs in /etc/containers/storage.conf
+# up to containers-common 0.68, and in drop-ins under
+# /etc/containers/storage.rootful.conf.d/ from 0.69 on (the image of
+# 2026-11-10 has no /etc/containers/storage.conf at all): edit whichever
+# exists.
+storage_confs=()
+for f in /etc/containers/storage.conf /etc/containers/storage.rootful.conf.d/*.conf; do
+  [ -f "$f" ] && storage_confs+=("$f")
+done
+[ "${#storage_confs[@]}" -gt 0 ] || { echo "ERROR: no containers storage config to switch to the overlay driver" >&2; exit 1; }
+sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' "${storage_confs[@]}"
 # buildah puts the upper dir of RUN --mount=type=bind,rw overlays in its
 # temp dir (/var/tmp by default), which here sits on the container's own
 # overlayfs root; the kernel overlay driver refuses an upper dir there
@@ -83,6 +92,12 @@ sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
 export TMPDIR=/var/lib/containers/tmp
 mkdir -p "${TMPDIR}"
 buildah info | jq -c '.store | {GraphDriverName, GraphOptions, GraphStatus}' || true
+# A store that still uses fuse-overlayfs builds broken layers (see above);
+# stop here instead of failing later with "unexpected EOF".
+if buildah info | jq -r '.store.GraphOptions | tostring' | grep -q fuse-overlayfs; then
+  echo "ERROR: buildah still uses fuse-overlayfs; storage config: ${storage_confs[*]}" >&2
+  exit 1
+fi
 
 # Run a registry or network command, retrying any failure. Quay sometimes
 # answers 401/403/404/5xx for a short while; buildah's own --retry treats the
