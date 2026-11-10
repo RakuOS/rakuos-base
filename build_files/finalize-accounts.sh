@@ -53,7 +53,18 @@ awk -F: 'NR == FNR { have[$1] = 1; next } !($1 in have)' \
 
 awk -F: '$1 == "root"' "${ROOT}/etc/passwd" > "${ROOT}/etc/passwd.new"
 keep_group 1 < "${ROOT}/etc/group" > "${ROOT}/etc/group.new"
-awk -F: '$1 == "root"' "${ROOT}/etc/shadow" > "${ROOT}/etc/shadow.new"
+# shadow keeps an entry for every account, the altfiles ones included: their
+# passwd field is "x", so pam_unix looks them up in /etc/shadow and fails
+# with AUTHINFO_UNAVAIL when there's none (the plasmalogin/gdm greeter's
+# user@.service can't start: black screen). Existing entries are kept; a
+# seeded account that never went through useradd gets a locked one. This is
+# how rpm-ostree images ship /etc/shadow.
+{
+    awk -F: '$1 == "root"' "${ROOT}/etc/shadow"
+    awk -F: 'NR == FNR { sh[$1] = $0; next } $1 != "root" && !seen[$1]++ {
+        print ($1 in sh) ? sh[$1] : $1 ":!*:::::::" }' \
+        "${ROOT}/etc/shadow" "${ROOT}/usr/lib/passwd"
+} > "${ROOT}/etc/shadow.new"
 # gshadow: the kept groups, adding a locked entry for any that lack one
 # (seeded groups never went through groupadd).
 {
