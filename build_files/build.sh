@@ -609,7 +609,6 @@ systemctl enable \
 rakuos-overlay-sync.service \
 rakuos-setup.service \
 rakuos-account-ids.service \
-rakuos-flatpak-watcher.service \
 rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
