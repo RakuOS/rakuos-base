@@ -24,6 +24,8 @@ tape:x:33:
 utempter:x:35:
 kvm:x:36:
 video:x:39:
+dip:x:40:
+gdm:x:42:
 ftp:x:50:
 lock:x:54:
 tss:x:59:
@@ -42,6 +44,16 @@ usbmuxd:x:113:
 polkitd:x:114:
 systemd-journal:x:190:
 systemd-resolve:x:193:
+cosmic-greeter:x:962:
+greeter:x:963:
+greetd:x:964:
+gnome-remote-desktop:x:965:
+nm-openconnect:x:966:
+nm-openvpn:x:967:
+openvpn:x:968:
+malcontent-webd:x:969:
+malcontent-timerd:x:970:
+malcontent-timer-ext-agent:x:971:
 usershares:x:972:
 plasmalogin:x:973:
 chrony:x:974:
