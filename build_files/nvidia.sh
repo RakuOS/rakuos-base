@@ -2,17 +2,15 @@
 
 set -ouex pipefail
 
-# Same kernel choice as build.sh. RAKUOS_ISA_LEVEL and RAKUOS_STAGING are
-# build args, so they're in the environment of every build step.
-RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
-KERNEL_PKG="kernel-rakuos-${RAKUOS_ISA_LEVEL}"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="${KERNEL_PKG}-staging"
-fi
+# The image's kernels (both variants), installed by bootstrap.sh in the
+# image this one is built FROM. RAKUOS_ISA_LEVEL and RAKUOS_STAGING are build
+# args, so they're in the environment of every build step.
+source "$(dirname "$(readlink -f "$0")")/kernels.sh"
 
-# Prebuilt, RakuOS-signed NVIDIA kernel modules (signed-kmods repo) for this
-# kernel: rakuos-kmod-nvidia, or rakuos-kmod-nvidia-staging for the staging
-# kernel. Nothing is compiled or signed here any more.
+# Prebuilt, RakuOS-signed NVIDIA kernel modules (signed-kmods repo) for these
+# kernels: rakuos-kmod-nvidia, or rakuos-kmod-nvidia-staging for the staging
+# kernels. The package carries the modules for both kernel variants. Nothing
+# is compiled or signed here any more.
 KMOD_SUFFIX=""
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KMOD_SUFFIX="-staging"
@@ -29,8 +27,8 @@ if [ "${NVIDIA_LEGACY:-0}" = "1" ]; then
     NV_EXCLUDES=(libnvidia-cfg libnvidia-gpucomp nvidia-driver-cuda-libs libnvidia-ml)
 fi
 
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
+# The installed kernels' releases, default first.
+load_kernel_releases
 
 # Install NVIDIA stack — skip systemd scriptlets that fail in containers
 rum install -y --setopt=tsflags=noscripts --skip-broken \
@@ -42,8 +40,7 @@ rum install -y --setopt=tsflags=noscripts --skip-broken \
     nvidia-driver${NV}-cuda \
     nvidia-persistenced${NV} \
     xorg-x11-nvidia${NV} \
-    libva-nvidia-driver \
-    ${KERNEL_PKG}-devel-matched
+    libva-nvidia-driver
 
 # 32-bit libraries for Steam and other 32-bit games, each on its own: the
 # repos don't always carry a matching i686 build of everything they need
@@ -61,14 +58,16 @@ done
 # be installed (e.g. not yet built for this kernel/driver version); an
 # NVIDIA image without them is broken, so fail the build instead.
 rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}" || {
-    echo "ERROR: rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} is not installed; is it built for ${QUALIFIED_KERNEL} and this nvidia-driver version?"
+    echo "ERROR: rakuos-kmod-nvidia${NV}${KMOD_SUFFIX} is not installed; is it built for ${KERNEL_RELEASES[*]} and this nvidia-driver version?"
     exit 1
 }
-# ...and it must carry modules for this kernel, not just an older one.
-grep -q "^/usr/lib/modules/${QUALIFIED_KERNEL}/" < <(rpm -ql "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") || {
-    echo "ERROR: $(rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") has no modules for ${QUALIFIED_KERNEL}; rebuild signed-kmods"
-    exit 1
-}
+# ...and it must carry modules for both kernels, not just older ones.
+for kver in "${KERNEL_RELEASES[@]}"; do
+    grep -q "^/usr/lib/modules/${kver}/" < <(rpm -ql "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") || {
+        echo "ERROR: $(rpm -q "rakuos-kmod-nvidia${NV}${KMOD_SUFFIX}") has no modules for ${kver}; rebuild signed-kmods"
+        exit 1
+    }
+done
 
 # # Build akmod packages (e.g. broadcom-wl) for the installed kernel.
 # # akmods installs the resulting kmod RPM so the .ko lands in
@@ -93,34 +92,17 @@ done
 # The NVIDIA modules (rakuos-kmod-nvidia*) arrive already signed with the
 # RakuOS key by the signed-kmods CI, so there's no module signing step here.
 
-# Sign the kernel vmlinuz with MOK key
-VMLINUZ="/usr/lib/modules/${QUALIFIED_KERNEL}/vmlinuz"
-MOK_KEY="/run/secrets/mok_key"
-MOK_CERT_DER="/usr/share/rakuos/sb_pubkey.der"
-if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
-    echo "Signing kernel ${QUALIFIED_KERNEL}..."
-    MOK_CERT_PEM=$(mktemp /tmp/MOK.XXXXXX.crt)
-    openssl x509 -in "$MOK_CERT_DER" -inform DER -out "$MOK_CERT_PEM" -outform PEM
-    sbsign --key "$MOK_KEY" --cert "$MOK_CERT_PEM" \
-        --output "${VMLINUZ}.signed" "$VMLINUZ"
-    mv "${VMLINUZ}.signed" "$VMLINUZ"
-    rm -f "$MOK_CERT_PEM"
-    echo "Kernel signed."
-else
-    echo "MOK key or vmlinuz not available — skipping kernel signing."
-fi
-
+# Sign each kernel with the MOK key and rebuild its initramfs with the
+# NVIDIA modules. The anti-cheat kernel's image is already vmlinuz.alternate
+# (kernels.sh); the check confirms the default kernel is still the only one
+# bootc sees.
 #dnf5.real remove -y --noautoremove dkms
 #systemctl disable --now dkms.service
-
-# Generate module dependencies
-depmod "${QUALIFIED_KERNEL}"
-
-# Generate initramfs with nvidia module included
-/usr/bin/dracut --no-hostonly --kver "${QUALIFIED_KERNEL}" --reproducible --zstd -v \
-    --add ostree --add fido2 --add rakuos-overlay --add rakuos-groups --omit selinux -f "/usr/lib/modules/${QUALIFIED_KERNEL}/initramfs.img"
-
-chmod 0600 /usr/lib/modules/"${QUALIFIED_KERNEL}"/initramfs.img
+for kver in "${KERNEL_RELEASES[@]}"; do
+    sign_kernel "${kver}"
+    build_initramfs "${kver}"
+done
+stash_alternate_kernels
 
 PROTECTED_FILE="/usr/share/rakuos/protected-packages.txt"
 

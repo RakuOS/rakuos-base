@@ -75,9 +75,9 @@ PACKAGES+=("${RAKUOS_RELEASE_PKG}" "${BRANDING[@]}")
 FEDORA_BRANDING="fedora-release,fedora-release-common,fedora-release-identity-*,fedora-release-container,fedora-logos,fedora-logos-*,redhat-logos,generic-release,generic-logos"
 # Fedora's kernel-install would try to build an initramfs for a kernel
 # package; with layout=ostree it leaves that to the image build (drivers.sh
-# runs dracut for kernel-rakuos). Set it before anything is installed.
+# runs dracut for each kernel). Set it before anything is installed.
 mkdir -p "${ROOT}/usr/lib/kernel/install.conf.d"
-printf '%s\n' "# Leave the initramfs to the image build; one kernel per image." "layout=ostree" \
+printf '%s\n' "# Leave the initramfs to the image build." "layout=ostree" \
     | tee "${ROOT}/usr/lib/kernel/install.conf" "${ROOT}/usr/lib/kernel/install.conf.d/00-bootc-kernel-layout.conf" >/dev/null
 
 # ── Pinned account IDs ────────────────────────────────────────────────────────
@@ -109,6 +109,16 @@ if [ -n "${fedora_left}" ]; then
     exit 1
 fi
 rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common "${BRANDING[@]}"
+
+# ── Kernels ───────────────────────────────────────────────────────────────────
+# Both kernel variants for this ISA level and channel (see kernels.sh), with
+# their -devel and -devel-matched. Without scriptlets: they'd run depmod and
+# dracut, which drivers.sh does for each kernel once the image is complete.
+source "${HERE}/../kernels.sh"
+# shellcheck disable=SC2046 # one word per package
+"${RUM}" --installroot "${ROOT}" --bootstrap --no-recommends --setopt=tsflags=noscripts \
+    install -y $(kernel_install_pkgs)
+rpm --root "${ROOT}" -q "${KERNEL_PKGS[@]}"
 
 # rpm, systemd and ostree are RakuOS's own builds (RPM 6 without the SELinux
 # plugin, our systemd and ostree); rum's repo overrides keep Fedora's builds

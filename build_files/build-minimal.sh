@@ -28,19 +28,14 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_CORE_PKG="rakuos-core-staging"
 fi
 
-# Kernel flavor for this image's x86-64 ISA level (RAKUOS_ISA_LEVEL = v2,
-# v3 or v4, a --build-arg from CI). On the staging branch (RAKUOS_STAGING=1)
-# use the kernel's -staging builds so staging images pick up in-flight
-# kernel changes.
+# x86-64 ISA level (RAKUOS_ISA_LEVEL = v2, v3 or v4, a --build-arg from CI):
+# picks the rakuos-v3/-v4 repos below. The kernels for it are already in the
+# bootstrapped root (bootstrap.sh, kernels.sh).
 RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
 case "${RAKUOS_ISA_LEVEL}" in
     v2|v3|v4) ;;
     *) echo "Unknown RAKUOS_ISA_LEVEL '${RAKUOS_ISA_LEVEL}' (want v2, v3 or v4)" >&2; exit 1 ;;
 esac
-KERNEL_PKG="kernel-rakuos-${RAKUOS_ISA_LEVEL}"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="${KERNEL_PKG}-staging"
-fi
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
@@ -165,10 +160,9 @@ FEDORA_KERNEL_PKGS=$(rpm -q --qf '%{NAME}\n' kernel kernel-core kernel-modules k
 if [ -n "$FEDORA_KERNEL_PKGS" ]; then
     rum remove -y --no-autoremove $FEDORA_KERNEL_PKGS
 fi
-rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
-
-# Install P03 kernel
-rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
+# The RakuOS kernels are already installed (bootstrap.sh), so
+# /usr/lib/modules stays.
+rm -rf /boot/*
 
 rum install -y --skip-unavailable libva-intel-media-driver \
 libopenjph \
@@ -197,9 +191,6 @@ rum upgrade -y --best --allowerasing 'mesa-*' 'pipewire*'
 rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
 rum upgrade -y --best --allowerasing 'systemd*'
-
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
 
 # cpak install disabled for now: GitHub keeps answering 503/504 for the
 # release downloads and the releases API from CI. Uncomment to bring it back.

@@ -23,8 +23,9 @@ FROM scratch AS ctx
 COPY build_files /
 
 # The root filesystem, bootstrapped from nothing: rum installs a minimal
-# package set (build_files/bootstrap/packages.txt) into an empty directory
-# and bootstrap.sh does the rest of what Fedora's bootc image build does.
+# package set (build_files/bootstrap/packages.txt) and both RakuOS kernels
+# (build_files/kernels.sh) into an empty directory, and bootstrap.sh does the
+# rest of what Fedora's bootc image build does.
 # Only the base and minimal images use it; for the NVIDIA ones (built FROM a
 # finished image) this stage is an empty directory.
 FROM quay.io/fedora/fedora:${FEDORA_VERSION} AS rootfs-builder

@@ -3,7 +3,7 @@
 # bootc "minimal" manifest (gitlab.com/fedora/bootc/base-images, minimal/ and
 # fedora-includes/generic.yaml), minus:
 #   - selinux-policy-targeted and container-selinux: RakuOS uses AppArmor
-#   - kernel: build.sh installs kernel-rakuos-<ISA level>
+#   - kernel: bootstrap.sh installs both RakuOS kernels (see kernels.sh)
 # Everything else on top (rum, RakuOS packages, drivers) comes from build.sh,
 # drivers.sh and post-build.sh, as it did on top of Fedora's image.
 

@@ -2,24 +2,22 @@
 
 set -ouex pipefail
 
-# Same kernel choice as build.sh. RAKUOS_ISA_LEVEL and RAKUOS_STAGING are
-# build args, so they're in the environment of every build step.
-RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
-KERNEL_PKG="kernel-rakuos-${RAKUOS_ISA_LEVEL}"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="${KERNEL_PKG}-staging"
-fi
+# The image's kernels (both variants), installed by bootstrap.sh.
+# RAKUOS_ISA_LEVEL and RAKUOS_STAGING are build args, so they're in the
+# environment of every build step.
+source "$(dirname "$(readlink -f "$0")")/kernels.sh"
 
-# Prebuilt, RakuOS-signed kernel modules (signed-kmods repo) for this kernel:
-# rakuos-kmod-<name>, or rakuos-kmod-<name>-staging for the staging kernel.
+# Prebuilt, RakuOS-signed kernel modules (signed-kmods repo) for these
+# kernels: rakuos-kmod-<name>, or rakuos-kmod-<name>-staging for the staging
+# kernels. Each package carries the modules for both kernel variants.
 # Nothing is compiled or signed here any more.
 KMOD_SUFFIX=""
 if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     KMOD_SUFFIX="-staging"
 fi
 
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
+# The installed kernels' releases, default first.
+load_kernel_releases
 
 # Every module the signed-kmods repo builds, except NVIDIA (the nvidia
 # scripts install rakuos-kmod-nvidia; nvidia-580xx is for a later legacy
@@ -36,8 +34,6 @@ KMODS=(
 )
 
 rum install -y \
-    ${KERNEL_PKG}-devel \
-    ${KERNEL_PKG}-devel-matched \
     gcc \
     make \
     cabextract \
@@ -54,13 +50,15 @@ rum install -y \
     $(printf "rakuos-kmod-%s${KMOD_SUFFIX} " "${KMODS[@]}")
 
 # The signed-kmods packages carry modules only for the kernels that were
-# current when they were built. One that predates this kernel installs
+# current when they were built. One that predates these kernels installs
 # without complaint and ships nothing loadable, so fail the build instead.
 for pkg in $(printf "rakuos-kmod-%s${KMOD_SUFFIX} " "${KMODS[@]}"); do
-    grep -q "^/usr/lib/modules/${QUALIFIED_KERNEL}/" < <(rpm -ql "$pkg") || {
-        echo "ERROR: $(rpm -q "$pkg") has no modules for ${QUALIFIED_KERNEL}; rebuild signed-kmods"
-        exit 1
-    }
+    for kver in "${KERNEL_RELEASES[@]}"; do
+        grep -q "^/usr/lib/modules/${kver}/" < <(rpm -ql "$pkg") || {
+            echo "ERROR: $(rpm -q "$pkg") has no modules for ${kver}; rebuild signed-kmods"
+            exit 1
+        }
+    done
 done
 
 tmpdir="$(mktemp -d)"
@@ -77,31 +75,12 @@ curl -fsSL \
 # Out-of-tree modules (rakuos-kmod-*) arrive already signed with the RakuOS
 # key by the signed-kmods CI, so there's no module signing step here.
 
-# Sign the kernel vmlinuz with MOK key
-VMLINUZ="/usr/lib/modules/${QUALIFIED_KERNEL}/vmlinuz"
-MOK_KEY="/run/secrets/mok_key"
-MOK_CERT_DER="/usr/share/rakuos/sb_pubkey.der"
-if [[ -f "$MOK_KEY" ]] && [[ -f "$VMLINUZ" ]] && [[ -f "$MOK_CERT_DER" ]]; then
-    echo "Signing kernel ${QUALIFIED_KERNEL}..."
-    MOK_CERT_PEM=$(mktemp /tmp/MOK.XXXXXX.crt)
-    openssl x509 -in "$MOK_CERT_DER" -inform DER -out "$MOK_CERT_PEM" -outform PEM
-    sbsign --key "$MOK_KEY" --cert "$MOK_CERT_PEM" \
-        --output "${VMLINUZ}.signed" "$VMLINUZ"
-    mv "${VMLINUZ}.signed" "$VMLINUZ"
-    rm -f "$MOK_CERT_PEM"
-    echo "Kernel signed."
-else
-    echo "MOK key or vmlinuz not available — skipping kernel signing."
-fi
-
-#Build initramfs
-# Generate module dependencies
-depmod "$QUALIFIED_KERNEL"
-
-# Generate initramfs for that kernel
-/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v \
---add ostree --add fido2 --add rakuos-overlay --add rakuos-groups --omit selinux -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
-
-chmod 0600 /usr/lib/modules/"$QUALIFIED_KERNEL"/initramfs.img
+# Sign each kernel with the MOK key and build its initramfs, then leave
+# only the default kernel's vmlinuz where bootc looks (kernels.sh).
+for kver in "${KERNEL_RELEASES[@]}"; do
+    sign_kernel "${kver}"
+    build_initramfs "${kver}"
+done
+stash_alternate_kernels
 
 rm -rf /var/lib/dkms /var/cache/akmods /usr/src/broadcom-wl-* /usr/src/hid-xpadneo-* /usr/src/xpad-noone-* /usr/src/zenergy-* /usr/src/xone-* /usr/src/v4l2loopback-* /usr/src/VERSION
