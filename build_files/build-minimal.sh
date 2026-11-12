@@ -633,7 +633,6 @@ podman-prune.timer
 # gcr-ssh-agent; SSH_AUTH_SOCK is set in
 # /usr/lib/environment.d/50-rakuos-ssh-agent.conf.
 systemctl enable --global \
-rakuos-user.service \
 oo7-daemon.service \
 ssh-agent.socket
 
