@@ -359,6 +359,19 @@ if [ "${RAKUOS_VARIANT:-base}" != "minimal" ]; then
     printf '%s\n' rakuos-branding rakuos-gtk-theme rakuos-icon-theme rakuos-fonts-config rakuos-wallpapers >> "$PROTECTED_FILE"
 fi
 
+# The minimal image installs only part of build.sh's list: protect only
+# the packages it has, so ones a user adds later in a layer (zsh, cups,
+# fonts...) can be removed again.
+if [ "${RAKUOS_VARIANT:-base}" = "minimal" ]; then
+    while IFS= read -r line; do
+        case "$line" in
+            ''|'#'*) echo "$line" ;;
+            *) if rpm -q --quiet "$line"; then echo "$line"; fi ;;
+        esac
+    done < "$PROTECTED_FILE" > "$PROTECTED_FILE.tmp"
+    mv "$PROTECTED_FILE.tmp" "$PROTECTED_FILE"
+fi
+
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 
 echo "Generating base file manifest..."
