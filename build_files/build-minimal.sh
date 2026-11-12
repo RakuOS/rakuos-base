@@ -611,6 +611,9 @@ rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
 rakuos-rescue-entries.path \
+rakuos-kernel-select.service \
+rakuos-kernel-select-sync.service \
+rakuos-kernel-select.path \
 rakuos-layers-boot-ok.service \
 var-lib-rakuos-layers.mount \
 rum-layer-repair.service \
