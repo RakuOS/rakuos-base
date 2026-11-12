@@ -617,6 +617,7 @@ rakuos-kernel-select.path \
 rakuos-layers-boot-ok.service \
 var-lib-rakuos-layers.mount \
 rum-layer-repair.service \
+rum-layer-gc.timer \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \
