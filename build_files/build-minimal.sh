@@ -353,6 +353,7 @@ nvidia-gpu-firmware \
 nvme-cli \
 nxpwireless-firmware \
 oo7-daemon \
+oo7-portal \
 opendoas \
 opensc \
 openssh-server \
