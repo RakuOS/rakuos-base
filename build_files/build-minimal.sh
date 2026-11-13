@@ -6,8 +6,10 @@
 # change to build.sh doesn't carry over by itself.
 #
 # Not here: rakuos-branding (the minimal image only has the logos and the
-# Plymouth, GRUB and fastfetch branding, all from the bootstrap root) and
-# rakuos-wallpapers.
+# Plymouth, GRUB and fastfetch branding, all from the bootstrap root),
+# rakuos-wallpapers, and ananicy-cpp with cachyos-ananicy-rules (process
+# priority rules for desktop apps; `rum install cachyos-ananicy-rules` adds
+# both, then `systemctl enable --now ananicy-cpp`).
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
@@ -221,7 +223,6 @@ alsa-ucm \
 alsa-utils \
 amd-gpu-firmware \
 amd-ucode-firmware \
-ananicy-cpp \
 apparmor-libs \
 apparmor-parser \
 apparmor-profiles \
@@ -243,7 +244,6 @@ brltty \
 btop \
 btrfs-progs \
 buildah \
-cachyos-ananicy-rules \
 chrony \
 cifs-utils \
 cirrus-audio-firmware \
@@ -481,7 +481,6 @@ rum-layer-repair.service \
 rum-layer-gc.timer \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
-ananicy-cpp.service \
 nix.mount \
 flatpak-cleanup.timer \
 flatpak-repair.timer \
