@@ -4,12 +4,13 @@
 # fedora-includes/generic.yaml), minus:
 #   - selinux-policy-targeted and container-selinux: RakuOS uses AppArmor
 #   - kernel: bootstrap.sh installs both RakuOS kernels (see kernels.sh)
-# Everything else on top (rum, RakuOS packages, drivers) comes from build.sh,
+# Everything else on top (rum, the other RakuOS packages, drivers) comes from build.sh,
 # drivers.sh and post-build.sh, as it did on top of Fedora's image.
 
 # Release identity: rakuos-release (or -staging) and rakuos-logos, with the
 # Plymouth and GRUB themes and fastfetch preset from rakuos-branding, are
 # added by bootstrap.sh, so fedora-release and fedora-logos never go in.
+# bootstrap.sh adds rakuos-core (or -staging) too.
 # Fedora's repo files (fedora-repos) still come in as a dependency.
 fedora-repos-archive
 

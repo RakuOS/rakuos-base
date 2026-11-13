@@ -71,7 +71,15 @@ if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
     RAKUOS_RELEASE_PKG="rakuos-release-staging"
 fi
 BRANDING=(rakuos-logos rakuos-plymouth-theme rakuos-grub-theme rakuos-fastfetch-preset)
-PACKAGES+=("${RAKUOS_RELEASE_PKG}" "${BRANDING[@]}")
+# rakuos-core too (the overlay/layer initrd, updater, rakuos command), which
+# every image ships: rakuos-core-staging on staging, built from rakuos-core's
+# staging branch (it provides rakuos-core). Its %post dracut run finds no
+# kernel yet; drivers.sh builds the initramfs once the image is complete.
+RAKUOS_CORE_PKG="rakuos-core"
+if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
+    RAKUOS_CORE_PKG="rakuos-core-staging"
+fi
+PACKAGES+=("${RAKUOS_RELEASE_PKG}" "${BRANDING[@]}" "${RAKUOS_CORE_PKG}")
 FEDORA_BRANDING="fedora-release,fedora-release-common,fedora-release-identity-*,fedora-release-container,fedora-logos,fedora-logos-*,redhat-logos,generic-release,generic-logos"
 # Fedora's kernel-install would try to build an initramfs for a kernel
 # package; with layout=ostree it leaves that to the image build (drivers.sh
@@ -108,7 +116,7 @@ if [ -n "${fedora_left}" ]; then
     echo "ERROR: Fedora release/branding packages got installed: ${fedora_left}" >&2
     exit 1
 fi
-rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common "${BRANDING[@]}"
+rpm --root "${ROOT}" -q "${RAKUOS_RELEASE_PKG}" rakuos-release-common "${BRANDING[@]}" "${RAKUOS_CORE_PKG}"
 
 # ── Kernels ───────────────────────────────────────────────────────────────────
 # Both kernel variants for this ISA level and channel (see kernels.sh), with

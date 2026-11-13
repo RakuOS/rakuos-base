@@ -12,21 +12,8 @@
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
-# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
-# install the staging os-release identity instead of the stable one, so
-# staging images identify themselves as "RakuOS Staging" (see
-# rakuos-release.spec's staging subpackages).
-RAKUOS_RELEASE_PKG="rakuos-release"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    RAKUOS_RELEASE_PKG="rakuos-release-staging"
-fi
-
-# Same for rakuos-core: staging images install rakuos-core-staging, built
-# from rakuos-core's staging branch (it provides rakuos-core).
-RAKUOS_CORE_PKG="rakuos-core"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    RAKUOS_CORE_PKG="rakuos-core-staging"
-fi
+# rakuos-release (or -staging) and rakuos-core (or -staging) are already in
+# the bootstrapped root (bootstrap/bootstrap.sh).
 
 # x86-64 ISA level (RAKUOS_ISA_LEVEL = v2, v3 or v4, a --build-arg from CI):
 # picks the rakuos-v3/-v4 repos below. The kernels for it are already in the
@@ -391,8 +378,6 @@ python3-setuptools \
 qcom-wwan-firmware \
 qemu-guest-agent \
 quota \
-${RAKUOS_CORE_PKG} \
-${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 realtek-firmware \
 ripgrep \
