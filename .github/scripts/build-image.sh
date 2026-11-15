@@ -7,12 +7,15 @@
 #   CONTAINERFILE      Containerfile to build
 #   QUAY_REPO          quay.io repository to push to
 #   DESC_SUFFIX        appended to IMAGE_DESC in the description label
-#   KIND               "fedora": built on Fedora bootc, gets FEDORA_VERSION
-#                      "derived": built FROM another RakuOS image, gets
-#                      BASE_IMAGE_TAG (the branch's tag)
+#   KIND               "fedora": built from nothing (rakuos-base's base and
+#                      minimal images bootstrap their own root filesystem)
+#                      "derived": built FROM another RakuOS image, tag =
+#                      the branch's tag
 #   BASE_REPO          derived only: image repository to build FROM
 #                      (empty = the Containerfile's default)
-#   EXTRA_BUILD_ARGS   space-separated KEY=VALUE build args
+#   EXTRA_BUILD_ARGS   space-separated KEY=VALUE build args (RAKUOS_ISA_LEVEL,
+#                      RAKUOS_VARIANT, RAKUOS_GPU, NVIDIA_LEGACY: one
+#                      Containerfile builds every image of a repo)
 # Plus BRANCH, FEDORA_VERSION_OVERRIDE, RUN_ID, SOURCE_URL, REVISION and the
 # secrets QUAY_USER, QUAY_TOKEN, QUAY_API_TOKEN, GITLAB_SECURE_FILES_TOKEN,
 # COSIGN_PASSWORD.
@@ -70,8 +73,17 @@ dnf install -y --quiet jq
 # unpack ("unpacking failed ... unexpected EOF") in every variant. The
 # container is privileged and /var/lib/containers is an ext4 volume, so
 # native overlay works here.
-sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
-  /etc/containers/storage.conf
+# quay.io/buildah/stable sets fuse-overlayfs in /etc/containers/storage.conf
+# up to containers-common 0.68, and in drop-ins under
+# /etc/containers/storage.rootful.conf.d/ from 0.69 on (the image of
+# 2026-11-10 has no /etc/containers/storage.conf at all): edit whichever
+# exists.
+storage_confs=()
+for f in /etc/containers/storage.conf /etc/containers/storage.rootful.conf.d/*.conf; do
+  [ -f "$f" ] && storage_confs+=("$f")
+done
+[ "${#storage_confs[@]}" -gt 0 ] || { echo "ERROR: no containers storage config to switch to the overlay driver" >&2; exit 1; }
+sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' "${storage_confs[@]}"
 # buildah puts the upper dir of RUN --mount=type=bind,rw overlays in its
 # temp dir (/var/tmp by default), which here sits on the container's own
 # overlayfs root; the kernel overlay driver refuses an upper dir there
@@ -80,6 +92,12 @@ sed -i -e '/^mount_program *=/d' -e 's/^mountopt *=.*/mountopt = "nodev"/' \
 export TMPDIR=/var/lib/containers/tmp
 mkdir -p "${TMPDIR}"
 buildah info | jq -c '.store | {GraphDriverName, GraphOptions, GraphStatus}' || true
+# A store that still uses fuse-overlayfs builds broken layers (see above);
+# stop here instead of failing later with "unexpected EOF".
+if buildah info | jq -r '.store.GraphOptions | tostring' | grep -q fuse-overlayfs; then
+  echo "ERROR: buildah still uses fuse-overlayfs; storage config: ${storage_confs[*]}" >&2
+  exit 1
+fi
 
 # Run a registry or network command, retrying any failure. Quay sometimes
 # answers 401/403/404/5xx for a short while; buildah's own --retry treats the
@@ -116,13 +134,21 @@ fetch_secure_file() {
   chmod 600 "${dest}"
 }
 
-build_args=(--build-arg RAKUOS_STAGING="${RAKUOS_STAGING}")
+# What a derived image builds FROM: the RakuOS image it's based on, at this
+# branch's tag. rakuos-base reads BASE_IMAGE (repo:tag), the other repos
+# BASE_IMAGE_REPO and BASE_IMAGE_TAG. Fedora-kind builds pass none of these:
+# they bootstrap their own root.
+BASE_TAG=""
+BASE_IMAGE=""
 if [ "${KIND}" = "derived" ]; then
-  build_args+=(--build-arg BASE_IMAGE_TAG="${BRANCH_SLUG}")
-  [ -n "${BASE_REPO:-}" ] && build_args+=(--build-arg BASE_IMAGE_REPO="${BASE_REPO}")
-else
-  build_args+=(--build-arg FEDORA_VERSION="${FEDORA_VERSION}")
+  BASE_TAG="${BRANCH_SLUG}"
+  [ -n "${BASE_REPO:-}" ] && BASE_IMAGE="${BASE_REPO}:${BASE_TAG}"
 fi
+build_args=(--build-arg RAKUOS_STAGING="${RAKUOS_STAGING}"
+            --build-arg FEDORA_VERSION="${FEDORA_VERSION}")
+[ -n "${BASE_TAG}" ] && build_args+=(--build-arg BASE_IMAGE_TAG="${BASE_TAG}")
+[ -n "${BASE_REPO:-}" ] && build_args+=(--build-arg BASE_IMAGE_REPO="${BASE_REPO}")
+[ -n "${BASE_IMAGE}" ] && build_args+=(--build-arg BASE_IMAGE="${BASE_IMAGE}")
 for arg in ${EXTRA_BUILD_ARGS:-}; do
   build_args+=(--build-arg "${arg}")
 done
@@ -140,14 +166,19 @@ fi
 # buildah build (pull policy "missing") never has to reach the registry
 # itself. Retrying the whole build would repeat it on real build errors.
 from_images() {
-  local repo_default base_repo ref
+  local repo_default base_repo image_default base_image tag_default base_tag ref
   repo_default=$(sed -n 's/^ARG BASE_IMAGE_REPO="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
   base_repo="${BASE_REPO:-${repo_default}}"
+  tag_default=$(sed -n 's/^ARG BASE_IMAGE_TAG="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
+  base_tag="${BASE_TAG:-${tag_default}}"
+  image_default=$(sed -n 's/^ARG BASE_IMAGE="\(.*\)"$/\1/p' "${CONTAINERFILE}" | head -n 1)
+  base_image="${BASE_IMAGE:-${image_default}}"
   awk '/^FROM /{print $2}' "${CONTAINERFILE}" | while read -r ref; do
     case "${ref}" in scratch | oci-archive:* | oci:*) continue ;; esac
-    ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
     ref="${ref//'${BASE_IMAGE_REPO}'/${base_repo}}"
-    ref="${ref//'${BASE_IMAGE_TAG}'/${BRANCH_SLUG}}"
+    ref="${ref//'${BASE_IMAGE_TAG}'/${base_tag}}"
+    ref="${ref//'${BASE_IMAGE}'/${base_image}}"
+    ref="${ref//'${FEDORA_VERSION}'/${FEDORA_VERSION}}"
     case "${ref}" in
       *'$'*) echo "WARNING: can't resolve FROM ${ref}; buildah will pull it" >&2 ;;
       */*) echo "${ref}" ;;  # registry image (a bare name is an earlier stage)
@@ -159,12 +190,23 @@ for ref in $(from_images); do
   retry buildah pull --quiet "${ref}" >/dev/null
 done
 
+# Two steps: the chunkah stage writes out.ociarchive, then the final stage
+# (FROM oci-archive:out.ociarchive AS final) is built from it. In one build
+# buildah could start the final stage before the archive exists ("archive
+# file not found"): it doesn't know that stage depends on the file, and a
+# stage waiting for an earlier one lets another stage run meanwhile.
 buildah build \
   --file "${CONTAINERFILE}" \
   "${build_args[@]}" \
   --skip-unused-stages=false \
   -v "$(pwd)":/run/src --security-opt=label=disable \
   "${secret_args[@]}" \
+  --target chunkah \
+  .
+buildah build \
+  --file "${CONTAINERFILE}" \
+  "${build_args[@]}" \
+  --target final \
   --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --label "org.opencontainers.image.version=${BRANCH_SLUG}.${DATE_TAG}" \
   --label "org.opencontainers.image.description=${IMAGE_DESC}${DESC_SUFFIX}" \

@@ -1,32 +1,22 @@
 #!/bin/bash
+# build.sh: the base image's package installs and setup. The minimal image
+# runs build-minimal.sh instead (RAKUOS_VARIANT=minimal); keep the two in
+# step where both should change.
 
 set -ouex pipefail
 FEDORA_VERSION=$(rpm -E %fedora)
 
-# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
-# install the staging os-release identity instead of the stable one, so
-# staging images identify themselves as "RakuOS Staging" (see
-# rakuos-release.spec's staging subpackages).
-RAKUOS_RELEASE_PKG="rakuos-release"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    RAKUOS_RELEASE_PKG="rakuos-release-staging"
-fi
+# rakuos-release (or -staging) and rakuos-core (or -staging) are already in
+# the bootstrapped root (bootstrap/bootstrap.sh).
 
-# Same for rakuos-core: staging images install rakuos-core-staging, built
-# from rakuos-core's staging branch (it provides rakuos-core).
-RAKUOS_CORE_PKG="rakuos-core"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    RAKUOS_CORE_PKG="rakuos-core-staging"
-fi
-
-# On the staging branch (RAKUOS_STAGING=1, set via --build-arg from CI)
-# track kernel-staging's -staging tagged builds (kernel-p03-v2-staging)
-# instead of the stable kernel repo's kernel-p03-v2, so staging images pick
-# up in-flight kernel changes.
-KERNEL_PKG="kernel-rakuos-v2"
-if [ "${RAKUOS_STAGING:-0}" = "1" ]; then
-    KERNEL_PKG="kernel-rakuos-v2-staging"
-fi
+# x86-64 ISA level (RAKUOS_ISA_LEVEL = v2, v3 or v4, a --build-arg from CI):
+# picks the rakuos-v3/-v4 repos below. The kernels for it are already in the
+# bootstrapped root (bootstrap.sh, kernels.sh).
+RAKUOS_ISA_LEVEL="${RAKUOS_ISA_LEVEL:-v2}"
+case "${RAKUOS_ISA_LEVEL}" in
+    v2|v3|v4) ;;
+    *) echo "Unknown RAKUOS_ISA_LEVEL '${RAKUOS_ISA_LEVEL}' (want v2, v3 or v4)" >&2; exit 1 ;;
+esac
 
 ## Enable the rakuos repo first — rum itself lives in it, so this has to
 ## happen before anything else, using the base image's real dnf5 since rum
@@ -34,6 +24,15 @@ fi
 dnf5 -y install dnf5-plugins
 rpm --import https://repo.rakuos.org/pubkey.gpg
 dnf5 -y config-manager addrepo --from-repofile=https://repo.rakuos.org/rakuos.repo
+# v3 images also use the rakuos-v3 repo; v4 images use both v3 and v4.
+case "${RAKUOS_ISA_LEVEL}" in
+    v3) isa_repos="v3" ;;
+    v4) isa_repos="v3 v4" ;;
+    *)  isa_repos="" ;;
+esac
+for isa in ${isa_repos}; do
+    sed -i "/^\[rakuos-${isa}\]/,/^\[/ s/^enabled=0/enabled=1/" /etc/yum.repos.d/rakuos.repo
+done
 
 ## Install rum + the dnf/dnf5 shims as the very first packages — from here
 ## on, every install/remove/upgrade/swap in this script goes through rum
@@ -97,8 +96,12 @@ shipped_repo_files() {
 rum install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
               https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
 
-rm /etc/dnf/protected.d/selinux-policy-targeted.conf
-rum remove -y 'selinux-policy*' 'policycoreutils-gui'
+# SELinux: the bootstrapped root never has it (RakuOS uses AppArmor); a root
+# built FROM Fedora's bootc image does.
+rm -f /etc/dnf/protected.d/selinux-policy-targeted.conf
+if rpm -q selinux-policy >/dev/null 2>&1; then
+    rum remove -y 'selinux-policy*' 'policycoreutils-gui'
+fi
 rum upgrade -y --best --allowerasing 'rpm*' 'ostree*'
 
 rpm --import https://repos.fyralabs.com/terra${FEDORA_VERSION}/key.asc
@@ -131,12 +134,16 @@ for REPO in $TERRA_REPOS; do
         | tar -xz -C "/usr/share/swcatalog/icons/${REPO}/128x128" --strip-components=1 2>/dev/null || true
 done
 
-#remove fedora kernel and zram config
-rum remove -y --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults
-rm -rf /boot/* /usr/lib/modules/* /lib/modules/*
-
-# Install P03 kernel
-rum install -y --setopt=tsflags=noscripts ${KERNEL_PKG} ${KERNEL_PKG}-devel ${KERNEL_PKG}-devel-matched
+# Remove Fedora's kernel and zram config, where the root has them (the
+# bootstrapped root has neither).
+FEDORA_KERNEL_PKGS=$(rpm -q --qf '%{NAME}\n' kernel kernel-core kernel-modules kernel-modules-core \
+    kernel-modules-extra kernel-tools kernel-tools-libs zram-generator-defaults 2>/dev/null | grep -v 'not installed' || true)
+if [ -n "$FEDORA_KERNEL_PKGS" ]; then
+    rum remove -y --no-autoremove $FEDORA_KERNEL_PKGS
+fi
+# The RakuOS kernels are already installed (bootstrap.sh), so
+# /usr/lib/modules stays.
+rm -rf /boot/*
 
 rum install -y --skip-unavailable libva-intel-media-driver \
 libopenjph \
@@ -166,27 +173,38 @@ rum install -y pipewire-libs.i686 pipewire-alsa.i686
 
 rum upgrade -y --best --allowerasing 'systemd*'
 
-# Determine the installed kernel version
-QUALIFIED_KERNEL=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' ${KERNEL_PKG})
-
+# cpak install disabled for now: GitHub keeps answering 503/504 for the
+# release downloads and the releases API from CI. Uncomment to bring it back.
 # Install cpak (https://cpak.it/docs/install) — download the latest release's
 # binaries and verify against the published SHA256SUMS before installing;
 # cpak looks for cpak-storaged beside cpak itself, so both go into /usr/bin.
-# GitHub sometimes answers 403 on the shared CI runners, and the unauthenticated
-# releases API is rate limited per IP; take the latest tag from the
-# releases/latest redirect instead of the API, and retry every download.
-CURL_RETRY=(--retry 5 --retry-all-errors --retry-delay 10)
-CPAK_VERSION=$(curl -fsSLI "${CURL_RETRY[@]}" -o /dev/null -w '%{url_effective}' \
-    https://github.com/Containerpak/cpak/releases/latest | sed 's#.*/releases/tag/##')
-[ -n "${CPAK_VERSION}" ] || { echo "ERROR: could not find the latest cpak release"; exit 1; }
-CPAK_BASE="https://github.com/Containerpak/cpak/releases/download/${CPAK_VERSION}"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-linux-amd64 "${CPAK_BASE}/cpak-linux-amd64"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-storaged-linux-amd64 "${CPAK_BASE}/cpak-storaged-linux-amd64"
-curl -fsSL "${CURL_RETRY[@]}" -o /tmp/cpak-SHA256SUMS "${CPAK_BASE}/SHA256SUMS"
-(cd /tmp && sha256sum -c --ignore-missing cpak-SHA256SUMS)
-install -Dm755 /tmp/cpak-linux-amd64 /usr/bin/cpak
-install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
-rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
+# releases/latest/download/<asset> redirects straight to the file, so no
+# version lookup is needed. github.com's release download URLs sometimes
+# answer 504 for a while (the API's asset endpoint keeps working), so when a
+# download fails, fetch that asset through the API instead. The API is rate
+# limited per IP for unauthenticated use, which is why it's only the fallback.
+# CURL_RETRY=(--retry 3 --retry-all-errors --retry-delay 10)
+# CPAK_BASE="https://github.com/Containerpak/cpak/releases/latest/download"
+# CPAK_API="https://api.github.com/repos/Containerpak/cpak/releases/latest"
+# CPAK_RELEASE_JSON=""
+# fetch_cpak() {  # fetch_cpak <asset> <dest>
+#     curl -fsSL "${CURL_RETRY[@]}" -o "$2" "${CPAK_BASE}/$1" && return 0
+#     echo "github.com download of $1 failed; trying the releases API"
+#     [ -n "${CPAK_RELEASE_JSON}" ] || CPAK_RELEASE_JSON=$(curl -fsSL "${CURL_RETRY[@]}" "${CPAK_API}")
+#     local url
+#     url=$(awk -v want="$1" '/"url": ".*\/releases\/assets\/[0-9]+"/ { u = $2 }
+#         /"name": / { n = $2; gsub(/[",]/, "", n); if (n == want) { gsub(/[",]/, "", u); print u; exit } }' \
+#         <<< "${CPAK_RELEASE_JSON}")
+#     [ -n "${url}" ] || { echo "ERROR: cpak release has no asset $1"; return 1; }
+#     curl -fsSL "${CURL_RETRY[@]}" -H 'Accept: application/octet-stream' -o "$2" "${url}"
+# }
+# fetch_cpak cpak-linux-amd64 /tmp/cpak-linux-amd64
+# fetch_cpak cpak-storaged-linux-amd64 /tmp/cpak-storaged-linux-amd64
+# fetch_cpak SHA256SUMS /tmp/cpak-SHA256SUMS
+# (cd /tmp && sha256sum -c --ignore-missing cpak-SHA256SUMS)
+# install -Dm755 /tmp/cpak-linux-amd64 /usr/bin/cpak
+# install -Dm755 /tmp/cpak-storaged-linux-amd64 /usr/bin/cpak-storaged
+# rm -f /tmp/cpak-linux-amd64 /tmp/cpak-storaged-linux-amd64 /tmp/cpak-SHA256SUMS
 
 # install packages
 rum install -y --skip-unavailable @fonts @hardware-support \
@@ -377,6 +395,7 @@ mesa-dri-drivers \
 mesa-vulkan-drivers \
 microcode_ctl \
 mkpasswd \
+mozilla-filesystem \
 mpage \
 mt7xxx-firmware \
 mtr \
@@ -449,8 +468,6 @@ qemu-guest-agent \
 qemu-user-static-aarch64 \
 quota \
 rakuos-branding \
-${RAKUOS_CORE_PKG} \
-${RAKUOS_RELEASE_PKG} \
 rakuos-settings \
 rakuos-wallpapers \
 realmd \
@@ -568,17 +585,20 @@ chmod 0440 /etc/sudoers.d/pwfeedback
 
 #enable enable services
 systemctl enable \
-rakuos-base-protect.service \
 rakuos-overlay-sync.service \
 rakuos-setup.service \
-rakuos-flatpak-watcher.service \
+rakuos-account-ids.service \
 rakuos-grub-theme.service \
 rakuos-bootloader-update.service \
 rakuos-rescue-entries.service \
 rakuos-rescue-entries.path \
+rakuos-kernel-select.service \
+rakuos-kernel-select-sync.service \
+rakuos-kernel-select.path \
 rakuos-layers-boot-ok.service \
 var-lib-rakuos-layers.mount \
 rum-layer-repair.service \
+rum-layer-gc.timer \
 rakuos-os-entries.timer \
 dmemcg-booster.service \
 ananicy-cpp.service \

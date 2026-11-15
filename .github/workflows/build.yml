@@ -62,12 +62,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "base", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base", base_repo: "", extra: "", desc: "" }
-          - { name: "base-v4", containerfile: "Containerfile.v4", repo: "quay.io/rakuos/rakuos-base-v4", base_repo: "", extra: "", desc: "" }
-          - { name: "base-v3", containerfile: "Containerfile.v3", repo: "quay.io/rakuos/rakuos-base-v3", base_repo: "", extra: "", desc: "" }
-          - { name: "minimal", containerfile: "Containerfile.minimal", repo: "quay.io/rakuos/rakuos-minimal", base_repo: "", extra: "", desc: " (Minimal)" }
-          - { name: "minimal-v4", containerfile: "Containerfile.minimal.v4", repo: "quay.io/rakuos/rakuos-minimal-v4", base_repo: "", extra: "", desc: " (Minimal)" }
-          - { name: "minimal-v3", containerfile: "Containerfile.minimal.v3", repo: "quay.io/rakuos/rakuos-minimal-v3", base_repo: "", extra: "", desc: " (Minimal)" }
+          - { name: "base", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=base", desc: "" }
+          - { name: "base-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-v4", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=base", desc: "" }
+          - { name: "base-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-v3", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=base", desc: "" }
+          - { name: "minimal", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=minimal", desc: " (Minimal)" }
+          - { name: "minimal-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-v4", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=minimal", desc: " (Minimal)" }
+          - { name: "minimal-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-v3", base_repo: "", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=minimal", desc: " (Minimal)" }
     steps:
       - uses: actions/checkout@v6
 
@@ -124,18 +124,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "nvidia", containerfile: "Containerfile.nvidia", repo: "quay.io/rakuos/rakuos-base-nvidia", base_repo: "", extra: "", desc: " (NVIDIA)", parent: "base" }
-          - { name: "nvidia-v4", containerfile: "Containerfile.nvidia.v4", repo: "quay.io/rakuos/rakuos-base-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "", desc: " (NVIDIA)", parent: "base-v4" }
-          - { name: "nvidia-v3", containerfile: "Containerfile.nvidia.v3", repo: "quay.io/rakuos/rakuos-base-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "", desc: " (NVIDIA)", parent: "base-v3" }
-          - { name: "nvidia-legacy", containerfile: "Containerfile.nvidia", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy", base_repo: "", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base" }
-          - { name: "nvidia-legacy-v4", containerfile: "Containerfile.nvidia.v4", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v4" }
-          - { name: "nvidia-legacy-v3", containerfile: "Containerfile.nvidia.v3", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v3" }
-          - { name: "minimal-nvidia", containerfile: "Containerfile.minimal.nvidia", repo: "quay.io/rakuos/rakuos-minimal-nvidia", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal" }
-          - { name: "minimal-nvidia-v4", containerfile: "Containerfile.minimal.nvidia.v4", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
-          - { name: "minimal-nvidia-v3", containerfile: "Containerfile.minimal.nvidia.v3", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
-          - { name: "minimal-nvidia-legacy", containerfile: "Containerfile.minimal.nvidia", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal" }
-          - { name: "minimal-nvidia-legacy-v4", containerfile: "Containerfile.minimal.nvidia.v4", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
-          - { name: "minimal-nvidia-legacy-v3", containerfile: "Containerfile.minimal.nvidia.v3", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
+          - { name: "nvidia", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia", base_repo: "quay.io/rakuos/rakuos-base", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia", desc: " (NVIDIA)", parent: "base" }
+          - { name: "nvidia-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia", desc: " (NVIDIA)", parent: "base-v4" }
+          - { name: "nvidia-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia", desc: " (NVIDIA)", parent: "base-v3" }
+          - { name: "nvidia-legacy", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy", base_repo: "quay.io/rakuos/rakuos-base", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base" }
+          - { name: "nvidia-legacy-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-base-v4", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v4" }
+          - { name: "nvidia-legacy-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-base-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-base-v3", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=base RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (NVIDIA legacy, 580xx)", parent: "base-v3" }
+          - { name: "minimal-nvidia", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia", desc: " (Minimal NVIDIA)", parent: "minimal" }
+          - { name: "minimal-nvidia-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
+          - { name: "minimal-nvidia-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
+          - { name: "minimal-nvidia-legacy", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy", base_repo: "quay.io/rakuos/rakuos-minimal", extra: "RAKUOS_ISA_LEVEL=v2 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal" }
+          - { name: "minimal-nvidia-legacy-v4", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v4", base_repo: "quay.io/rakuos/rakuos-minimal-v4", extra: "RAKUOS_ISA_LEVEL=v4 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v4" }
+          - { name: "minimal-nvidia-legacy-v3", containerfile: "Containerfile", repo: "quay.io/rakuos/rakuos-minimal-nvidia-legacy-v3", base_repo: "quay.io/rakuos/rakuos-minimal-v3", extra: "RAKUOS_ISA_LEVEL=v3 RAKUOS_VARIANT=minimal RAKUOS_GPU=nvidia NVIDIA_LEGACY=1", desc: " (Minimal NVIDIA)", parent: "minimal-v3" }
     steps:
       - uses: actions/checkout@v6
 

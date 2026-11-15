@@ -200,13 +200,11 @@ else
     > "$PROTECTED_FILE"
 fi
 
-# The kernel this image installed: kernel-rakuos-v2/-v3/-v4, with -staging on
-# the staging channel. build.sh, build-v3.sh and build-v4.sh each pick their
-# own, so read it back from the rpmdb instead of hardcoding v2 (which left the
-# v3/v4 kernels unprotected).
-KERNEL_PKG=$(rpm -qa --qf '%{NAME}\n' 'kernel-rakuos-v*' | grep -E '^kernel-rakuos-v[0-9]+(-staging)?$' | head -n 1)
-[ -n "$KERNEL_PKG" ] || { echo "ERROR: no kernel-rakuos-v* package installed"; exit 1; }
-echo "Protecting kernel package ${KERNEL_PKG}"
+# The kernels this image installed: both variants for its ISA level and
+# channel (kernels.sh, installed by bootstrap.sh).
+source "$(dirname "$(readlink -f "$0")")/kernels.sh"
+load_kernel_releases
+echo "Protecting kernel packages ${KERNEL_PKGS[*]}"
 
 cat >> "$PROTECTED_FILE" << EOF
 
@@ -214,6 +212,8 @@ cat >> "$PROTECTED_FILE" << EOF
 dnf5-plugins
 ${KERNEL_PKG}
 ${KERNEL_PKG}-devel-matched
+${KERNEL_AC_PKG}
+${KERNEL_AC_PKG}-devel-matched
 intel-vaapi-driver
 libopenjph
 libva-utils
@@ -312,11 +312,13 @@ procs
 pulseaudio-utils
 python3-pip
 python3-setuptools
-rakuos-branding
+rakuos-logos
+rakuos-plymouth-theme
+rakuos-grub-theme
+rakuos-fastfetch-preset
 rakuos-core
 rakuos-release
 rakuos-settings
-rakuos-wallpapers
 ripgrep
 rsms-inter-fonts
 rsync
@@ -351,6 +353,25 @@ zsh
 zstd
 EOF
 
+# Only the base image has the full branding and the wallpapers (the minimal
+# image ships the logos, Plymouth, GRUB and fastfetch branding only).
+if [ "${RAKUOS_VARIANT:-base}" != "minimal" ]; then
+    printf '%s\n' rakuos-branding rakuos-gtk-theme rakuos-icon-theme rakuos-fonts-config rakuos-wallpapers >> "$PROTECTED_FILE"
+fi
+
+# The minimal image installs only part of build.sh's list: protect only
+# the packages it has, so ones a user adds later in a layer (zsh, cups,
+# fonts...) can be removed again.
+if [ "${RAKUOS_VARIANT:-base}" = "minimal" ]; then
+    while IFS= read -r line; do
+        case "$line" in
+            ''|'#'*) echo "$line" ;;
+            *) if rpm -q --quiet "$line"; then echo "$line"; fi ;;
+        esac
+    done < "$PROTECTED_FILE" > "$PROTECTED_FILE.tmp"
+    mv "$PROTECTED_FILE.tmp" "$PROTECTED_FILE"
+fi
+
 echo "protected-packages.txt ready ($(grep -c '^[^#]' "$PROTECTED_FILE") packages)."
 
 echo "Generating base file manifest..."
@@ -372,3 +393,10 @@ fi
 # although .../EFI.json lists grub2 ...". Same command Fedora's bootc image
 # build runs; it only works with / as the root.
 bootupctl backend generate-update-metadata /
+
+# System accounts this build's package installs created go to nss-altfiles
+# with the rest (and any without a pinned ID in bootstrap/static-ids/ are
+# listed in the log). Installed into the image so the desktop images'
+# post-build.sh can run the same step after their own package installs.
+install -Dm0755 /ctx/finalize-accounts.sh /usr/libexec/rakuos/finalize-accounts
+/usr/libexec/rakuos/finalize-accounts

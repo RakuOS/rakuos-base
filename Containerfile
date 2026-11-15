@@ -1,23 +1,65 @@
-# Global build arg — available to all FROM lines for image tag resolution.
-# Must NOT have ENV here; ENV is a layer instruction and cannot precede FROM.
-ARG FEDORA_VERSION="${FEDORA_VERSION:-43}"
+# One Containerfile for every rakuos-base image. CI picks the image with
+# build args instead of a separate Containerfile per image:
+#
+#   BASE_IMAGE          what to build FROM. Unset for the base and minimal
+#                       images: they build on rakuos-rootfs, a root filesystem
+#                       bootstrapped from nothing below. The NVIDIA images set
+#                       it to the base/minimal image just built for this branch.
+#   RAKUOS_ISA_LEVEL    v2, v3 or v4: kernel flavor and rakuos-v3/v4 repos
+#   RAKUOS_VARIANT      base or minimal (minimal runs build-minimal.sh instead
+#                       of build.sh, and also post-build-overlay.sh)
+#   RAKUOS_GPU          none, or nvidia for the NVIDIA images, which only run
+#                       nvidia.sh on top of the image they're built FROM
+#   NVIDIA_LEGACY       1 for the legacy NVIDIA (580xx) images
+#   RAKUOS_STAGING      1 on the staging branch (-staging packages and kernel)
+#
+# Global build args: available to the FROM lines below.
+ARG FEDORA_VERSION="45"
+ARG BASE_IMAGE="rakuos-rootfs"
 ARG CHUNKAH_CONFIG_STR
 
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
-# Base Image
-FROM quay.io/bootc-devel/fedora-bootc-${FEDORA_VERSION}-minimal:latest AS builder
+# The root filesystem, bootstrapped from nothing: rum installs a minimal
+# package set (build_files/bootstrap/packages.txt) and both RakuOS kernels
+# (build_files/kernels.sh) into an empty directory, and bootstrap.sh does the
+# rest of what Fedora's bootc image build does.
+# Only the base and minimal images use it; for the NVIDIA ones (built FROM a
+# finished image) this stage is an empty directory.
+FROM quay.io/fedora/fedora:${FEDORA_VERSION} AS rootfs-builder
+ARG RAKUOS_GPU="none"
+ARG RAKUOS_ISA_LEVEL="v2"
+ARG RAKUOS_STAGING="0"
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    if [ "${RAKUOS_GPU}" = "none" ]; then \
+        /ctx/bootstrap/bootstrap.sh /target; \
+    else \
+        mkdir -p /target; \
+    fi
+
+FROM scratch AS rakuos-rootfs
+COPY --from=rootfs-builder /target/ /
+
+FROM ${BASE_IMAGE} AS builder
 # Re-declare ARG inside this stage so it is in scope, then persist it as an
 # environment variable for RUN scripts that read $FEDORA_VERSION at runtime.
 ARG FEDORA_VERSION
 ENV FEDORA_VERSION=${FEDORA_VERSION}
-# Set by CI to "1" on the staging branch so build.sh installs
-# rakuos-release-staging instead of rakuos-release.
 ARG RAKUOS_STAGING="0"
 ENV RAKUOS_STAGING=${RAKUOS_STAGING}
+# Build args are in the environment of every RUN below. chunkah repacks the
+# filesystem into a fresh image config, so none of this reaches the final
+# image's environment.
+ARG RAKUOS_ISA_LEVEL="v2"
+ARG RAKUOS_VARIANT="base"
+ARG RAKUOS_GPU="none"
+ARG NVIDIA_LEGACY="0"
 
+# Same on every image: for the NVIDIA ones these are already in place in
+# the image they build FROM, and redoing them changes nothing.
 RUN rm -rf /opt && ln -s -T var/opt /opt
 RUN rm -rf /usr/local && ln -s -T ../var/usrlocal /usr/local
 RUN mkdir -vp /nix
@@ -29,7 +71,20 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=mok_key,target=/run/secrets/mok_key,required=false \
-    /ctx/build.sh && /ctx/drivers.sh && /ctx/post-build.sh
+    set -e; \
+    case "${RAKUOS_GPU}" in \
+      none) \
+        if [ "${RAKUOS_VARIANT}" = "minimal" ]; then /ctx/build-minimal.sh; else /ctx/build.sh; fi; \
+        /ctx/drivers.sh; \
+        /ctx/post-build.sh; \
+        if [ "${RAKUOS_VARIANT}" = "minimal" ]; then /ctx/post-build-overlay.sh; fi ;; \
+      nvidia) \
+        /ctx/nvidia.sh ;; \
+      *) \
+        echo "Unknown RAKUOS_GPU '${RAKUOS_GPU}' (want none or nvidia)" >&2; exit 1 ;; \
+    esac; \
+    /ctx/assign-components.sh generated; \
+    /ctx/reset-mtimes.sh
 
 COPY system_files /
 # Clean up real runtime state (systemd units started mid-build, akmods/
@@ -39,13 +94,22 @@ COPY system_files /
 # cache/tmpfs) build step above has already finished and unmounted, so it
 # only ever touches plain files already baked into the layer — never a
 # live mount the build engine itself still has open.
-RUN find /run -mindepth 1 -delete 2>/dev/null || true; \
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,source=system_files,target=/run/rakuos-system-files,ro \
+    /ctx/assign-components.sh files rakuos-base-files /run/rakuos-system-files; \
+    # Not /run/src: CI binds the build directory (the checkout, Containerfile
+    # included) there for every RUN (-v $(pwd):/run/src), and deleting it
+    # emptied the checkout before the final build step could read it.
+    find /run -mindepth 1 -maxdepth 1 ! -path /run/src -exec rm -rf {} + 2>/dev/null || true; \
     find /tmp -mindepth 1 -delete 2>/dev/null || true; \
-    find /boot -mindepth 1 -delete 2>/dev/null || true
+    find /boot -mindepth 1 -delete 2>/dev/null || true; \
+    /ctx/reset-mtimes.sh
 
 # RUN bootc container lint
 
-FROM quay.io/coreos/chunkah AS chunkah
+# chunkah v0.7.1, pinned: another version can plan layers differently,
+# which would change every layer of the next update.
+FROM quay.io/coreos/chunkah@sha256:71e593421c5de7dcc7c8c5c50e98d3bac572055a76f399f61a491d123c20a523 AS chunkah
 # org.rakuos.kernel.release: the kernel release of this image, what `uname -r`
 # shows once it's booted, read from the finished root filesystem (the only
 # kernel with a vmlinuz). It can't be a CI --label like
@@ -55,10 +119,13 @@ RUN --mount=from=builder,src=/,target=/chunkah,ro \
     --mount=type=bind,target=/run/src,rw \
         KREL=$(basename "$(dirname "$(ls /chunkah/usr/lib/modules/*/vmlinuz | head -1)")") && \
         [ -n "$KREL" ] && \
-        chunkah build --prune /sysroot/ --max-layers 64 --threads 4 --compressed \
+        chunkah build --prune /sysroot/ --max-layers 256 --threads 4 --compressed \
           --label ostree.commit- --label ostree.final-diffid- \
           --label "org.rakuos.kernel.release=${KREL}" \
           > /run/src/out.ociarchive
 
-FROM oci-archive:out.ociarchive
+# Built on its own (--target final) after the chunkah stage has written
+# out.ociarchive: buildah doesn't know this stage depends on that file and
+# could otherwise start it first ("archive file not found").
+FROM oci-archive:out.ociarchive AS final
 LABEL containers.bootc=1
